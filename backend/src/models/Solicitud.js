@@ -23,7 +23,7 @@ const solicitudSchema = new mongoose.Schema(
     },
     estado: {
       type: String,
-      enum: ["pendiente", "en_proceso", "entrevista_agendada", "finalizada", "cancelada"],
+      enum: ["pendiente", "en_proceso", "completada"],
       default: "pendiente",
     },
     analistaId: {

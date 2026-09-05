@@ -3,7 +3,8 @@ import Navbar from './components/Navbar'
 import RutaProtegida from './components/RutaProtegida'
 import Login from './pages/Login'
 import Registro from './pages/Registro'
-import Dashboard from './pages/Dashboard'
+import Panel from './pages/Panel'
+import NuevaSolicitud from './pages/NuevaSolicitud'
 import './App.css'
 
 function App() {
@@ -18,7 +19,15 @@ function App() {
             path="/"
             element={
               <RutaProtegida>
-                <Dashboard />
+                <Panel />
+              </RutaProtegida>
+            }
+          />
+          <Route
+            path="/solicitudes/nueva"
+            element={
+              <RutaProtegida>
+                <NuevaSolicitud />
               </RutaProtegida>
             }
           />

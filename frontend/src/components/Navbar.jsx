@@ -16,6 +16,8 @@ export default function Navbar() {
       <div className="navbar-links">
         {usuario ? (
           <>
+            <Link to="/">Panel</Link>
+            <Link to="/solicitudes/nueva">Nueva solicitud</Link>
             <span>
               {usuario.nombre} ({usuario.rol})
             </span>

@@ -9,9 +9,9 @@ const candidatoSchema = new mongoose.Schema(
     },
     correo: {
       type: String,
-      required: true,
       lowercase: true,
       trim: true,
+      default: "",
     },
     telefono: {
       type: String,
