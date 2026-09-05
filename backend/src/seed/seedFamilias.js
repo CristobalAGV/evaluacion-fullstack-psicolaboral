@@ -8,23 +8,23 @@ import mongoose from "mongoose";
 const FAMILIAS = [
   {
     nombre: "Atencion al Cliente",
-    plantillaInforme: "plantilla_atencion_cliente.docx",
-    pautaEntrevista: "pauta_atencion_cliente.pdf",
+    plantillaInforme: "atencion-cliente/plantilla_informe.xlsx",
+    pautaEntrevista: "atencion-cliente/pauta_entrevista.docx",
   },
   {
     nombre: "Ventas",
-    plantillaInforme: "plantilla_ventas.docx",
-    pautaEntrevista: "pauta_ventas.pdf",
+    plantillaInforme: "ventas/plantilla_informe.xlsx",
+    pautaEntrevista: "ventas/pauta_entrevista.docx",
   },
   {
     nombre: "Administracion",
-    plantillaInforme: "plantilla_administracion.docx",
-    pautaEntrevista: "pauta_administracion.pdf",
+    plantillaInforme: "administracion/plantilla_informe.xlsx",
+    pautaEntrevista: "administracion/pauta_entrevista.docx",
   },
   {
     nombre: "Operaciones",
-    plantillaInforme: "plantilla_operaciones.docx",
-    pautaEntrevista: "pauta_operaciones.pdf",
+    plantillaInforme: "operaciones/plantilla_informe.xlsx",
+    pautaEntrevista: "operaciones/pauta_entrevista.docx",
   },
 ];
 

@@ -21,6 +21,10 @@ const solicitudSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    carpetaCandidato: {
+      type: String,
+      default: "",
+    },
     estado: {
       type: String,
       enum: ["pendiente", "en_proceso", "completada"],

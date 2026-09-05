@@ -5,6 +5,7 @@ import {
   actualizarSolicitud,
   eliminarSolicitud,
   actualizarEstadoSolicitud,
+  obtenerCarpetaSolicitud,
 } from "../controllers/solicitudController.js";
 import { verificarToken } from "../middleware/auth.js";
 import { uploadCv } from "../middleware/upload.js";
@@ -18,5 +19,6 @@ router.post("/", uploadCv.single("cv"), crearSolicitud);
 router.put("/:id", uploadCv.single("cv"), actualizarSolicitud);
 router.delete("/:id", eliminarSolicitud);
 router.patch("/:id/estado", actualizarEstadoSolicitud);
+router.get("/:id/carpeta", obtenerCarpetaSolicitud);
 
 export default router;

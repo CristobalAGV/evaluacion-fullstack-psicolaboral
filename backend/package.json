@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "seed": "node src/seed/seedFamilias.js"
+    "seed": "node src/seed/seedFamilias.js",
+    "generar-plantillas": "node src/seed/generarPlantillas.js"
   },
   "keywords": [],
   "author": "",
@@ -15,7 +16,9 @@
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
+    "docx": "^9.7.1",
     "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.4",

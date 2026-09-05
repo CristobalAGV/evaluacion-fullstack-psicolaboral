@@ -4,6 +4,14 @@ import Solicitud from "../models/Solicitud.js";
 import Candidato from "../models/Candidato.js";
 import FamiliaDeCargo from "../models/FamiliaDeCargo.js";
 import { UPLOADS_DIR, eliminarArchivo } from "../middleware/upload.js";
+import {
+  PLANTILLAS_DIR,
+  CANDIDATOS_DIR,
+  crearCarpetaCandidato,
+  copiarArchivo,
+  eliminarCarpetaCandidato,
+  listarArchivosCarpeta,
+} from "../utils/carpetas.js";
 
 const ESTADOS_VALIDOS = ["pendiente", "en_proceso", "completada"];
 
@@ -38,6 +46,37 @@ export async function crearSolicitud(req, res) {
       cvUrl,
       analistaId: req.usuario.id,
     });
+
+    try {
+      const { nombreCarpeta, carpetaAbsoluta } = await crearCarpetaCandidato(
+        candidatoDoc.nombre,
+        solicitud._id
+      );
+
+      const extensionCv = path.extname(req.file.filename);
+      await copiarArchivo(req.file.path, carpetaAbsoluta, `CV${extensionCv}`);
+
+      if (familia.plantillaInforme) {
+        const origenInforme = path.join(PLANTILLAS_DIR, familia.plantillaInforme);
+        await copiarArchivo(origenInforme, carpetaAbsoluta, path.basename(familia.plantillaInforme));
+      }
+
+      if (familia.pautaEntrevista) {
+        const origenPauta = path.join(PLANTILLAS_DIR, familia.pautaEntrevista);
+        await copiarArchivo(origenPauta, carpetaAbsoluta, path.basename(familia.pautaEntrevista));
+      }
+
+      solicitud.carpetaCandidato = nombreCarpeta;
+      await solicitud.save();
+    } catch (errorCarpeta) {
+      await Solicitud.findByIdAndDelete(solicitud._id);
+      await Candidato.findByIdAndDelete(candidatoDoc._id);
+      await eliminarArchivo(req.file.path);
+      return res.status(500).json({
+        mensaje: "Error al preparar la carpeta del candidato",
+        error: errorCarpeta.message,
+      });
+    }
 
     const solicitudPoblada = await solicitud.populate(["candidato", "familiaDeCargo"]);
 
@@ -123,6 +162,10 @@ export async function eliminarSolicitud(req, res) {
       await eliminarArchivo(path.join(UPLOADS_DIR, path.basename(solicitud.cvUrl)));
     }
 
+    if (solicitud.carpetaCandidato) {
+      await eliminarCarpetaCandidato(solicitud.carpetaCandidato);
+    }
+
     await Solicitud.findByIdAndDelete(id);
 
     return res.json({ mensaje: "Solicitud eliminada" });
@@ -151,5 +194,27 @@ export async function actualizarEstadoSolicitud(req, res) {
     return res.json(solicitud);
   } catch (error) {
     return res.status(500).json({ mensaje: "Error al actualizar la solicitud", error: error.message });
+  }
+}
+
+export async function obtenerCarpetaSolicitud(req, res) {
+  try {
+    const { id } = req.params;
+
+    const solicitud = await Solicitud.findById(id);
+    if (!solicitud) {
+      return res.status(404).json({ mensaje: "Solicitud no encontrada" });
+    }
+
+    if (!solicitud.carpetaCandidato) {
+      return res.status(404).json({ mensaje: "La solicitud no tiene una carpeta asociada" });
+    }
+
+    const carpetaAbsoluta = path.join(CANDIDATOS_DIR, solicitud.carpetaCandidato);
+    const archivos = await listarArchivosCarpeta(carpetaAbsoluta);
+
+    return res.json({ carpeta: solicitud.carpetaCandidato, archivos });
+  } catch (error) {
+    return res.status(500).json({ mensaje: "Error al listar la carpeta de la solicitud", error: error.message });
   }
 }
