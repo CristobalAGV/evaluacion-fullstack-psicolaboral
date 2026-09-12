@@ -4,9 +4,9 @@ import { listarSolicitudes, actualizarEstadoSolicitud, eliminarSolicitud } from 
 import SolicitudFormulario from "../components/SolicitudFormulario";
 
 const COLUMNAS = [
-  { estado: "pendiente", titulo: "Pendiente", siguiente: "en_proceso", etiquetaBoton: "Mover a en proceso" },
-  { estado: "en_proceso", titulo: "En proceso", siguiente: "completada", etiquetaBoton: "Marcar completada" },
-  { estado: "completada", titulo: "Completada", siguiente: null, etiquetaBoton: null },
+  { estado: "Pendiente", siguiente: "En proceso", etiquetaBoton: "Mover a en proceso" },
+  { estado: "En proceso", siguiente: "Finalizada", etiquetaBoton: "Marcar finalizada" },
+  { estado: "Finalizada", siguiente: null, etiquetaBoton: null },
 ];
 
 export default function Panel() {
@@ -68,36 +68,50 @@ export default function Panel() {
     setSolicitudEnEdicion(null);
   }
 
-  if (cargando) return <p>Cargando panel...</p>;
+  if (cargando) return <p className="text-sm text-slate-500">Cargando panel...</p>;
 
   return (
-    <div className="panel">
-      <div className="panel-header">
-        <h2>Panel de solicitudes</h2>
-        <Link to="/solicitudes/nueva">+ Nueva solicitud</Link>
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-xl font-semibold text-slate-900">Panel de solicitudes</h2>
+        <Link
+          to="/solicitudes/nueva"
+          className="rounded-md bg-indigo-600 text-white font-medium px-4 py-2 text-sm hover:bg-indigo-500"
+        >
+          + Nueva solicitud
+        </Link>
       </div>
-      {error && <p className="error">{error}</p>}
-      <div className="kanban">
+      {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {COLUMNAS.map((columna) => (
-          <div key={columna.estado} className="kanban-columna">
-            <h3>{columna.titulo}</h3>
-            <div className="kanban-tarjetas">
+          <div key={columna.estado} className="bg-slate-100 border border-slate-200 rounded-lg p-3">
+            <h3 className="text-sm font-semibold text-slate-700 mb-3">{columna.estado}</h3>
+            <div className="flex flex-col gap-2.5">
               {solicitudes
                 .filter((s) => s.estado === columna.estado)
                 .map((s) => (
-                  <div key={s._id} className="tarjeta">
-                    <p className="tarjeta-nombre">{s.candidato?.nombre}</p>
-                    <p className="tarjeta-cargo">{s.cargo}</p>
-                    <p className="tarjeta-familia">{s.familiaDeCargo?.nombre}</p>
-                    <div className="tarjeta-acciones">
-                      <button type="button" className="boton-secundario" onClick={() => setSolicitudEnEdicion(s)}>
+                  <div key={s._id} className="bg-white border border-slate-200 rounded-md p-3 flex flex-col gap-1 shadow-sm">
+                    <Link to={`/solicitudes/${s._id}`} className="font-semibold text-slate-900 hover:text-indigo-600">
+                      {s.candidato?.nombre}
+                    </Link>
+                    <p className="text-xs text-slate-500">{s.cargo}</p>
+                    <p className="text-xs text-slate-500">{s.familiaDeCargo?.nombre}</p>
+                    {s.profesionalResponsable?.nombre && (
+                      <p className="text-xs text-slate-400">Responsable: {s.profesionalResponsable.nombre}</p>
+                    )}
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setSolicitudEnEdicion(s)}
+                        className="rounded border border-indigo-600 text-indigo-600 text-xs px-2 py-1 hover:bg-indigo-50"
+                      >
                         Editar
                       </button>
                       <button
                         type="button"
-                        className="boton-peligro"
                         disabled={eliminandoId === s._id}
                         onClick={() => manejarEliminar(s)}
+                        className="rounded border border-red-600 text-red-600 text-xs px-2 py-1 hover:bg-red-50 disabled:opacity-50"
                       >
                         {eliminandoId === s._id ? "Eliminando..." : "Eliminar"}
                       </button>
@@ -106,6 +120,7 @@ export default function Panel() {
                           type="button"
                           disabled={actualizandoId === s._id}
                           onClick={() => moverEstado(s._id, columna.siguiente)}
+                          className="rounded bg-indigo-600 text-white text-xs px-2 py-1 hover:bg-indigo-500 disabled:opacity-50"
                         >
                           {actualizandoId === s._id ? "Moviendo..." : columna.etiquetaBoton}
                         </button>
@@ -114,7 +129,7 @@ export default function Panel() {
                   </div>
                 ))}
               {solicitudes.filter((s) => s.estado === columna.estado).length === 0 && (
-                <p className="kanban-vacio">Sin solicitudes</p>
+                <p className="text-xs text-slate-400">Sin solicitudes</p>
               )}
             </div>
           </div>
@@ -122,8 +137,14 @@ export default function Panel() {
       </div>
 
       {solicitudEnEdicion && (
-        <div className="modal-overlay" onClick={() => setSolicitudEnEdicion(null)}>
-          <div className="modal-contenido" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-10"
+          onClick={() => setSolicitudEnEdicion(null)}
+        >
+          <div
+            className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <SolicitudFormulario
               solicitud={solicitudEnEdicion}
               alGuardar={manejarSolicitudEditada}

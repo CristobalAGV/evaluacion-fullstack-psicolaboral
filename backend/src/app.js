@@ -4,6 +4,9 @@ import multer from "multer";
 import authRoutes from "./routes/authRoutes.js";
 import familiaRoutes from "./routes/familiaRoutes.js";
 import solicitudRoutes from "./routes/solicitudRoutes.js";
+import evaluacionRoutes from "./routes/evaluacionRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
+import usuarioRoutes from "./routes/usuarioRoutes.js";
 import { UPLOADS_DIR } from "./middleware/upload.js";
 
 const app = express();
@@ -19,6 +22,9 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/familias", familiaRoutes);
 app.use("/api/solicitudes", solicitudRoutes);
+app.use("/api/evaluaciones", evaluacionRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/usuarios", usuarioRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ mensaje: "Ruta no encontrada" });

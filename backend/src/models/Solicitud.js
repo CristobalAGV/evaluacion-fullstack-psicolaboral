@@ -25,10 +25,19 @@ const solicitudSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    observaciones: {
+      type: String,
+      default: "",
+    },
+    profesionalResponsable: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Usuario",
+      required: true,
+    },
     estado: {
       type: String,
-      enum: ["pendiente", "en_proceso", "completada"],
-      default: "pendiente",
+      enum: ["Pendiente", "En proceso", "Finalizada"],
+      default: "Pendiente",
     },
     analistaId: {
       type: mongoose.Schema.Types.ObjectId,

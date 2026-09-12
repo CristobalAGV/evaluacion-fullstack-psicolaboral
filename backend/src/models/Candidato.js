@@ -9,12 +9,14 @@ const candidatoSchema = new mongoose.Schema(
     },
     correo: {
       type: String,
+      required: true,
       lowercase: true,
       trim: true,
-      default: "",
+      match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Correo invalido"],
     },
     telefono: {
       type: String,
+      required: true,
       trim: true,
     },
     cvUrl: {

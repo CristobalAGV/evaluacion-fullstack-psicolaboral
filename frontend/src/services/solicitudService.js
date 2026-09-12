@@ -5,25 +5,40 @@ export async function listarSolicitudes() {
   return data;
 }
 
-export async function crearSolicitud({ candidato, familiaDeCargo, cargo, cv }) {
-  const formData = new FormData();
-  formData.append("candidato", candidato);
-  formData.append("familiaDeCargo", familiaDeCargo);
-  formData.append("cargo", cargo);
-  formData.append("cv", cv);
-
-  const { data } = await api.post("/solicitudes", formData);
+export async function obtenerSolicitud(id) {
+  const { data } = await api.get(`/solicitudes/${id}`);
   return data;
 }
 
-export async function actualizarSolicitud(id, { candidato, familiaDeCargo, cargo, cv }) {
+function construirFormData({
+  candidatoNombre,
+  candidatoCorreo,
+  candidatoTelefono,
+  familiaDeCargo,
+  cargo,
+  observaciones,
+  profesionalResponsable,
+  cv,
+}) {
   const formData = new FormData();
-  formData.append("candidato", candidato);
+  formData.append("candidatoNombre", candidatoNombre);
+  formData.append("candidatoCorreo", candidatoCorreo);
+  formData.append("candidatoTelefono", candidatoTelefono);
   formData.append("familiaDeCargo", familiaDeCargo);
   formData.append("cargo", cargo);
+  formData.append("observaciones", observaciones || "");
+  formData.append("profesionalResponsable", profesionalResponsable);
   if (cv) formData.append("cv", cv);
+  return formData;
+}
 
-  const { data } = await api.put(`/solicitudes/${id}`, formData);
+export async function crearSolicitud(datos) {
+  const { data } = await api.post("/solicitudes", construirFormData(datos));
+  return data;
+}
+
+export async function actualizarSolicitud(id, datos) {
+  const { data } = await api.put(`/solicitudes/${id}`, construirFormData(datos));
   return data;
 }
 
