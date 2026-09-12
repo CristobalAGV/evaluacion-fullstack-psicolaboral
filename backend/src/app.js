@@ -11,7 +11,11 @@ import { UPLOADS_DIR } from "./middleware/upload.js";
 
 const app = express();
 
-app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((origen) => origen.trim())
+  : "*";
+
+app.use(cors({ origin: corsOrigins }));
 app.use(express.json());
 app.use("/uploads", express.static(UPLOADS_DIR));
 
