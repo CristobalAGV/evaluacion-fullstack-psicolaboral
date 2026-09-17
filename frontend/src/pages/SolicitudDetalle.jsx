@@ -29,7 +29,7 @@ function EvaluacionFormulario({ evaluacion, solicitudId, onGuardado, onCancelar 
         : await crearEvaluacion(solicitudId, datos);
       onGuardado(resultadoGuardado);
     } catch (err) {
-      setError(err.response?.data?.mensaje || "Error al guardar la evaluacion");
+      setError(err.response?.data?.mensaje || "Error al guardar la evaluación");
     } finally {
       setGuardando(false);
     }

@@ -48,7 +48,7 @@ export default function Panel() {
 
   async function manejarEliminar(s) {
     const confirmado = window.confirm(
-      `¿Eliminar la solicitud de ${s.candidato?.nombre} (${s.cargo})? Esta accion no se puede deshacer.`
+      `¿Eliminar la solicitud de ${s.candidato?.nombre} (${s.cargo})? Esta acción no se puede deshacer.`
     );
     if (!confirmado) return;
 

@@ -26,7 +26,7 @@ export async function crearEvaluacion(req, res) {
 
     return res.status(201).json(evaluacion);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al crear la evaluacion", error: error.message });
+    return res.status(500).json({ mensaje: "Error al crear la evaluación", error: error.message });
   }
 }
 
@@ -60,11 +60,11 @@ export async function actualizarEvaluacion(req, res) {
     });
 
     if (!evaluacion) {
-      return res.status(404).json({ mensaje: "Evaluacion no encontrada" });
+      return res.status(404).json({ mensaje: "Evaluación no encontrada" });
     }
 
     return res.json(evaluacion);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al actualizar la evaluacion", error: error.message });
+    return res.status(500).json({ mensaje: "Error al actualizar la evaluación", error: error.message });
   }
 }

@@ -1,5 +1,4 @@
-import dotenv from "dotenv";
-dotenv.config();
+import "dotenv/config";
 
 import { connectDB } from "../config/db.js";
 import FamiliaDeCargo from "../models/FamiliaDeCargo.js";
@@ -7,7 +6,7 @@ import mongoose from "mongoose";
 
 const FAMILIAS = [
   {
-    nombre: "Atencion al Cliente",
+    nombre: "Atención al Cliente",
     plantillaInforme: "atencion-cliente/plantilla_informe.xlsx",
     pautaEntrevista: "atencion-cliente/pauta_entrevista.docx",
   },
@@ -17,7 +16,7 @@ const FAMILIAS = [
     pautaEntrevista: "ventas/pauta_entrevista.docx",
   },
   {
-    nombre: "Administracion",
+    nombre: "Administración",
     plantillaInforme: "administracion/plantilla_informe.xlsx",
     pautaEntrevista: "administracion/pauta_entrevista.docx",
   },

@@ -14,7 +14,7 @@ export async function registrar(req, res) {
     const { nombre, correo, password, rol } = req.body;
 
     if (!nombre || !correo || !password) {
-      return res.status(400).json({ mensaje: "Nombre, correo y password son obligatorios" });
+      return res.status(400).json({ mensaje: "Nombre, correo y contraseña son obligatorios" });
     }
 
     const existente = await Usuario.findOne({ correo });
@@ -39,17 +39,17 @@ export async function login(req, res) {
     const { correo, password } = req.body;
 
     if (!correo || !password) {
-      return res.status(400).json({ mensaje: "Correo y password son obligatorios" });
+      return res.status(400).json({ mensaje: "Correo y contraseña son obligatorios" });
     }
 
     const usuario = await Usuario.findOne({ correo }).select("+password");
     if (!usuario) {
-      return res.status(401).json({ mensaje: "Credenciales invalidas" });
+      return res.status(401).json({ mensaje: "Credenciales inválidas" });
     }
 
     const passwordValida = await usuario.compararPassword(password);
     if (!passwordValida) {
-      return res.status(401).json({ mensaje: "Credenciales invalidas" });
+      return res.status(401).json({ mensaje: "Credenciales inválidas" });
     }
 
     const token = generarToken(usuario);
@@ -59,7 +59,7 @@ export async function login(req, res) {
       token,
     });
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al iniciar sesion", error: error.message });
+    return res.status(500).json({ mensaje: "Error al iniciar sesión", error: error.message });
   }
 }
 

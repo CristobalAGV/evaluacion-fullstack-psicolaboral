@@ -14,14 +14,14 @@ export function verificarToken(req, res, next) {
     req.usuario = payload;
     next();
   } catch (error) {
-    return res.status(401).json({ mensaje: "Token invalido o expirado" });
+    return res.status(401).json({ mensaje: "Token inválido o expirado" });
   }
 }
 
 export function permitirRoles(...rolesPermitidos) {
   return (req, res, next) => {
     if (!req.usuario || !rolesPermitidos.includes(req.usuario.rol)) {
-      return res.status(403).json({ mensaje: "No tiene permisos para realizar esta accion" });
+      return res.status(403).json({ mensaje: "No tiene permisos para realizar esta acción" });
     }
     next();
   };

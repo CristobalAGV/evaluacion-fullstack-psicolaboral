@@ -8,7 +8,7 @@ const campoClases =
   "rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
 const TELEFONO_REGEX = /^\+?56\s?9\s?\d{4}\s?\d{4}$/;
-const MENSAJE_TELEFONO = "Ingresa un celular chileno valido: +56 9 1234 5678";
+const MENSAJE_TELEFONO = "Ingresa un celular chileno válido: +56 9 1234 5678";
 
 export default function SolicitudFormulario({ solicitud, alGuardar, alCancelar }) {
   const esEdicion = Boolean(solicitud);
@@ -240,7 +240,7 @@ export default function SolicitudFormulario({ solicitud, alGuardar, alCancelar }
         </div>
 
         {familias.length === 0 && (
-          <p className="text-sm text-red-600">No hay familias de cargo cargadas. Corre el seed del backend.</p>
+          <p className="text-sm text-red-600">No hay familias de cargo cargadas. Ejecuta el seed del backend.</p>
         )}
         {evaluadores.length === 0 && (
           <p className="text-sm text-red-600">

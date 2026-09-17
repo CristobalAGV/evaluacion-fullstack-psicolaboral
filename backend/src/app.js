@@ -39,7 +39,7 @@ app.use((err, req, res, next) => {
     return res.status(400).json({ mensaje: `Error al subir el archivo: ${err.message}` });
   }
   if (err) {
-    return res.status(400).json({ mensaje: err.message || "Solicitud invalida" });
+    return res.status(400).json({ mensaje: err.message || "Solicitud inválida" });
   }
   next();
 });

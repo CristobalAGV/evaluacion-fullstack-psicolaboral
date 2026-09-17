@@ -18,7 +18,7 @@ const ESTADOS_VALIDOS = ["Pendiente", "En proceso", "Finalizada"];
 
 async function validarProfesionalResponsable(profesionalResponsable) {
   if (!mongoose.isValidObjectId(profesionalResponsable)) {
-    return { error: "profesionalResponsable invalido" };
+    return { error: "profesionalResponsable inválido" };
   }
   const usuario = await Usuario.findById(profesionalResponsable);
   if (!usuario) {
@@ -52,7 +52,7 @@ export async function crearSolicitud(req, res) {
 
     if (!mongoose.isValidObjectId(familiaDeCargo)) {
       if (req.file) await eliminarArchivo(req.file.path);
-      return res.status(400).json({ mensaje: "familiaDeCargo invalida" });
+      return res.status(400).json({ mensaje: "familiaDeCargo inválida" });
     }
 
     const familia = await FamiliaDeCargo.findById(familiaDeCargo);
@@ -76,7 +76,7 @@ export async function crearSolicitud(req, res) {
       });
     } catch (errorValidacion) {
       if (req.file) await eliminarArchivo(req.file.path);
-      return res.status(400).json({ mensaje: "Datos del candidato invalidos", error: errorValidacion.message });
+      return res.status(400).json({ mensaje: "Datos del candidato inválidos", error: errorValidacion.message });
     }
 
     const cvUrl = req.file ? `/uploads/${req.file.filename}` : "";
@@ -194,7 +194,7 @@ export async function actualizarSolicitud(req, res) {
 
     if (!mongoose.isValidObjectId(familiaDeCargo)) {
       if (req.file) await eliminarArchivo(req.file.path);
-      return res.status(400).json({ mensaje: "familiaDeCargo invalida" });
+      return res.status(400).json({ mensaje: "familiaDeCargo inválida" });
     }
 
     const solicitud = await Solicitud.findById(id);
@@ -223,7 +223,7 @@ export async function actualizarSolicitud(req, res) {
       );
     } catch (errorValidacion) {
       if (req.file) await eliminarArchivo(req.file.path);
-      return res.status(400).json({ mensaje: "Datos del candidato invalidos", error: errorValidacion.message });
+      return res.status(400).json({ mensaje: "Datos del candidato inválidos", error: errorValidacion.message });
     }
 
     solicitud.familiaDeCargo = familiaDeCargo;

@@ -16,7 +16,7 @@ export default function Login() {
       await iniciarSesion(correo, password);
       navigate("/");
     } catch (err) {
-      setError(err.response?.data?.mensaje || "Error al iniciar sesion");
+      setError(err.response?.data?.mensaje || "Error al iniciar sesión");
     }
   }
 
@@ -40,7 +40,7 @@ export default function Login() {
           />
         </label>
         <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Password
+          Contraseña
           <input
             type="password"
             value={password}
@@ -58,9 +58,9 @@ export default function Login() {
         </button>
       </form>
       <p className="mt-4 text-sm text-slate-600">
-        No tenés cuenta?{" "}
+        ¿No tienes cuenta?{" "}
         <Link to="/registro" className="text-indigo-600 hover:underline">
-          Registrate
+          Regístrate
         </Link>
       </p>
     </div>

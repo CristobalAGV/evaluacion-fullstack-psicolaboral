@@ -12,7 +12,7 @@ const candidatoSchema = new mongoose.Schema(
       required: true,
       lowercase: true,
       trim: true,
-      match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Correo invalido"],
+      match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Correo inválido"],
     },
     telefono: {
       type: String,
@@ -20,7 +20,7 @@ const candidatoSchema = new mongoose.Schema(
       trim: true,
       match: [
         /^\+?56\s?9\s?\d{4}\s?\d{4}$/,
-        "Telefono invalido. Use formato de celular chileno: +56 9 1234 5678",
+        "Teléfono inválido. Usa el formato de celular chileno: +56 9 1234 5678",
       ],
     },
     cvUrl: {

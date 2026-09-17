@@ -30,7 +30,7 @@ const storage = multer.diskStorage({
 
 function filtroArchivo(req, file, cb) {
   if (!TIPOS_PERMITIDOS.includes(file.mimetype)) {
-    return cb(new Error("Formato de CV no permitido. Use PDF, DOC o DOCX."));
+    return cb(new Error("Formato de CV no permitido. Usa PDF, DOC o DOCX."));
   }
   cb(null, true);
 }

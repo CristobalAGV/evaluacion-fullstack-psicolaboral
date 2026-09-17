@@ -38,7 +38,7 @@ export default function Registro() {
           <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} required className={campoClases} />
         </label>
         <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Password
+          Contraseña
           <input
             type="password"
             value={password}
@@ -65,7 +65,7 @@ export default function Registro() {
         </button>
       </form>
       <p className="mt-4 text-sm text-slate-600">
-        Ya tenés cuenta?{" "}
+        ¿Ya tienes cuenta?{" "}
         <Link to="/login" className="text-indigo-600 hover:underline">
           Iniciar sesión
         </Link>
