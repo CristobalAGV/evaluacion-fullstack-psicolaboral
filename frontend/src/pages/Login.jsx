@@ -6,7 +6,7 @@ export default function Login() {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const { iniciarSesion } = useAuth();
+  const { iniciarSesion, mensajeSesion } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
@@ -23,6 +23,11 @@ export default function Login() {
   return (
     <div className="max-w-md mx-auto mt-12 bg-white border border-slate-200 rounded-lg shadow-sm p-6">
       <h2 className="text-xl font-semibold text-slate-900 mb-4">Iniciar sesión</h2>
+      {mensajeSesion && (
+        <p className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {mensajeSesion}
+        </p>
+      )}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm text-slate-700">
           Correo
