@@ -7,6 +7,9 @@ import { apiOrigin } from "../services/api";
 const campoClases =
   "rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
+const TELEFONO_REGEX = /^\+?56\s?9\s?\d{4}\s?\d{4}$/;
+const MENSAJE_TELEFONO = "Ingresa un celular chileno valido: +56 9 1234 5678";
+
 export default function SolicitudFormulario({ solicitud, alGuardar, alCancelar }) {
   const esEdicion = Boolean(solicitud);
 
@@ -43,6 +46,11 @@ export default function SolicitudFormulario({ solicitud, alGuardar, alCancelar }
     e.preventDefault();
     setError("");
 
+    if (!TELEFONO_REGEX.test(candidatoTelefono.trim())) {
+      setError(MENSAJE_TELEFONO);
+      return;
+    }
+
     setCargando(true);
     try {
       const datos = {
@@ -69,6 +77,8 @@ export default function SolicitudFormulario({ solicitud, alGuardar, alCancelar }
   if (cargandoDatos) return <p className="text-sm text-slate-500">Cargando datos del formulario...</p>;
 
   const sinDatosBase = familias.length === 0 || evaluadores.length === 0;
+  const telefonoInvalido =
+    candidatoTelefono.trim() !== "" && !TELEFONO_REGEX.test(candidatoTelefono.trim());
 
   return (
     <div className="max-w-lg">
@@ -104,8 +114,13 @@ export default function SolicitudFormulario({ solicitud, alGuardar, alCancelar }
               value={candidatoTelefono}
               onChange={(e) => setCandidatoTelefono(e.target.value)}
               required
-              className={campoClases}
+              placeholder="+56 9 1234 5678"
+              aria-invalid={telefonoInvalido}
+              className={`${campoClases} ${
+                telefonoInvalido ? "border-red-500 focus:ring-red-500" : ""
+              }`}
             />
+            {telefonoInvalido && <span className="text-xs text-red-600">{MENSAJE_TELEFONO}</span>}
           </label>
         </div>
 
@@ -156,15 +171,43 @@ export default function SolicitudFormulario({ solicitud, alGuardar, alCancelar }
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          {esEdicion ? "Reemplazar CV (opcional, PDF/DOC/DOCX)" : "CV (opcional, PDF/DOC/DOCX)"}
-          <input
-            type="file"
-            accept=".pdf,.doc,.docx"
-            onChange={(e) => setCv(e.target.files[0] || null)}
-            className="text-sm"
-          />
-        </label>
+        <div className="flex flex-col gap-1 text-sm text-slate-700">
+          <span>{esEdicion ? "Reemplazar CV (opcional)" : "CV del candidato (opcional)"}</span>
+          <label className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center transition-colors hover:border-indigo-400 hover:bg-indigo-50 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="h-8 w-8 text-indigo-500"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 7.5 12 3m0 0L7.5 7.5M12 3v13.5"
+              />
+            </svg>
+            {cv ? (
+              <>
+                <span className="font-medium text-slate-900 break-all">{cv.name}</span>
+                <span className="text-xs text-indigo-600">Haz clic para cambiar el archivo</span>
+              </>
+            ) : (
+              <>
+                <span className="font-medium text-indigo-600">Haz clic para seleccionar el CV</span>
+                <span className="text-xs text-slate-500">PDF, DOC o DOCX · máx. 5MB</span>
+              </>
+            )}
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx"
+              onChange={(e) => setCv(e.target.files[0] || null)}
+              className="sr-only"
+            />
+          </label>
+        </div>
         {esEdicion && solicitud.cvUrl && (
           <p className="text-sm text-slate-600 -mt-2">
             CV actual:{" "}
@@ -179,7 +222,7 @@ export default function SolicitudFormulario({ solicitud, alGuardar, alCancelar }
         <div className="flex gap-2">
           <button
             type="submit"
-            disabled={cargando || sinDatosBase}
+            disabled={cargando || sinDatosBase || telefonoInvalido}
             className="flex-1 rounded-md bg-indigo-600 text-white font-medium py-2 text-sm hover:bg-indigo-500 disabled:opacity-50"
           >
             {cargando ? "Guardando..." : esEdicion ? "Guardar cambios" : "Crear solicitud"}
