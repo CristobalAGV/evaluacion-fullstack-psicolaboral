@@ -30,6 +30,7 @@ export default function InformePsicolaboral({ solicitudId }) {
 
   const [informe, setInforme] = useState(null);
   const [apuntes, setApuntes] = useState("");
+  const [instrucciones, setInstrucciones] = useState("");
   const [secciones, setSecciones] = useState([]);
   const [modeloIa, setModeloIa] = useState("");
 
@@ -46,6 +47,7 @@ export default function InformePsicolaboral({ solicitudId }) {
           setInforme(data);
           setSecciones(data.secciones || []);
           setApuntes(data.apuntes || "");
+          setInstrucciones(data.instrucciones || "");
           setModeloIa(data.modeloIa || "");
         }
       })
@@ -60,7 +62,7 @@ export default function InformePsicolaboral({ solicitudId }) {
     try {
       // Los apuntes viven en el estado del componente: aunque la generacion
       // falle, el evaluador no pierde lo que escribio.
-      const borrador = await generarInforme(solicitudId, apuntes);
+      const borrador = await generarInforme(solicitudId, apuntes, instrucciones);
       setSecciones(borrador.secciones);
       setModeloIa(borrador.modeloIa || "");
       setAviso("Borrador generado. Revísalo y corrígelo antes de guardar.");
@@ -79,6 +81,7 @@ export default function InformePsicolaboral({ solicitudId }) {
       const guardado = await guardarInforme(solicitudId, {
         secciones,
         apuntes,
+        instrucciones,
         modeloIa,
         estado: informe?.estado === "finalizado" ? "finalizado" : "borrador",
       });
@@ -149,6 +152,22 @@ export default function InformePsicolaboral({ solicitudId }) {
           onChange={(e) => setApuntes(e.target.value)}
           rows={7}
           placeholder="Ej.: Candidata con 4 años de experiencia en atención de público. Relata manejo de reclamos..."
+          className={`${campoClases} mt-1`}
+        />
+      </label>
+
+      <label className="flex flex-col gap-1 text-sm text-slate-700">
+        Instrucciones adicionales para la IA <span className="text-slate-400">(opcional)</span>
+        <span className="text-xs text-slate-500">
+          Indica cómo quieres el borrador. Por ejemplo: "enfócate en el trabajo en equipo", "hazlo
+          más breve", "usa un tono más formal", "profundiza en las áreas de mejora". Solo ajustan el
+          estilo y el énfasis: no cambian las reglas del informe.
+        </span>
+        <textarea
+          value={instrucciones}
+          onChange={(e) => setInstrucciones(e.target.value)}
+          rows={3}
+          placeholder="Ej.: hazlo más breve y profundiza en las áreas de mejora."
           className={`${campoClases} mt-1`}
         />
       </label>

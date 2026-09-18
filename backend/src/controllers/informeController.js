@@ -32,7 +32,7 @@ export async function obtenerInforme(req, res) {
 export async function generarInforme(req, res) {
   try {
     const { id } = req.params;
-    const { apuntes } = req.body;
+    const { apuntes, instrucciones } = req.body;
 
     if (!apuntes || !apuntes.trim()) {
       return res.status(400).json({
@@ -52,6 +52,7 @@ export async function generarInforme(req, res) {
       familia: solicitud.familiaDeCargo?.nombre || "Sin familia",
       secciones,
       apuntes: apuntes.trim(),
+      instrucciones: (instrucciones || "").trim(),
     });
 
     // El borrador no se guarda automaticamente: el evaluador lo revisa, lo
@@ -72,7 +73,7 @@ export async function generarInforme(req, res) {
 export async function guardarInforme(req, res) {
   try {
     const { id } = req.params;
-    const { secciones, apuntes, modeloIa, estado } = req.body;
+    const { secciones, apuntes, instrucciones, modeloIa, estado } = req.body;
 
     if (!Array.isArray(secciones) || secciones.length === 0) {
       return res.status(400).json({ mensaje: "El informe debe tener al menos una seccion." });
@@ -94,6 +95,7 @@ export async function guardarInforme(req, res) {
         candidato: solicitud.candidato,
         secciones: seccionesLimpias,
         apuntes: apuntes ?? "",
+        instrucciones: instrucciones ?? "",
         modeloIa: modeloIa ?? "",
         estado: estado === "finalizado" ? "finalizado" : "borrador",
         generadoPor: req.usuario.id,

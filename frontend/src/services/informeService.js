@@ -5,15 +5,22 @@ export async function obtenerInforme(solicitudId) {
   return data;
 }
 
-export async function generarInforme(solicitudId, apuntes) {
-  const { data } = await api.post(`/solicitudes/${solicitudId}/informe/generar`, { apuntes });
+export async function generarInforme(solicitudId, apuntes, instrucciones) {
+  const { data } = await api.post(`/solicitudes/${solicitudId}/informe/generar`, {
+    apuntes,
+    instrucciones,
+  });
   return data;
 }
 
-export async function guardarInforme(solicitudId, { secciones, apuntes, modeloIa, estado }) {
+export async function guardarInforme(
+  solicitudId,
+  { secciones, apuntes, instrucciones, modeloIa, estado }
+) {
   const { data } = await api.put(`/solicitudes/${solicitudId}/informe`, {
     secciones,
     apuntes,
+    instrucciones,
     modeloIa,
     estado,
   });

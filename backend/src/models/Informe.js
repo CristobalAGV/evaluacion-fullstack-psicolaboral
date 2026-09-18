@@ -32,6 +32,12 @@ const informeSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // Ultimas indicaciones de estilo que el evaluador le dio a la IA, para no
+    // tener que reescribirlas al volver a generar el borrador.
+    instrucciones: {
+      type: String,
+      default: "",
+    },
     generadoPor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Usuario",
