@@ -8,11 +8,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PLANTILLAS_DIR = path.join(__dirname, "..", "..", "plantillas");
 
 const PREGUNTAS_GENERALES = [
-  "Cuenteme brevemente sobre su trayectoria laboral.",
-  "Por que decidio postular a este cargo?",
-  "Describa una situacion dificil que haya enfrentado en un trabajo anterior y como la resolvio.",
-  "Como maneja el trabajo bajo presion o con plazos ajustados?",
-  "Que espera de este nuevo trabajo?",
+  "Cuénteme brevemente sobre su trayectoria laboral.",
+  "¿Por qué decidió postular a este cargo?",
+  "Describa una situación difícil que haya enfrentado en un trabajo anterior y cómo la resolvió.",
+  "¿Cómo maneja el trabajo bajo presión o con plazos ajustados?",
+  "¿Qué espera de este nuevo trabajo?",
 ];
 
 const FAMILIAS = [
@@ -20,9 +20,9 @@ const FAMILIAS = [
     slug: "atencion-cliente",
     nombre: "Atención al Cliente",
     preguntasEspecificas: [
-      "Relate una experiencia en la que haya tenido que atender a un cliente dificil o molesto.",
-      "Como se asegura de entregar una buena experiencia al cliente en cada contacto?",
-      "Que hace cuando no tiene la solucion inmediata a un reclamo?",
+      "Relate una experiencia en la que haya tenido que atender a un cliente difícil o molesto.",
+      "¿Cómo se asegura de entregar una buena experiencia al cliente en cada contacto?",
+      "¿Qué hace cuando no tiene la solución inmediata a un reclamo?",
     ],
   },
   {
@@ -30,25 +30,25 @@ const FAMILIAS = [
     nombre: "Ventas",
     preguntasEspecificas: [
       "Describa su proceso habitual para cerrar una venta.",
-      "Cuenteme sobre la venta mas dificil que haya logrado concretar.",
-      "Como maneja el rechazo o la negativa de un cliente potencial?",
+      "Cuénteme sobre la venta más difícil que haya logrado concretar.",
+      "¿Cómo maneja el rechazo o la negativa de un cliente potencial?",
     ],
   },
   {
     slug: "administracion",
     nombre: "Administración",
     preguntasEspecificas: [
-      "Como organiza sus tareas cuando tiene multiples pendientes administrativos?",
-      "Cuenteme sobre su experiencia manejando documentacion o procesos internos.",
-      "Que herramientas o sistemas administrativos domina?",
+      "¿Cómo organiza sus tareas cuando tiene múltiples pendientes administrativos?",
+      "Cuénteme sobre su experiencia manejando documentación o procesos internos.",
+      "¿Qué herramientas o sistemas administrativos domina?",
     ],
   },
   {
     slug: "operaciones",
     nombre: "Operaciones",
     preguntasEspecificas: [
-      "Cuenteme sobre su experiencia coordinando procesos operativos o logisticos.",
-      "Como reacciona ante un imprevisto que afecta la operacion del dia?",
+      "Cuénteme sobre su experiencia coordinando procesos operativos o logísticos.",
+      "¿Cómo reacciona ante un imprevisto que afecta la operación del día?",
       "Describa una mejora que haya propuesto en un proceso operativo.",
     ],
   },
@@ -105,7 +105,7 @@ async function generarPautaEntrevista(familia, carpeta) {
           new Paragraph({ text: "" }),
           new Paragraph({
             heading: HeadingLevel.HEADING_2,
-            children: [new TextRun(`Preguntas especificas: ${familia.nombre}`)],
+            children: [new TextRun(`Preguntas específicas: ${familia.nombre}`)],
           }),
           ...familia.preguntasEspecificas.map(
             (pregunta, indice) => new Paragraph({ text: `${indice + 1}. ${pregunta}` })
@@ -136,7 +136,7 @@ async function generar() {
     await generarPautaEntrevista(familia, carpeta);
     console.log(`Plantillas generadas para: ${familia.nombre}`);
   }
-  console.log("Generacion de plantillas completada.");
+  console.log("Generación de plantillas completada.");
 }
 
 generar().catch((error) => {
