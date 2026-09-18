@@ -9,6 +9,7 @@
     "dev": "nodemon src/server.js",
     "seed": "node src/seed/seedFamilias.js",
     "migrar-familias": "node src/seed/migrarNombresFamilias.js",
+    "migrar-titulos-informes": "node src/seed/migrarTitulosInformes.js",
     "generar-plantillas": "node src/seed/generarPlantillas.js"
   },
   "keywords": [],

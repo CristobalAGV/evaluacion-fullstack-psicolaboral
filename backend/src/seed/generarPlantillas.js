@@ -18,7 +18,7 @@ const PREGUNTAS_GENERALES = [
 const FAMILIAS = [
   {
     slug: "atencion-cliente",
-    nombre: "Atencion al Cliente",
+    nombre: "Atención al Cliente",
     preguntasEspecificas: [
       "Relate una experiencia en la que haya tenido que atender a un cliente dificil o molesto.",
       "Como se asegura de entregar una buena experiencia al cliente en cada contacto?",
@@ -36,7 +36,7 @@ const FAMILIAS = [
   },
   {
     slug: "administracion",
-    nombre: "Administracion",
+    nombre: "Administración",
     preguntasEspecificas: [
       "Como organiza sus tareas cuando tiene multiples pendientes administrativos?",
       "Cuenteme sobre su experiencia manejando documentacion o procesos internos.",
@@ -62,8 +62,8 @@ async function generarPlantillaInforme(familia, carpeta) {
     { header: "Nombre", key: "nombre", width: 25 },
     { header: "Cargo", key: "cargo", width: 25 },
     { header: "Fortalezas", key: "fortalezas", width: 40 },
-    { header: "Areas de mejora", key: "areasMejora", width: 40 },
-    { header: "Conclusion", key: "conclusion", width: 40 },
+    { header: "Áreas de mejora", key: "areasMejora", width: 40 },
+    { header: "Conclusión", key: "conclusion", width: 40 },
   ];
 
   hoja.getRow(1).font = { bold: true };

@@ -100,6 +100,12 @@ export default function Panel() {
                       <p className="text-xs text-slate-400">Responsable: {s.profesionalResponsable.nombre}</p>
                     )}
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      <Link
+                        to={`/solicitudes/${s._id}`}
+                        className="rounded bg-slate-700 text-white text-xs px-2 py-1 hover:bg-slate-600"
+                      >
+                        Ver detalle
+                      </Link>
                       <button
                         type="button"
                         onClick={() => setSolicitudEnEdicion(s)}
