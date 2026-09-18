@@ -1,27 +1,48 @@
 import mongoose from "mongoose";
 
+const seccionSchema = new mongoose.Schema(
+  {
+    titulo: { type: String, required: true },
+    contenido: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
 const informeSchema = new mongoose.Schema(
   {
     solicitud: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Solicitud",
       required: true,
-    },
-    entrevista: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Entrevista",
+      unique: true,
     },
     candidato: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Candidato",
       required: true,
     },
-    psicologoId: {
+    // Secciones del informe, segun la estructura de la familia de cargo.
+    secciones: {
+      type: [seccionSchema],
+      default: [],
+    },
+    // Apuntes de la entrevista con los que se genero el borrador. Se guardan
+    // para poder volver a generarlo sin reescribirlos.
+    apuntes: {
+      type: String,
+      default: "",
+    },
+    generadoPor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Usuario",
       required: true,
     },
-    contenido: {
+    generadoEn: {
+      type: Date,
+      default: Date.now,
+    },
+    // Modelo de IA que produjo el borrador, para poder trazar el origen.
+    modeloIa: {
       type: String,
       default: "",
     },

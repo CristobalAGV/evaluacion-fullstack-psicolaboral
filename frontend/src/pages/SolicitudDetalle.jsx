@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { obtenerSolicitud } from "../services/solicitudService";
 import { listarEvaluaciones, crearEvaluacion, actualizarEvaluacion } from "../services/evaluacionService";
 import { apiOrigin } from "../services/api";
+import InformePsicolaboral from "../components/InformePsicolaboral";
 
 const ESTADOS_EVALUACION = ["Pendiente", "En proceso", "Finalizada"];
 const campoClases =
@@ -194,6 +195,11 @@ export default function SolicitudDetalle() {
             <dd className="text-slate-900 whitespace-pre-wrap">{solicitud.observaciones || "-"}</dd>
           </div>
         </dl>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
+        <h3 className="mb-4 text-lg font-semibold text-slate-900">Informe psicolaboral</h3>
+        <InformePsicolaboral solicitudId={id} />
       </div>
 
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
