@@ -318,21 +318,38 @@ Variables de entorno (`frontend/.env`):
 
 ### 4. Cargar los datos iniciales
 
-Con el backend configurado, carga las familias de cargo y genera las plantillas:
+Con el backend configurado, carga las familias de cargo, genera las plantillas
+y crea las cuentas de demostración:
 
 ```bash
 cd backend
 npm run generar-plantillas
 npm run seed
+npm run seed-usuarios
 ```
 
 ### 5. Usar la aplicación
 
-Abre `http://localhost:5173`, crea una cuenta y entra.
+Abre `http://localhost:5173` e inicia sesión con cualquiera de las cuentas que
+dejó `npm run seed-usuarios`. Todas comparten la misma contraseña, `Demo1234`:
+
+| Correo | Rol |
+| ------ | --- |
+| `daniela.soto@ejemplo.cl` | `analista` |
+| `matias.rojas@ejemplo.cl` | `evaluador` |
+| `carolina.diaz@ejemplo.cl` | `evaluador` |
+| `paula.vera@ejemplo.cl` | `admin` |
+
+También puedes crear tu propia cuenta desde la pantalla de registro.
 
 > Para crear una solicitud debe existir **al menos un usuario con rol
 > `evaluador`**, porque toda solicitud necesita un profesional responsable.
-> Registra uno desde la pantalla de registro eligiendo ese rol.
+> El seed ya deja dos; si prefieres registrarlo a mano, elige ese rol en el
+> formulario de registro.
+
+> **Son credenciales ficticias, pensadas solo para desarrollo y demostración.**
+> Si el proyecto llegara a manejar datos reales, estas cuentas deben eliminarse
+> y la contraseña compartida dejar de usarse.
 
 ## Scripts disponibles
 
@@ -344,6 +361,7 @@ Abre `http://localhost:5173`, crea una cuenta y entra.
 | `npm start` | Levanta la API sin nodemon. | En producción (es el que usa Render). |
 | `npm run generar-plantillas` | Genera los archivos `plantilla_informe.xlsx` y `pauta_entrevista.docx` de cada familia en `backend/plantillas/`. | Una vez al preparar el proyecto, o si quieres regenerar las plantillas tras modificar el script. |
 | `npm run seed` | Crea (o actualiza) las cuatro familias de cargo en la base de datos. | Al montar el proyecto en una base nueva. Es idempotente: ejecutarlo varias veces no duplica nada. |
+| `npm run seed-usuarios` | Crea (o actualiza) las cuatro cuentas de demostración con la contraseña `Demo1234`. Busca cada usuario por su correo y conserva su `_id`, para no romper las solicitudes que lo referencian. Acepta `SEED_PASSWORD=otraclave` para usar otra. | Al montar el proyecto en una base nueva, o cuando nadie recuerde las contraseñas. Es idempotente. |
 | `npm run migrar-familias` | Corrige los nombres de familias guardados sin tilde (`Administracion` → `Administración`), actualizando cada documento **por su `_id`** para no romper las solicitudes que las referencian. | Solo en bases creadas antes de esa corrección. Es idempotente y seguro de repetir. |
 
 ### Frontend (`cd frontend`)
