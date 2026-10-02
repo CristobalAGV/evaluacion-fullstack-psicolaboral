@@ -8,9 +8,9 @@ de evaluación para candidatos, asignarles un profesional responsable, seguir su
 avance en un tablero Kanban, registrar las evaluaciones asociadas y consultar
 indicadores en un dashboard.
 
-Hoy ese proceso se lleva de forma manual y dispersa (planillas, correos y
-carpetas sueltas), lo que dificulta saber en qué estado está cada candidato.
-Este MVP centraliza esa información en un solo lugar.
+Cuando un proceso así se gestiona de forma manual y con la información
+repartida en distintos lugares, cuesta saber en qué estado está cada
+candidato. Este MVP propone centralizar esa información en un solo lugar.
 
 ## Capturas de pantalla
 
@@ -38,7 +38,7 @@ demostración.
 - **Asignatura:** Full Stack II — DSY1104
 - **Institución:** Duoc UC
 - **Tipo de proyecto:** Vinculación con el Medio, en colaboración con **AquaChile**
-- **Alcance evaluado:** Caso DSY1104 + Anexo de Requerimiento de AquaChile
+- **Alcance evaluado:** Caso de la asignatura DSY1104
 
 > ### ⚠️ Aviso sobre los datos
 >
@@ -71,13 +71,13 @@ demostración.
 
 ## Estado del avance
 
-Situación al 1 de octubre de 2026, cruzada con los hitos del calendario del ramo.
+Situación al 1 de octubre de 2026, organizada por hitos de entrega.
 
-| Hito | Fechas | Estado |
-| ---- | ------ | ------ |
-| Hito 1 — Frontend funcional | 12–17 de octubre | ✅ Completo |
-| Hito 2 — Integración Full Stack | 23–28 de noviembre | 🟡 En curso (integración funcionando, faltan cierres) |
-| Hito 3 — MVP final desplegado | 30 de noviembre – 5 de diciembre | 🟡 En curso (hay una versión desplegada, aún no es la final) |
+| Hito | Estado |
+| ---- | ------ |
+| Hito 1 — Frontend funcional | ✅ Completo |
+| Hito 2 — Integración Full Stack | 🟡 En curso (integración funcionando, faltan cierres) |
+| Hito 3 — MVP final desplegado | 🟡 En curso (hay una versión desplegada, aún no es la final) |
 
 ### Hito 1 — Frontend funcional
 
