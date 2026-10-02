@@ -1,5 +1,7 @@
 # Evaluación Psicolaboral — Digitalización del proceso de Reclutamiento y Selección
 
+**Autor:** Cristobal González, estudiante de Duoc UC Puerto Montt.
+
 Aplicación web (MVP) que digitaliza el proceso de **evaluación psicolaboral**
 dentro de un flujo de Reclutamiento y Selección. Permite registrar solicitudes
 de evaluación para candidatos, asignarles un profesional responsable, seguir su
@@ -9,6 +11,27 @@ indicadores en un dashboard.
 Hoy ese proceso se lleva de forma manual y dispersa (planillas, correos y
 carpetas sueltas), lo que dificulta saber en qué estado está cada candidato.
 Este MVP centraliza esa información en un solo lugar.
+
+## Capturas de pantalla
+
+Tomadas con la aplicación corriendo en local y **datos ficticios** de
+demostración.
+
+**Dashboard de indicadores**
+
+![Dashboard con el total de candidatos y solicitudes por estado](docs/capturas/dashboard.png)
+
+**Panel Kanban de solicitudes**
+
+![Panel Kanban con columnas Pendiente, En proceso y Finalizada](docs/capturas/panel-kanban.png)
+
+**Formulario de nueva solicitud**
+
+![Formulario para crear una solicitud de evaluación](docs/capturas/nueva-solicitud.png)
+
+**Detalle de solicitud con sus evaluaciones**
+
+![Detalle de una solicitud y su evaluación asociada](docs/capturas/detalle-solicitud.png)
 
 ## Contexto académico
 
@@ -45,6 +68,78 @@ Este MVP centraliza esa información en un solo lugar.
 > Para adelantar el arranque puedes abrir primero
 > `https://evaluacion-fullstack-psicolaboral.onrender.com/api/health`,
 > que responde `{"estado":"ok"}` cuando el backend ya está despierto.
+
+## Estado del avance
+
+Situación al 1 de octubre de 2026, cruzada con los hitos del calendario del ramo.
+
+| Hito | Fechas | Estado |
+| ---- | ------ | ------ |
+| Hito 1 — Frontend funcional | 12–17 de octubre | ✅ Completo |
+| Hito 2 — Integración Full Stack | 23–28 de noviembre | 🟡 En curso (integración funcionando, faltan cierres) |
+| Hito 3 — MVP final desplegado | 30 de noviembre – 5 de diciembre | 🟡 En curso (hay una versión desplegada, aún no es la final) |
+
+### Hito 1 — Frontend funcional
+
+**Completo:**
+
+- Vistas de inicio de sesión, registro, dashboard, panel Kanban, nueva
+  solicitud, edición y detalle de solicitud, construidas con React, Vite y
+  Tailwind.
+- Rutas protegidas y navegación con React Router.
+- Validaciones de formulario (correo y celular chileno) y mensajes de error.
+
+**Pendiente:**
+
+- La fecha de cada evaluación se muestra un día antes en el detalle (se
+  guarda como medianoche UTC y se muestra en la hora local de Chile). Es un
+  error de visualización conocido, sin corregir aún.
+
+### Hito 2 — Integración Full Stack
+
+**Completo:**
+
+- El frontend consume la API REST real (Express 5 + MongoDB Atlas) en todas
+  sus vistas; no hay datos simulados en la interfaz.
+- Autenticación con JWT de punta a punta, incluido el manejo de sesión
+  expirada.
+- CRUD de solicitudes, cambio de estado, evaluaciones, dashboard calculado en
+  el backend, carga de CV y creación automática de la carpeta del candidato
+  con sus plantillas.
+
+**Pendiente:**
+
+- **Permisos por rol.** Los tres roles existen y se guardan en el token, pero
+  hoy cualquier usuario autenticado puede hacer todas las operaciones: el
+  middleware `permitirRoles` está escrito pero no se aplica a ninguna ruta.
+- **Registro abierto a cualquier rol.** La pantalla de registro permite
+  elegir `admin` sin ninguna restricción.
+- **Sin pruebas automatizadas** en backend ni en frontend; la verificación
+  ha sido manual.
+- Los modelos `Entrevista` e `Informe` siguen sin exponerse en la API (ver
+  la nota de alcance en *Modelo de datos*).
+
+### Hito 3 — MVP final desplegado
+
+**Completo:**
+
+- Frontend desplegado en Vercel y backend en Render, conectados a MongoDB
+  Atlas (URLs en la sección *Despliegue*).
+- Etiqueta `v1.0-mvp` (17 de septiembre de 2026) que congela la versión
+  desplegada actual.
+
+**Pendiente:**
+
+- Desplegar la versión final una vez cerrados los pendientes del Hito 2.
+- El backend usa el plan gratuito de Render: la primera carga tras un rato
+  sin uso puede tardar hasta ~50 segundos.
+- Los CV y las carpetas de candidato se guardan en el disco del servidor; en
+  Render ese disco no es persistente, así que esos archivos pueden perderse
+  al reiniciarse el servicio.
+
+> La integración con IA se trabaja aparte, en la rama
+> `feature/integracion-ia`. Es experimental, no forma parte del alcance
+> evaluado y no está incluida en `main`.
 
 ## Stack tecnológico
 
@@ -381,80 +476,11 @@ frontend/
 
 ## Ramas del proyecto
 
-Una **rama** es una copia paralela del proyecto. Sirve para probar cosas
-nuevas sin tocar la versión que funciona. Este repo tiene dos:
-
 | Rama | Para qué sirve |
 | ---- | -------------- |
 | `main` | La versión oficial, la que se entrega y se despliega. **No experimentar aquí.** |
 | `feature/integracion-ia` | Espacio para probar la integración de IA, que no es parte del alcance evaluado. |
 
-Además hay una **etiqueta** (tag) llamada `v1.0-mvp`. Una etiqueta es una
-foto congelada de un momento del proyecto: marca el MVP terminado, para
-poder volver a él si algo se rompe más adelante.
+Además existe el tag `v1.0-mvp`, que marca el MVP terminado para poder volver a él si algo se rompe más adelante.
 
-### Ver en qué rama estoy
-
-```bash
-git status
-```
-
-La primera línea dice `On branch main` o `On branch feature/integracion-ia`.
-También sirve `git branch`: muestra la lista y la actual lleva un `*`.
-
-### Cambiar de rama
-
-**Antes de cambiar, guarda tu trabajo.** Git no te deja cambiar de rama si
-tienes cambios sin guardar (o peor, se los lleva a la otra rama). Revisa con
-`git status`; si aparecen archivos modificados, haz un commit:
-
-```bash
-git add .
-git commit -m "describe brevemente lo que hiciste"
-```
-
-Luego cambia de rama:
-
-```bash
-git checkout feature/integracion-ia   # ir a la rama de IA
-git checkout main                     # volver a la oficial
-```
-
-Al cambiar de rama, los archivos de tu carpeta cambian solos: el editor te
-va a mostrar la versión de esa rama. Es normal, no se borró nada.
-
-### Subir lo que trabajaste en la rama de IA
-
-```bash
-git push origin feature/integracion-ia
-```
-
-Estando en `main`, se sube igual pero con `git push origin main`.
-
-### Si la rama no aparece (por ejemplo, en otro computador)
-
-```bash
-git fetch origin                      # trae las novedades del remoto
-git checkout feature/integracion-ia   # ya la encuentra y la crea localmente
-```
-
-### Volver a la foto del MVP
-
-```bash
-git checkout v1.0-mvp
-```
-
-Esto te deja "mirando" ese punto del historial, no en una rama (git lo llama
-*detached HEAD*). Para volver a la normalidad:
-
-```bash
-git checkout main
-```
-
-### Dos cosas que conviene recordar
-
-- Si las dos ramas tienen dependencias distintas, después de cambiar corre
-  `npm install` en `backend/` y en `frontend/`.
-- El archivo `.env` no viaja entre ramas: no está versionado (por seguridad,
-  porque tiene la contraseña de la base de datos). Se queda tal cual en tu
-  carpeta al cambiar de rama.
+Para ver, cambiar y subir ramas, o volver al tag, consulta la [guía rápida de git](docs/guia-git.md).
