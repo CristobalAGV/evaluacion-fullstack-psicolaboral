@@ -40,6 +40,7 @@ const limiteLectura = rateLimit({
 // El CV queda en memoria hasta validar su contenido; recién entonces se escribe en disco.
 const uploadPublico = multer({
   storage: multer.memoryStorage(),
+  defParamCharset: "utf8",
   limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 10, fieldSize: 10 * 1024 },
 });
 

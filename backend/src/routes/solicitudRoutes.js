@@ -11,7 +11,7 @@ import {
 } from "../controllers/solicitudController.js";
 import { crearEvaluacion, listarEvaluacionesPorSolicitud } from "../controllers/evaluacionController.js";
 import { verificarToken, permitirRoles } from "../middleware/auth.js";
-import { uploadCv, recibirInformeEntrevista } from "../middleware/upload.js";
+import { recibirArchivo } from "../middleware/upload.js";
 
 const router = Router();
 
@@ -23,13 +23,13 @@ const gestionSolicitudes = permitirRoles("analista", "admin");
 router.use(verificarToken);
 
 router.get("/", listarSolicitudes);
-router.post("/", gestionSolicitudes, uploadCv.single("cv"), crearSolicitud);
+router.post("/", gestionSolicitudes, recibirArchivo("cv", "El CV"), crearSolicitud);
 router.get("/:id", obtenerSolicitud);
-router.put("/:id", gestionSolicitudes, uploadCv.single("cv"), actualizarSolicitud);
+router.put("/:id", gestionSolicitudes, recibirArchivo("cv", "El CV"), actualizarSolicitud);
 router.delete("/:id", permitirRoles("admin"), eliminarSolicitud);
 router.patch("/:id/estado", gestionSolicitudes, actualizarEstadoSolicitud);
 router.get("/:id/carpeta", obtenerCarpetaSolicitud);
-router.put("/:id/informe-entrevista", recibirInformeEntrevista, subirInformeEntrevista);
+router.put("/:id/informe-entrevista", recibirArchivo("informe", "El informe"), subirInformeEntrevista);
 router.get("/:id/evaluaciones", listarEvaluacionesPorSolicitud);
 router.post("/:id/evaluaciones", permitirRoles("evaluador", "admin"), crearEvaluacion);
 

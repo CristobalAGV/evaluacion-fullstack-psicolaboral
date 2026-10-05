@@ -23,11 +23,23 @@ const candidatoSchema = new mongoose.Schema(
         "Teléfono inválido. Usa el formato de celular chileno: +56 9 1234 5678",
       ],
     },
+    // CV e informe de entrevista guardados en MongoDB (modelo Archivo).
+    cvArchivoId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Archivo",
+      default: null,
+    },
+    informeArchivoId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Archivo",
+      default: null,
+    },
+    // Rutas antiguas en el disco del servidor (antes de guardar los archivos en MongoDB). Se
+    // conservan solo para avisar "Archivo no disponible": esos archivos ya no existen.
     cvUrl: {
       type: String,
       default: "",
     },
-    // Informe de la entrevista (Word), lo suben el analista, el evaluador responsable o un admin.
     informeEntrevistaUrl: {
       type: String,
       default: "",

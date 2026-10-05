@@ -2,9 +2,9 @@ import mongoose from "mongoose";
 import Candidato from "../models/Candidato.js";
 import Solicitud from "../models/Solicitud.js";
 import FamiliaDeCargo from "../models/FamiliaDeCargo.js";
-import { eliminarArchivo } from "../middleware/upload.js";
+import Archivo from "../models/Archivo.js";
 import { prepararCarpetaSolicitud } from "../utils/carpetas.js";
-import { validarArchivo, guardarArchivoValidado, EXTENSIONES_CV } from "../utils/validarArchivo.js";
+import { validarArchivo, guardarArchivo, EXTENSIONES_CV } from "../utils/validarArchivo.js";
 
 const CORREO_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TELEFONO_REGEX = /^\+?56\s?9\s?\d{4}\s?\d{4}$/;
@@ -69,7 +69,7 @@ export async function crearPostulacion(req, res) {
     return res.status(400).json({ mensaje: errorCv });
   }
 
-  let rutaCv = null;
+  let archivoCv = null;
   let candidato = null;
   let solicitud = null;
 
@@ -87,29 +87,24 @@ export async function crearPostulacion(req, res) {
       });
     }
 
-    const { rutaAbsoluta, url: cvUrl } = await guardarArchivoValidado(req.file);
-    rutaCv = rutaAbsoluta;
-
-    candidato = await Candidato.create({
-      nombre,
-      correo,
-      telefono,
-      cvUrl,
-      origen: "postulacion_publica",
-    });
+    // El CV se guarda en MongoDB (modelo Archivo), sin usuario porque lo sube el propio candidato.
+    candidato = new Candidato({ nombre, correo, telefono, origen: "postulacion_publica" });
+    archivoCv = await guardarArchivo({ archivo: req.file, tipo: "cv", candidatoId: candidato._id });
+    candidato.cvArchivoId = archivoCv._id;
+    await candidato.save();
 
     solicitud = await Solicitud.create({
       candidato: candidato._id,
       familiaDeCargo: familia._id,
       cargo,
-      cvUrl,
       estado: "Pendiente",
     });
 
+    // Carpeta local opcional: si el disco falla, la postulación igual queda registrada.
     solicitud.carpetaCandidato = await prepararCarpetaSolicitud({
       nombreCandidato: nombre,
       solicitudId: solicitud._id,
-      rutaCv,
+      cv: req.file,
       familia,
     });
     await solicitud.save();
@@ -118,7 +113,7 @@ export async function crearPostulacion(req, res) {
   } catch (error) {
     if (solicitud) await Solicitud.findByIdAndDelete(solicitud._id);
     if (candidato) await Candidato.findByIdAndDelete(candidato._id);
-    if (rutaCv) await eliminarArchivo(rutaCv);
+    if (archivoCv) await Archivo.findByIdAndDelete(archivoCv._id);
     console.error("Error al registrar postulación pública:", error.message);
     return res.status(500).json({ mensaje: "No pudimos registrar tu postulación. Inténtalo más tarde." });
   }

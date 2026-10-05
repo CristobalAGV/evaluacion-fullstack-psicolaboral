@@ -8,7 +8,7 @@ import evaluacionRoutes from "./routes/evaluacionRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import usuarioRoutes from "./routes/usuarioRoutes.js";
 import postulacionRoutes from "./routes/postulacionRoutes.js";
-import { UPLOADS_DIR } from "./middleware/upload.js";
+import archivoRoutes from "./routes/archivoRoutes.js";
 
 const app = express();
 
@@ -20,9 +20,9 @@ const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map((origen) => origen.trim())
   : "*";
 
-app.use(cors({ origin: corsOrigins }));
+// Content-Disposition expuesto para que el frontend lea el nombre del archivo al descargar.
+app.use(cors({ origin: corsOrigins, exposedHeaders: ["Content-Disposition"] }));
 app.use(express.json());
-app.use("/uploads", express.static(UPLOADS_DIR));
 
 app.get("/api/health", (req, res) => {
   res.json({ estado: "ok" });
@@ -35,6 +35,7 @@ app.use("/api/evaluaciones", evaluacionRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/usuarios", usuarioRoutes);
 app.use("/api/postulaciones", postulacionRoutes);
+app.use("/api/archivos", archivoRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ mensaje: "Ruta no encontrada" });

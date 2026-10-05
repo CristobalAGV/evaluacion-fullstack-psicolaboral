@@ -1,7 +1,5 @@
-import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
-import { UPLOADS_DIR } from "../middleware/upload.js";
+import Archivo from "../models/Archivo.js";
 
 // Por extensión: mimetypes aceptados y firma (primeros bytes) del formato. No basta con el
 // mimetype ni con la extensión, porque los dos los decide quien envía el archivo.
@@ -22,12 +20,21 @@ const FORMATOS = {
 
 export const EXTENSIONES_CV = [".pdf", ".doc", ".docx"];
 export const EXTENSIONES_WORD = [".doc", ".docx"];
+export const TAMANO_MAXIMO_ARCHIVO = 5 * 1024 * 1024;
 
-// Valida un archivo recibido con multer.memoryStorage(). Devuelve un mensaje de error o null.
+// Valida un archivo recibido con multer.memoryStorage() revisando su contenido real (el
+// buffer). Devuelve un mensaje de error o null.
 export function validarArchivo(archivo, extensionesPermitidas, descripcionFormatos) {
   const extension = path.extname(archivo.originalname || "").toLowerCase();
   if (!extensionesPermitidas.includes(extension)) {
     return `Formato no permitido. Usa ${descripcionFormatos}.`;
+  }
+
+  if (!archivo.buffer || archivo.buffer.length === 0) {
+    return "El archivo está vacío.";
+  }
+  if (archivo.buffer.length > TAMANO_MAXIMO_ARCHIVO) {
+    return "El archivo supera el tamaño máximo de 5 MB.";
   }
 
   const { mimetypes, firma } = FORMATOS[extension];
@@ -42,12 +49,25 @@ export function validarArchivo(archivo, extensionesPermitidas, descripcionFormat
   return null;
 }
 
-// Escribe en uploads/ un archivo ya validado, con nombre aleatorio para que su URL no se
-// pueda adivinar. Devuelve la ruta absoluta y la URL pública.
-export async function guardarArchivoValidado(archivo) {
-  const extension = path.extname(archivo.originalname).toLowerCase();
-  const nombreArchivo = `${Date.now()}-${crypto.randomUUID()}${extension}`;
-  const rutaAbsoluta = path.join(UPLOADS_DIR, nombreArchivo);
-  await fs.promises.writeFile(rutaAbsoluta, archivo.buffer);
-  return { rutaAbsoluta, url: `/uploads/${nombreArchivo}` };
+// Nombre para mostrar y para la descarga: sin rutas, sin caracteres de control y acotado.
+function limpiarNombre(nombreOriginal) {
+  const nombre = path
+    .basename(nombreOriginal || "archivo")
+    .replace(/[\u0000-\u001f\u007f"\\/]/g, "_")
+    .trim();
+  return (nombre || "archivo").slice(-150);
+}
+
+// Guarda en MongoDB un archivo ya validado. Se identifica por su _id, así que no necesita un
+// nombre aleatorio en disco.
+export function guardarArchivo({ archivo, tipo, candidatoId, subidoPor = null }) {
+  return Archivo.create({
+    nombreOriginal: limpiarNombre(archivo.originalname),
+    mimeType: archivo.mimetype,
+    tamano: archivo.buffer.length,
+    tipo,
+    datos: archivo.buffer,
+    candidatoId,
+    subidoPor,
+  });
 }

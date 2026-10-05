@@ -117,6 +117,8 @@ Situación al 5 de octubre de 2026, organizada por hitos de entrega.
 - Informe de entrevista (Word) adjunto al candidato, además del CV.
 - Regla del Kanban: una solicitud sin evaluador no puede pasar a "En proceso"
   ni a "Finalizada".
+- **Archivos en MongoDB:** los CV y los informes se guardan en la base de
+  datos (modelo `Archivo`) y solo se descargan con sesión iniciada.
 
 **Pendiente:**
 
@@ -141,11 +143,9 @@ Situación al 5 de octubre de 2026, organizada por hitos de entrega.
 - Desplegar la versión final una vez cerrados los pendientes del Hito 2.
 - El backend usa el plan gratuito de Render: la primera carga tras un rato
   sin uso puede tardar hasta ~50 segundos.
-- Los CV y las carpetas de candidato se guardan en el disco del servidor; en
-  Render ese disco no es persistente, así que esos archivos pueden perderse
-  al reiniciarse el servicio. Esto también afecta a los CV que llegan por
-  `/postular`: la solicitud queda en la base, pero su CV puede desaparecer
-  tras un reinicio o un nuevo despliegue.
+- Los CV e informes subidos **antes** del cambio a MongoDB se guardaban en el
+  disco efímero de Render y ya se perdieron; en el detalle aparecen como
+  "Archivo no disponible" y hay que volver a subirlos.
 
 > La integración con IA se trabaja aparte, en la rama
 > `feature/integracion-ia`. Es experimental, no forma parte del alcance
@@ -165,7 +165,7 @@ Situación al 5 de octubre de 2026, organizada por hitos de entrega.
 - Node.js con **Express 5** (API REST, ES Modules)
 - **MongoDB Atlas** como base de datos, con **Mongoose** como ODM
 - **JWT** (`jsonwebtoken`) para autenticación, y `bcryptjs` para el hasheo de contraseñas
-- `multer` para la carga de archivos (CV)
+- `multer` (en memoria) para recibir los archivos, que se guardan en MongoDB
 - `express-rate-limit` para limitar las postulaciones públicas por IP
 - `exceljs` y `docx` para generar las plantillas de informe y pauta de entrevista
 
@@ -232,8 +232,8 @@ mensaje claro (no se duplica ni se sobrescriben datos existentes).
   de 20 intentos cada 15 minutos (incluidos los fallidos).
 - **Validación estricta del CV en el servidor:** extensión, tipo MIME y firma
   real del archivo (los primeros bytes de un PDF, DOC o DOCX), y tamaño máximo
-  de 5 MB. El archivo se valida en memoria antes de escribirlo en disco y se
-  guarda con un nombre aleatorio.
+  de 5 MB. El archivo se valida en memoria y se guarda en MongoDB (ver
+  *Archivos del candidato*).
 - **Honeypot anti-bots:** un campo oculto que solo los bots completan; si
   viene lleno, la postulación se descarta en silencio.
 - **Sanitización** del texto (sin etiquetas HTML ni caracteres de control, con
@@ -280,10 +280,9 @@ mensaje claro (no se duplica ni se sobrescriben datos existentes).
   entrevista** en Word (`.doc` o `.docx`, máx. 5 MB).
 - Lo pueden subir o reemplazar el analista, el evaluador responsable de la
   solicitud o un admin. El servidor valida extensión, tipo y firma real del
-  archivo, y lo guarda con un nombre aleatorio. Una copia queda también en la
-  carpeta del candidato (`Informe_entrevista.docx`).
+  archivo.
 - El detalle de la solicitud muestra la sección **Archivos del candidato**
-  con el CV y el informe, cada uno con su enlace de descarga.
+  con el CV y el informe, cada uno con su botón de descarga.
 
 ### Carga de CV
 
@@ -291,21 +290,45 @@ mensaje claro (no se duplica ni se sobrescriben datos existentes).
   la vía del analista y obligatorio en la postulación pública.
 - El backend rechaza cualquier otro formato o tamaño con un mensaje claro.
 
+### Archivos del candidato (CV e informe) en MongoDB
+
+- Los archivos **no se guardan en el disco del servidor**: el disco de Render
+  es efímero y se borraba al reiniciarse o dormirse el servicio. Ahora cada
+  archivo es un documento del modelo `Archivo` en MongoDB (con el contenido
+  como `Buffer`), referenciado desde el candidato (`cvArchivoId` e
+  `informeArchivoId`). Con el límite de 5 MB queda muy por debajo del máximo
+  de 16 MB por documento, por lo que no hace falta GridFS.
+- `multer` recibe el archivo en memoria; el servidor valida extensión, tipo
+  MIME, firma real del contenido y tamaño antes de guardarlo.
+- **Descarga solo con sesión:** `GET /api/archivos/:id` exige token
+  (analista, evaluador o admin) y responde con el `Content-Type` y el nombre
+  original del archivo. Ya no existe la carpeta pública `/uploads`. En el
+  frontend, el botón "Descargar" pide el archivo con el token y dispara la
+  descarga; no hay enlaces directos.
+- Al eliminar una solicitud (solo admin) se borran también el candidato y sus
+  archivos.
+- Los datos anteriores al cambio que aún apuntan a una ruta en disco se
+  muestran como **"Archivo no disponible"**, sin romper la pantalla.
+
 ### Automatización de carpetas y plantillas
 
 Cada familia de cargo tiene su propia plantilla de informe (`.xlsx`) y pauta de
 entrevista (`.docx`), generadas por script en `backend/plantillas/<familia>/`.
 
-Al crear una solicitud, el sistema arma automáticamente la carpeta
+Como **comodidad local**, al crear una solicitud el sistema arma la carpeta
 `backend/candidatos/<nombre-candidato>-<id-solicitud>/` y copia dentro:
 
-1. El CV del candidato (si se adjuntó).
+1. Una copia del CV del candidato (si se adjuntó).
 2. La plantilla de informe de su familia de cargo.
 3. La pauta de entrevista de su familia de cargo.
 
-El endpoint `GET /api/solicitudes/:id/carpeta` permite consultar el contenido de
-esa carpeta. Si la creación de la carpeta falla, la solicitud se revierte
-completa para no dejar registros a medias.
+Al subir el informe de entrevista, también se deja una copia
+(`Informe_entrevista.docx`). El endpoint `GET /api/solicitudes/:id/carpeta`
+permite consultar el contenido de esa carpeta.
+
+La carpeta es opcional: los archivos reales viven en MongoDB. Si escribir en
+disco falla (por ejemplo en Render), el error se registra en el log y la
+solicitud, la postulación o el informe se guardan igual.
 
 ## Modelo de datos
 
@@ -325,9 +348,23 @@ completa para no dejar registros a medias.
 | `nombre` | String | Obligatorio |
 | `correo` | String | Obligatorio, validado como email |
 | `telefono` | String | Obligatorio, validado como celular chileno |
-| `cvUrl` | String | Ruta del CV, opcional |
-| `informeEntrevistaUrl` | String | Ruta del informe de entrevista (Word), opcional |
+| `cvArchivoId` | ObjectId → `Archivo` | CV del candidato, opcional |
+| `informeArchivoId` | ObjectId → `Archivo` | Informe de entrevista (Word), opcional |
+| `cvUrl`, `informeEntrevistaUrl` | String | Rutas antiguas en disco (datos previos a MongoDB); solo para mostrar "Archivo no disponible" |
 | `origen` | String | `analista` \| `postulacion_publica` (por defecto `analista`) |
+
+### `Archivo`
+
+| Campo | Tipo | Detalle |
+| ----- | ---- | ------- |
+| `nombreOriginal` | String | Nombre con el que se subió; se usa al descargar |
+| `mimeType` | String | Tipo del archivo (PDF o Word) |
+| `tamano` | Number | Bytes, máximo 5 MB |
+| `tipo` | String | `cv` \| `informe` |
+| `datos` | Buffer | Contenido; no se incluye en las consultas normales |
+| `candidatoId` | ObjectId → `Candidato` | Obligatorio |
+| `subidoPor` | ObjectId → `Usuario` | Quién lo subió; vacío en las postulaciones públicas |
+| `fecha` | Date | Por defecto, la fecha de carga |
 
 ### `FamiliaDeCargo`
 
@@ -346,8 +383,8 @@ Familias precargadas: Atención al Cliente, Ventas, Administración y Operacione
 | `candidato` | ObjectId → `Candidato` | Obligatorio |
 | `familiaDeCargo` | ObjectId → `FamiliaDeCargo` | Obligatorio |
 | `cargo` | String | Obligatorio |
-| `cvUrl` | String | Ruta del CV subido |
-| `carpetaCandidato` | String | Nombre de la carpeta generada automáticamente |
+| `cvUrl` | String | Ruta antigua del CV en disco (datos previos a MongoDB) |
+| `carpetaCandidato` | String | Nombre de la carpeta local generada (vacío si el disco no estaba disponible) |
 | `observaciones` | String | Texto libre |
 | `profesionalResponsable` | ObjectId → `Usuario` | Debe tener rol `evaluador`. Obligatorio al crear o editar por la vía privada; vacío en las postulaciones públicas hasta que el analista lo asigna |
 | `analistaId` | ObjectId → `Usuario` | Quien creó la solicitud; vacío si la envió el propio candidato desde `/postular` |
@@ -452,7 +489,7 @@ Sin token. Con rate limiting (ver *Postulación pública*).
 
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
-| `GET` | `/uploads/<archivo>` | Sirve los CV y los informes de entrevista subidos. |
+| `GET` | `/api/archivos/:id` | Descarga un CV o informe guardado en MongoDB, con su `Content-Type` y nombre original. Requiere token (analista, evaluador o admin): sin token responde `401`. |
 
 ## Instalación y ejecución local
 
@@ -560,11 +597,11 @@ backend/
     controllers/  Lógica de cada recurso
     routes/       Definición de los endpoints
     middleware/   Autenticación JWT y carga de archivos (multer)
-    utils/        Creación de carpetas de candidato y copia de plantillas
+    utils/        Validación y guardado de archivos, carpetas de candidato y plantillas
     seed/         Scripts de datos iniciales, migración y plantillas
   plantillas/     Plantillas .xlsx y .docx por familia de cargo
-  candidatos/     Carpetas generadas automáticamente (no versionadas)
-  uploads/        CV subidos (no versionados)
+  candidatos/     Carpetas locales generadas automáticamente (no versionadas, opcionales)
+  uploads/        Ya no se usa: los archivos se guardan en MongoDB
 
 frontend/
   src/

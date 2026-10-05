@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { obtenerSolicitud, subirInformeEntrevista } from "../services/solicitudService";
 import { listarEvaluaciones, crearEvaluacion, actualizarEvaluacion } from "../services/evaluacionService";
-import { apiOrigin } from "../services/api";
 import SolicitudFormulario from "../components/SolicitudFormulario";
 import EtiquetaPostulacionPublica, { esPostulacionPublica } from "../components/EtiquetaPostulacionPublica";
 import SelectorCv from "../components/SelectorCv";
+import ArchivoDescargable from "../components/ArchivoDescargable";
 import { useAuth } from "../context/AuthContext";
 import { formatearFechaCalendario, hoyLocal } from "../utils/fechas";
 
@@ -97,26 +97,6 @@ function EvaluacionFormulario({ evaluacion, solicitudId, onGuardado, onCancelar 
 const EXTENSIONES_INFORME = [".doc", ".docx"];
 const TAMANO_MAXIMO_ARCHIVO = 5 * 1024 * 1024;
 
-function EnlaceArchivo({ etiqueta, url }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 px-3 py-2">
-      <span className="text-sm text-slate-700">{etiqueta}</span>
-      {url ? (
-        <a
-          href={`${apiOrigin}${url}`}
-          target="_blank"
-          rel="noreferrer"
-          className="text-sm font-medium text-indigo-600 hover:underline"
-        >
-          Descargar
-        </a>
-      ) : (
-        <span className="text-sm text-slate-400">Sin archivo</span>
-      )}
-    </div>
-  );
-}
-
 function SubirInforme({ solicitudId, tieneInforme, onSubido }) {
   const [archivo, setArchivo] = useState(null);
   const [error, setError] = useState("");
@@ -137,8 +117,8 @@ function SubirInforme({ solicitudId, tieneInforme, onSubido }) {
     setError("");
     setSubiendo(true);
     try {
-      const { informeEntrevistaUrl } = await subirInformeEntrevista(solicitudId, archivo);
-      onSubido(informeEntrevistaUrl);
+      const { informeArchivo } = await subirInformeEntrevista(solicitudId, archivo);
+      onSubido(informeArchivo);
       setArchivo(null);
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al subir el informe");
@@ -305,18 +285,26 @@ export default function SolicitudDetalle() {
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
         <h3 className="text-lg font-semibold text-slate-900 mb-4">Archivos del candidato</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <EnlaceArchivo etiqueta="CV" url={solicitud.cvUrl || solicitud.candidato?.cvUrl} />
-          <EnlaceArchivo etiqueta="Informe de entrevista" url={solicitud.candidato?.informeEntrevistaUrl} />
+          <ArchivoDescargable
+            etiqueta="CV"
+            archivo={solicitud.candidato?.cvArchivoId}
+            rutaAntigua={solicitud.candidato?.cvUrl || solicitud.cvUrl}
+          />
+          <ArchivoDescargable
+            etiqueta="Informe de entrevista"
+            archivo={solicitud.candidato?.informeArchivoId}
+            rutaAntigua={solicitud.candidato?.informeEntrevistaUrl}
+          />
         </div>
         {puedeSubirInforme && (
           <div className="mt-4">
             <SubirInforme
               solicitudId={id}
-              tieneInforme={Boolean(solicitud.candidato?.informeEntrevistaUrl)}
-              onSubido={(informeEntrevistaUrl) =>
+              tieneInforme={Boolean(solicitud.candidato?.informeArchivoId)}
+              onSubido={(informeArchivo) =>
                 setSolicitud((anterior) => ({
                   ...anterior,
-                  candidato: { ...anterior.candidato, informeEntrevistaUrl },
+                  candidato: { ...anterior.candidato, informeArchivoId: informeArchivo, informeEntrevistaUrl: "" },
                 }))
               }
             />

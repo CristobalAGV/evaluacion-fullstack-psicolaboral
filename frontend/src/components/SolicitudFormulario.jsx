@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { listarFamilias } from "../services/familiaService";
 import { listarUsuarios } from "../services/usuarioService";
 import { crearSolicitud, actualizarSolicitud } from "../services/solicitudService";
-import { apiOrigin } from "../services/api";
 import SelectorCv from "./SelectorCv";
+import ArchivoDescargable from "./ArchivoDescargable";
 
 const campoClases =
   "rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
@@ -180,13 +180,14 @@ export default function SolicitudFormulario({ solicitud, alGuardar, alCancelar }
           archivo={cv}
           onChange={setCv}
         />
-        {esEdicion && solicitud.cvUrl && (
-          <p className="text-sm text-slate-600 -mt-2">
-            CV actual:{" "}
-            <a href={`${apiOrigin}${solicitud.cvUrl}`} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">
-              ver archivo
-            </a>
-          </p>
+        {esEdicion && (
+          <div className="-mt-2">
+            <ArchivoDescargable
+              etiqueta="CV actual"
+              archivo={solicitud.candidato?.cvArchivoId}
+              rutaAntigua={solicitud.candidato?.cvUrl || solicitud.cvUrl}
+            />
+          </div>
         )}
 
         {error && <p className="text-sm text-red-600">{error}</p>}

@@ -17,6 +17,8 @@ const solicitudSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // Ruta antigua del CV en disco (datos previos a guardar archivos en MongoDB). Los CV nuevos
+    // se referencian desde Candidato.cvArchivoId.
     cvUrl: {
       type: String,
       default: "",
