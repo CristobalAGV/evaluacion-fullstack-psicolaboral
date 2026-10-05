@@ -53,7 +53,6 @@ export default function Registro() {
           <select value={rol} onChange={(e) => setRol(e.target.value)} className={campoClases}>
             <option value="analista">Analista</option>
             <option value="evaluador">Evaluador</option>
-            <option value="admin">Admin</option>
           </select>
         </label>
         {error && <p className="text-sm text-red-600">{error}</p>}

@@ -4,7 +4,11 @@ import Solicitud from "../models/Solicitud.js";
 import Candidato from "../models/Candidato.js";
 import FamiliaDeCargo from "../models/FamiliaDeCargo.js";
 import Usuario from "../models/Usuario.js";
+import Evaluacion from "../models/Evaluacion.js";
+import fs from "node:fs";
 import { UPLOADS_DIR, eliminarArchivo } from "../middleware/upload.js";
+import { esEvaluadorResponsable } from "../middleware/auth.js";
+import { validarArchivo, guardarArchivoValidado, EXTENSIONES_WORD } from "../utils/validarArchivo.js";
 import {
   CANDIDATOS_DIR,
   prepararCarpetaSolicitud,
@@ -13,6 +17,9 @@ import {
 } from "../utils/carpetas.js";
 
 const ESTADOS_VALIDOS = ["Pendiente", "En proceso", "Finalizada"];
+// Estados a los que una solicitud solo puede llegar si ya tiene evaluador asignado.
+const ESTADOS_CON_EVALUADOR = ["En proceso", "Finalizada"];
+const NOMBRE_INFORME_EN_CARPETA = "Informe_entrevista";
 
 async function validarProfesionalResponsable(profesionalResponsable) {
   if (!mongoose.isValidObjectId(profesionalResponsable)) {
@@ -248,11 +255,23 @@ export async function eliminarSolicitud(req, res) {
       await eliminarArchivo(path.join(UPLOADS_DIR, path.basename(solicitud.cvUrl)));
     }
 
+    const candidato = await Candidato.findById(solicitud.candidato);
+    if (candidato?.informeEntrevistaUrl) {
+      await eliminarArchivo(path.join(UPLOADS_DIR, path.basename(candidato.informeEntrevistaUrl)));
+    }
+
     if (solicitud.carpetaCandidato) {
       await eliminarCarpetaCandidato(solicitud.carpetaCandidato);
     }
 
     await Solicitud.findByIdAndDelete(id);
+    await Evaluacion.deleteMany({ solicitud: id });
+
+    // Sin otras solicitudes, el candidato queda huérfano; se borra para que pueda volver a
+    // postular con el mismo correo desde /postular.
+    if (candidato && !(await Solicitud.exists({ candidato: candidato._id }))) {
+      await Candidato.findByIdAndDelete(candidato._id);
+    }
 
     return res.json({ mensaje: "Solicitud eliminada" });
   } catch (error) {
@@ -269,14 +288,24 @@ export async function actualizarEstadoSolicitud(req, res) {
       return res.status(400).json({ mensaje: `estado debe ser uno de: ${ESTADOS_VALIDOS.join(", ")}` });
     }
 
-    const solicitud = await Solicitud.findByIdAndUpdate(id, { estado }, { returnDocument: "after" })
-      .populate("candidato")
-      .populate("familiaDeCargo")
-      .populate("profesionalResponsable", "nombre correo rol");
-
+    const solicitud = await Solicitud.findById(id);
     if (!solicitud) {
       return res.status(404).json({ mensaje: "Solicitud no encontrada" });
     }
+
+    if (ESTADOS_CON_EVALUADOR.includes(estado) && !solicitud.profesionalResponsable) {
+      return res.status(400).json({
+        mensaje: `Asigna un evaluador a esta solicitud antes de moverla a "${estado}".`,
+      });
+    }
+
+    solicitud.estado = estado;
+    await solicitud.save();
+    await solicitud.populate([
+      "candidato",
+      "familiaDeCargo",
+      { path: "profesionalResponsable", select: "nombre correo rol" },
+    ]);
 
     return res.json(solicitud);
   } catch (error) {
@@ -303,5 +332,70 @@ export async function obtenerCarpetaSolicitud(req, res) {
     return res.json({ carpeta: solicitud.carpetaCandidato, archivos });
   } catch (error) {
     return res.status(500).json({ mensaje: "Error al listar la carpeta de la solicitud", error: error.message });
+  }
+}
+
+// Sube o reemplaza el informe de la entrevista (Word) del candidato de esta solicitud.
+// Pueden hacerlo el analista, el admin o el evaluador responsable de la solicitud.
+export async function subirInformeEntrevista(req, res) {
+  try {
+    const { id } = req.params;
+
+    const solicitud = await Solicitud.findById(id);
+    if (!solicitud) {
+      return res.status(404).json({ mensaje: "Solicitud no encontrada" });
+    }
+
+    const puedeSubir =
+      ["analista", "admin"].includes(req.usuario.rol) || esEvaluadorResponsable(req.usuario, solicitud);
+    if (!puedeSubir) {
+      return res.status(403).json({ mensaje: "Solo el evaluador responsable puede subir el informe de esta solicitud" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ mensaje: "Adjunta el informe en formato DOC o DOCX" });
+    }
+    const errorArchivo = validarArchivo(req.file, EXTENSIONES_WORD, "Word (DOC o DOCX)");
+    if (errorArchivo) {
+      return res.status(400).json({ mensaje: errorArchivo });
+    }
+
+    const candidato = await Candidato.findById(solicitud.candidato);
+    if (!candidato) {
+      return res.status(404).json({ mensaje: "Candidato no encontrado" });
+    }
+
+    const { rutaAbsoluta, url } = await guardarArchivoValidado(req.file);
+    const informeAnterior = candidato.informeEntrevistaUrl;
+
+    candidato.informeEntrevistaUrl = url;
+    try {
+      await candidato.save();
+    } catch (errorGuardar) {
+      await eliminarArchivo(rutaAbsoluta);
+      throw errorGuardar;
+    }
+
+    if (informeAnterior) {
+      await eliminarArchivo(path.join(UPLOADS_DIR, path.basename(informeAnterior)));
+    }
+
+    // Copia también el informe a la carpeta del candidato, junto al CV y las plantillas.
+    if (solicitud.carpetaCandidato) {
+      const carpetaAbsoluta = path.join(CANDIDATOS_DIR, solicitud.carpetaCandidato);
+      if (fs.existsSync(carpetaAbsoluta)) {
+        for (const extension of EXTENSIONES_WORD) {
+          await eliminarArchivo(path.join(carpetaAbsoluta, `${NOMBRE_INFORME_EN_CARPETA}${extension}`));
+        }
+        await fs.promises.copyFile(
+          rutaAbsoluta,
+          path.join(carpetaAbsoluta, `${NOMBRE_INFORME_EN_CARPETA}${path.extname(rutaAbsoluta)}`)
+        );
+      }
+    }
+
+    return res.json({ informeEntrevistaUrl: url });
+  } catch (error) {
+    return res.status(500).json({ mensaje: "Error al subir el informe de entrevista", error: error.message });
   }
 }

@@ -119,6 +119,7 @@ export default function Postular() {
               onChange={(e) => setCorreo(e.target.value)}
               required
               maxLength={254}
+              placeholder="nombre@ejemplo.cl"
               autoComplete="email"
               className={campoClases}
             />
@@ -140,7 +141,7 @@ export default function Postular() {
         </div>
 
         <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Familia de cargo
+          Área de interés
           <select
             value={familiaDeCargo}
             onChange={(e) => setFamiliaDeCargo(e.target.value)}

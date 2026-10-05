@@ -1,29 +1,13 @@
-import fs from "node:fs";
-import path from "node:path";
-import crypto from "node:crypto";
 import mongoose from "mongoose";
 import Candidato from "../models/Candidato.js";
 import Solicitud from "../models/Solicitud.js";
 import FamiliaDeCargo from "../models/FamiliaDeCargo.js";
-import { UPLOADS_DIR, eliminarArchivo } from "../middleware/upload.js";
+import { eliminarArchivo } from "../middleware/upload.js";
 import { prepararCarpetaSolicitud } from "../utils/carpetas.js";
+import { validarArchivo, guardarArchivoValidado, EXTENSIONES_CV } from "../utils/validarArchivo.js";
 
 const CORREO_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TELEFONO_REGEX = /^\+?56\s?9\s?\d{4}\s?\d{4}$/;
-
-// Firma (primeros bytes) de cada formato aceptado. No basta con el mimetype ni con la
-// extensión, porque los dos los decide quien envía el archivo.
-const FIRMAS_POR_EXTENSION = {
-  ".pdf": [Buffer.from("%PDF-")],
-  ".doc": [Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])],
-  ".docx": [Buffer.from([0x50, 0x4b, 0x03, 0x04])],
-};
-
-const MIMETYPES_POR_EXTENSION = {
-  ".pdf": ["application/pdf"],
-  ".doc": ["application/msword"],
-  ".docx": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
-};
 
 // Quita etiquetas, caracteres de control y espacios repetidos, y corta al largo máximo.
 function limpiarTexto(valor, largoMaximo) {
@@ -39,21 +23,7 @@ function limpiarTexto(valor, largoMaximo) {
 
 function validarCv(archivo) {
   if (!archivo) return "Adjunta tu CV en formato PDF, DOC o DOCX";
-
-  const extension = path.extname(archivo.originalname || "").toLowerCase();
-  const firmas = FIRMAS_POR_EXTENSION[extension];
-  if (!firmas) return "Formato de CV no permitido. Usa PDF, DOC o DOCX.";
-
-  if (!MIMETYPES_POR_EXTENSION[extension].includes(archivo.mimetype)) {
-    return "El tipo del archivo no coincide con su extensión. Usa un PDF, DOC o DOCX válido.";
-  }
-
-  const firmaValida = firmas.some((firma) => archivo.buffer.subarray(0, firma.length).equals(firma));
-  if (!firmaValida) {
-    return "El contenido del archivo no corresponde a un PDF, DOC o DOCX válido.";
-  }
-
-  return null;
+  return validarArchivo(archivo, EXTENSIONES_CV, "PDF, DOC o DOCX");
 }
 
 export async function listarFamiliasPublicas(req, res) {
@@ -91,7 +61,7 @@ export async function crearPostulacion(req, res) {
     return res.status(400).json({ mensaje: "Indica el cargo al que postulas" });
   }
   if (!mongoose.isValidObjectId(familiaDeCargo)) {
-    return res.status(400).json({ mensaje: "Selecciona una familia de cargo" });
+    return res.status(400).json({ mensaje: "Selecciona un área de interés" });
   }
 
   const errorCv = validarCv(req.file);
@@ -106,7 +76,7 @@ export async function crearPostulacion(req, res) {
   try {
     const familia = await FamiliaDeCargo.findById(familiaDeCargo);
     if (!familia) {
-      return res.status(400).json({ mensaje: "Selecciona una familia de cargo" });
+      return res.status(400).json({ mensaje: "Selecciona un área de interés" });
     }
 
     const existente = await Candidato.exists({ correo });
@@ -117,17 +87,14 @@ export async function crearPostulacion(req, res) {
       });
     }
 
-    // Nombre aleatorio: el CV no queda en una URL que se pueda adivinar a partir del nombre del candidato.
-    const extension = path.extname(req.file.originalname).toLowerCase();
-    const nombreArchivo = `${Date.now()}-${crypto.randomUUID()}${extension}`;
-    rutaCv = path.join(UPLOADS_DIR, nombreArchivo);
-    await fs.promises.writeFile(rutaCv, req.file.buffer);
+    const { rutaAbsoluta, url: cvUrl } = await guardarArchivoValidado(req.file);
+    rutaCv = rutaAbsoluta;
 
     candidato = await Candidato.create({
       nombre,
       correo,
       telefono,
-      cvUrl: `/uploads/${nombreArchivo}`,
+      cvUrl,
       origen: "postulacion_publica",
     });
 
@@ -135,7 +102,7 @@ export async function crearPostulacion(req, res) {
       candidato: candidato._id,
       familiaDeCargo: familia._id,
       cargo,
-      cvUrl: `/uploads/${nombreArchivo}`,
+      cvUrl,
       estado: "Pendiente",
     });
 

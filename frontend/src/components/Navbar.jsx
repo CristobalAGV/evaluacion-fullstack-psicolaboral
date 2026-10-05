@@ -28,9 +28,11 @@ export default function Navbar() {
               <Link to="/panel" className={enlaceClases}>
                 Panel
               </Link>
-              <Link to="/solicitudes/nueva" className={enlaceClases}>
-                Nueva solicitud
-              </Link>
+              {usuario.rol !== "evaluador" && (
+                <Link to="/solicitudes/nueva" className={enlaceClases}>
+                  Nueva solicitud
+                </Link>
+              )}
               <span className="px-3 py-2 text-sm text-slate-500">
                 {usuario.nombre} <span className="text-slate-400">({usuario.rol})</span>
               </span>

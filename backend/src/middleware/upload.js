@@ -41,6 +41,22 @@ export const uploadCv = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
+// El informe de entrevista queda en memoria hasta validar su contenido (ver utils/validarArchivo.js).
+const uploadInforme = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 5 },
+});
+
+export function recibirInformeEntrevista(req, res, next) {
+  uploadInforme.single("informe")(req, res, (err) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ mensaje: "El informe supera el tamaño máximo de 5 MB." });
+    }
+    return res.status(400).json({ mensaje: "No se pudo procesar el archivo del informe." });
+  });
+}
+
 export async function eliminarArchivo(rutaAbsoluta) {
   try {
     await fs.promises.unlink(rutaAbsoluta);

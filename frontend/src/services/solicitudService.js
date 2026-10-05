@@ -47,6 +47,13 @@ export async function actualizarEstadoSolicitud(id, estado) {
   return data;
 }
 
+export async function subirInformeEntrevista(id, archivo) {
+  const formData = new FormData();
+  formData.append("informe", archivo);
+  const { data } = await api.put(`/solicitudes/${id}/informe-entrevista`, formData);
+  return data;
+}
+
 export async function eliminarSolicitud(id) {
   const { data } = await api.delete(`/solicitudes/${id}`);
   return data;

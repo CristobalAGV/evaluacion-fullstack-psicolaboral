@@ -27,6 +27,11 @@ const candidatoSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // Informe de la entrevista (Word), lo suben el analista, el evaluador responsable o un admin.
+    informeEntrevistaUrl: {
+      type: String,
+      default: "",
+    },
     // Por dónde llegó el candidato: cargado por un analista o desde el formulario público /postular.
     origen: {
       type: String,

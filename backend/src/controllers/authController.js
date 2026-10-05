@@ -1,6 +1,9 @@
 import jwt from "jsonwebtoken";
 import Usuario from "../models/Usuario.js";
 
+// El registro público solo crea analistas y evaluadores; un admin no se puede auto-registrar.
+const ROLES_REGISTRO = ["analista", "evaluador"];
+
 function generarToken(usuario) {
   return jwt.sign(
     { id: usuario._id, rol: usuario.rol, nombre: usuario.nombre },
@@ -17,12 +20,16 @@ export async function registrar(req, res) {
       return res.status(400).json({ mensaje: "Nombre, correo y contraseña son obligatorios" });
     }
 
+    if (rol !== undefined && !ROLES_REGISTRO.includes(rol)) {
+      return res.status(400).json({ mensaje: "Rol no permitido. Elige analista o evaluador." });
+    }
+
     const existente = await Usuario.findOne({ correo });
     if (existente) {
       return res.status(409).json({ mensaje: "Ya existe un usuario con ese correo" });
     }
 
-    const usuario = await Usuario.create({ nombre, correo, password, rol });
+    const usuario = await Usuario.create({ nombre, correo, password, rol: rol || "analista" });
     const token = generarToken(usuario);
 
     return res.status(201).json({

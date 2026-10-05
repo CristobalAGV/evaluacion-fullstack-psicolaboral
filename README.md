@@ -75,12 +75,12 @@ demostración.
 
 ## Estado del avance
 
-Situación al 1 de octubre de 2026, organizada por hitos de entrega.
+Situación al 5 de octubre de 2026, organizada por hitos de entrega.
 
 | Hito | Estado |
 | ---- | ------ |
 | Hito 1 — Frontend funcional | ✅ Completo |
-| Hito 2 — Integración Full Stack | 🟡 En curso (integración funcionando, faltan cierres) |
+| Hito 2 — Integración Full Stack | 🟡 En curso (permisos por rol aplicados; faltan pruebas automatizadas) |
 | Hito 3 — MVP final desplegado | 🟡 En curso (hay una versión desplegada, aún no es la final) |
 
 ### Hito 1 — Frontend funcional
@@ -92,12 +92,11 @@ Situación al 1 de octubre de 2026, organizada por hitos de entrega.
   Tailwind.
 - Rutas protegidas y navegación con React Router.
 - Validaciones de formulario (correo y celular chileno) y mensajes de error.
-
-**Pendiente:**
-
-- La fecha de cada evaluación se muestra un día antes en el detalle (se
-  guarda como medianoche UTC y se muestra en la hora local de Chile). Es un
-  error de visualización conocido, sin corregir aún.
+- Formulario público de postulación (`/postular`), sin login.
+- La interfaz se adapta al rol: cada usuario solo ve los botones de las
+  acciones que puede hacer.
+- Corregido: la fecha de cada evaluación ya no se muestra un día antes. Se
+  trata como día de calendario (sin zona horaria) al guardarla y al mostrarla.
 
 ### Hito 2 — Integración Full Stack
 
@@ -110,14 +109,19 @@ Situación al 1 de octubre de 2026, organizada por hitos de entrega.
 - CRUD de solicitudes, cambio de estado, evaluaciones, dashboard calculado en
   el backend, carga de CV y creación automática de la carpeta del candidato
   con sus plantillas.
+- **Permisos por rol aplicados en el servidor** con `permitirRoles` y, para
+  las evaluaciones y el informe, con una verificación de que el evaluador sea
+  el responsable de la solicitud (ver *Autenticación y roles*).
+- **Registro restringido:** solo crea analistas y evaluadores; el servidor
+  rechaza `admin` o cualquier otro rol aunque se envíe a mano.
+- Informe de entrevista (Word) adjunto al candidato, además del CV.
+- Regla del Kanban: una solicitud sin evaluador no puede pasar a "En proceso"
+  ni a "Finalizada".
 
 **Pendiente:**
 
-- **Permisos por rol.** Los tres roles existen y se guardan en el token, pero
-  hoy cualquier usuario autenticado puede hacer todas las operaciones: el
-  middleware `permitirRoles` está escrito pero no se aplica a ninguna ruta.
-- **Registro abierto a cualquier rol.** La pantalla de registro permite
-  elegir `admin` sin ninguna restricción.
+- **Crear administradores.** Como el registro ya no permite `admin`, un
+  administrador nuevo se crea directamente en la base de datos.
 - **Sin pruebas automatizadas** en backend ni en frontend; la verificación
   ha sido manual.
 - Los modelos `Entrevista` e `Informe` siguen sin exponerse en la API (ver
@@ -171,7 +175,22 @@ Situación al 1 de octubre de 2026, organizada por hitos de entrega.
 
 - Registro e inicio de sesión con JWT; la contraseña se guarda hasheada con bcrypt.
 - Tres roles: **`analista`**, **`evaluador`** y **`admin`**.
+- El registro público solo permite elegir **analista** o **evaluador**; el
+  servidor rechaza cualquier otro valor (incluido `admin`).
 - Todas las rutas de negocio exigen token válido.
+- **Permisos por rol**, aplicados en el servidor (la interfaz además oculta lo
+  que el rol no puede hacer):
+
+  | Acción | Analista | Evaluador | Admin |
+  | ------ | :------: | :-------: | :---: |
+  | Ver dashboard, Kanban y detalle de solicitudes | ✅ | ✅ | ✅ |
+  | Crear y editar solicitudes y candidatos, asignar evaluador, mover de estado | ✅ | — | ✅ |
+  | Crear y editar evaluaciones | — | Solo si es el responsable | ✅ |
+  | Subir el informe de entrevista | ✅ | Solo si es el responsable | ✅ |
+  | Eliminar solicitudes | — | — | ✅ |
+
+- Las solicitudes que llegan por `/postular` (sin analista) las ven todos los
+  analistas.
 - Rutas protegidas en el frontend: sin sesión, se redirige a inicio de sesión.
 - **Manejo de sesión expirada:** si la API responde `401`, la aplicación limpia
   la sesión, redirige al login y avisa "Tu sesión expiró, vuelve a iniciar sesión".
@@ -235,7 +254,11 @@ mensaje claro (no se duplica ni se sobrescriben datos existentes).
 - Tablero con tres columnas según el estado de la solicitud:
   **Pendiente → En proceso → Finalizada**.
 - Cada tarjeta muestra candidato, cargo, familia de cargo y responsable, y
-  permite avanzar de estado, editar o eliminar sin recargar la página.
+  permite avanzar de estado y editar sin recargar la página. El botón
+  "Eliminar" solo lo ve un admin.
+- **Regla de negocio:** una solicitud sin evaluador asignado no puede pasar a
+  "En proceso" ni a "Finalizada". El servidor lo rechaza con un mensaje claro
+  y, en la tarjeta, el botón de avance se reemplaza por "Asignar evaluador".
 - Las solicitudes que llegan desde `/postular` llevan la etiqueta
   **"Postulación pública"** y, mientras no tengan evaluador, un botón
   **"Asignar evaluador"**.
@@ -250,6 +273,17 @@ mensaje claro (no se duplica ni se sobrescriben datos existentes).
 
 - Tarjetas con el total de candidatos y el número de solicitudes pendientes,
   en proceso y finalizadas, calculadas en el backend.
+
+### Informe de entrevista
+
+- Además del CV, cada candidato puede tener adjunto el **informe de la
+  entrevista** en Word (`.doc` o `.docx`, máx. 5 MB).
+- Lo pueden subir o reemplazar el analista, el evaluador responsable de la
+  solicitud o un admin. El servidor valida extensión, tipo y firma real del
+  archivo, y lo guarda con un nombre aleatorio. Una copia queda también en la
+  carpeta del candidato (`Informe_entrevista.docx`).
+- El detalle de la solicitud muestra la sección **Archivos del candidato**
+  con el CV y el informe, cada uno con su enlace de descarga.
 
 ### Carga de CV
 
@@ -292,6 +326,7 @@ completa para no dejar registros a medias.
 | `correo` | String | Obligatorio, validado como email |
 | `telefono` | String | Obligatorio, validado como celular chileno |
 | `cvUrl` | String | Ruta del CV, opcional |
+| `informeEntrevistaUrl` | String | Ruta del informe de entrevista (Word), opcional |
 | `origen` | String | `analista` \| `postulacion_publica` (por defecto `analista`) |
 
 ### `FamiliaDeCargo`
@@ -364,7 +399,7 @@ Authorization: Bearer <token>
 
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
-| `GET` | `/api/usuarios` | Lista usuarios. Acepta `?rol=evaluador` para filtrar (lo usa el selector de profesional responsable). |
+| `GET` | `/api/usuarios` | Lista usuarios. Acepta `?rol=evaluador` para filtrar (lo usa el selector de profesional responsable). Analista y admin. |
 
 ### Familias de cargo — `/api/familias`
 
@@ -380,11 +415,12 @@ Authorization: Bearer <token>
 | `POST` | `/api/solicitudes` | Crea una solicitud. **`multipart/form-data`**. |
 | `GET` | `/api/solicitudes/:id` | Detalle de una solicitud. |
 | `PUT` | `/api/solicitudes/:id` | Edita la solicitud. **`multipart/form-data`**; si se adjunta un CV nuevo, reemplaza el anterior. |
-| `DELETE` | `/api/solicitudes/:id` | Elimina la solicitud, su CV y su carpeta de candidato. |
-| `PATCH` | `/api/solicitudes/:id/estado` | Cambia el estado (`Pendiente`, `En proceso` o `Finalizada`). |
+| `DELETE` | `/api/solicitudes/:id` | Elimina la solicitud, sus evaluaciones, su CV, el informe y su carpeta de candidato. Solo admin. |
+| `PATCH` | `/api/solicitudes/:id/estado` | Cambia el estado (`Pendiente`, `En proceso` o `Finalizada`). Rechaza "En proceso" y "Finalizada" si no hay evaluador asignado. |
 | `GET` | `/api/solicitudes/:id/carpeta` | Lista los archivos de la carpeta del candidato. |
+| `PUT` | `/api/solicitudes/:id/informe-entrevista` | Sube o reemplaza el informe de entrevista (`informe`, Word, máx. 5 MB). **`multipart/form-data`**. Analista, admin o evaluador responsable. |
 | `GET` | `/api/solicitudes/:id/evaluaciones` | Lista las evaluaciones de esa solicitud. |
-| `POST` | `/api/solicitudes/:id/evaluaciones` | Crea una evaluación asociada a esa solicitud. |
+| `POST` | `/api/solicitudes/:id/evaluaciones` | Crea una evaluación asociada a esa solicitud (`fechaEvaluacion` en formato `AAAA-MM-DD`). Evaluador responsable o admin. |
 
 Campos de `POST` y `PUT` de solicitudes: `candidatoNombre`, `candidatoCorreo`,
 `candidatoTelefono`, `familiaDeCargo` (id), `cargo`, `profesionalResponsable`
@@ -404,7 +440,7 @@ Sin token. Con rate limiting (ver *Postulación pública*).
 
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
-| `PUT` | `/api/evaluaciones/:id` | Edita una evaluación (`fechaEvaluacion`, `resultado`, `estado`). |
+| `PUT` | `/api/evaluaciones/:id` | Edita una evaluación (`fechaEvaluacion`, `resultado`, `estado`). Evaluador responsable o admin. |
 
 ### Dashboard — `/api/dashboard`
 
@@ -416,7 +452,7 @@ Sin token. Con rate limiting (ver *Postulación pública*).
 
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
-| `GET` | `/uploads/<archivo>` | Sirve los CV subidos. |
+| `GET` | `/uploads/<archivo>` | Sirve los CV y los informes de entrevista subidos. |
 
 ## Instalación y ejecución local
 
@@ -483,7 +519,7 @@ npm run seed
 
 ### 5. Usar la aplicación
 
-Abre `http://localhost:5173`, crea una cuenta y entra.
+Abre `http://localhost:5173`, crea una cuenta (analista o evaluador) y entra.
 
 > Para crear una solicitud debe existir **al menos un usuario con rol
 > `evaluador`**, porque toda solicitud necesita un profesional responsable.

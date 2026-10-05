@@ -1,6 +1,14 @@
-// Zona clickable para elegir el CV. El <input type="file"> queda oculto y toda la tarjeta
-// funciona como su etiqueta.
-export default function SelectorCv({ etiqueta, archivo, onChange, required = false }) {
+// Zona clickable para elegir un archivo (por defecto, el CV). El <input type="file"> queda
+// oculto y toda la tarjeta funciona como su etiqueta.
+export default function SelectorCv({
+  etiqueta,
+  archivo,
+  onChange,
+  required = false,
+  accept = ".pdf,.doc,.docx",
+  textoSeleccionar = "Haz clic para seleccionar el CV",
+  formatos = "PDF, DOC o DOCX · máx. 5MB",
+}) {
   return (
     <div className="flex flex-col gap-1 text-sm text-slate-700">
       <span>{etiqueta}</span>
@@ -27,13 +35,13 @@ export default function SelectorCv({ etiqueta, archivo, onChange, required = fal
           </>
         ) : (
           <>
-            <span className="font-medium text-indigo-600">Haz clic para seleccionar el CV</span>
-            <span className="text-xs text-slate-500">PDF, DOC o DOCX · máx. 5MB</span>
+            <span className="font-medium text-indigo-600">{textoSeleccionar}</span>
+            <span className="text-xs text-slate-500">{formatos}</span>
           </>
         )}
         <input
           type="file"
-          accept=".pdf,.doc,.docx"
+          accept={accept}
           required={required}
           onChange={(e) => onChange(e.target.files[0] || null)}
           className="sr-only"

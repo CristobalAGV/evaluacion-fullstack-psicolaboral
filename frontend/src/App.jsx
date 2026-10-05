@@ -43,7 +43,7 @@ function App() {
           <Route
             path="/solicitudes/nueva"
             element={
-              <RutaProtegida>
+              <RutaProtegida roles={['analista', 'admin']}>
                 <NuevaSolicitud />
               </RutaProtegida>
             }
