@@ -7,9 +7,14 @@ import solicitudRoutes from "./routes/solicitudRoutes.js";
 import evaluacionRoutes from "./routes/evaluacionRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import usuarioRoutes from "./routes/usuarioRoutes.js";
+import postulacionRoutes from "./routes/postulacionRoutes.js";
 import { UPLOADS_DIR } from "./middleware/upload.js";
 
 const app = express();
+
+// En Render la API va detrás de un proxy: así el rate limit ve la IP real del cliente
+// (X-Forwarded-For) y no la del proxy.
+app.set("trust proxy", 1);
 
 const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map((origen) => origen.trim())
@@ -29,6 +34,7 @@ app.use("/api/solicitudes", solicitudRoutes);
 app.use("/api/evaluaciones", evaluacionRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/usuarios", usuarioRoutes);
+app.use("/api/postulaciones", postulacionRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ mensaje: "Ruta no encontrada" });

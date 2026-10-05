@@ -33,6 +33,10 @@ demostración.
 
 ![Detalle de una solicitud y su evaluación asociada](docs/capturas/detalle-solicitud.png)
 
+**Formulario público de postulación (sin login)**
+
+![Formulario público /postular con datos del candidato y selector de CV](docs/capturas/postulacion-publica.png)
+
 ## Contexto académico
 
 - **Asignatura:** Full Stack II — DSY1104
@@ -135,7 +139,9 @@ Situación al 1 de octubre de 2026, organizada por hitos de entrega.
   sin uso puede tardar hasta ~50 segundos.
 - Los CV y las carpetas de candidato se guardan en el disco del servidor; en
   Render ese disco no es persistente, así que esos archivos pueden perderse
-  al reiniciarse el servicio.
+  al reiniciarse el servicio. Esto también afecta a los CV que llegan por
+  `/postular`: la solicitud queda en la base, pero su CV puede desaparecer
+  tras un reinicio o un nuevo despliegue.
 
 > La integración con IA se trabaja aparte, en la rama
 > `feature/integracion-ia`. Es experimental, no forma parte del alcance
@@ -156,6 +162,7 @@ Situación al 1 de octubre de 2026, organizada por hitos de entrega.
 - **MongoDB Atlas** como base de datos, con **Mongoose** como ODM
 - **JWT** (`jsonwebtoken`) para autenticación, y `bcryptjs` para el hasheo de contraseñas
 - `multer` para la carga de archivos (CV)
+- `express-rate-limit` para limitar las postulaciones públicas por IP
 - `exceljs` y `docx` para generar las plantillas de informe y pauta de entrevista
 
 ## Funcionalidades implementadas
@@ -177,10 +184,49 @@ Situación al 1 de octubre de 2026, organizada por hitos de entrega.
 - Al eliminar una solicitud se borran también su CV y su carpeta de candidato,
   para no dejar archivos huérfanos.
 
+### Postulación pública (sin login)
+
+Además de la vía privada del analista, un candidato **interno o externo** puede
+postular por su cuenta, sin crear una cuenta. Ambas vías escriben en la misma
+base de datos.
+
+1. El candidato entra a **`/postular`** (también enlazado desde el login con
+   "¿Quieres postular a un cargo? Postula aquí"). La página no muestra la barra
+   de navegación privada.
+2. Ingresa nombre completo, correo, teléfono (celular chileno), familia de
+   cargo, cargo al que postula y su **CV obligatorio** (PDF, DOC o DOCX, máx. 5 MB).
+3. Al enviar ve la confirmación **"Postulación recibida"**.
+4. El backend crea el `Candidato` con `origen: "postulacion_publica"` y una
+   `Solicitud` en estado **Pendiente sin evaluador asignado**, con su carpeta de
+   candidato (CV + plantillas) igual que en el flujo privado.
+5. La solicitud aparece en el **Kanban** del analista con la etiqueta
+   **"Postulación pública"** y el aviso "Sin evaluador asignado". Desde la
+   tarjeta ("Asignar evaluador") o desde el detalle, el analista le asigna un
+   evaluador y la gestiona como cualquier otra.
+
+Si ya existe un candidato con el mismo correo, la postulación se rechaza con un
+mensaje claro (no se duplica ni se sobrescriben datos existentes).
+
+**Seguridad del endpoint público:**
+
+- **Rate limiting:** máximo 5 postulaciones aceptadas por hora e IP, y un tope
+  de 20 intentos cada 15 minutos (incluidos los fallidos).
+- **Validación estricta del CV en el servidor:** extensión, tipo MIME y firma
+  real del archivo (los primeros bytes de un PDF, DOC o DOCX), y tamaño máximo
+  de 5 MB. El archivo se valida en memoria antes de escribirlo en disco y se
+  guarda con un nombre aleatorio.
+- **Honeypot anti-bots:** un campo oculto que solo los bots completan; si
+  viene lleno, la postulación se descarta en silencio.
+- **Sanitización** del texto (sin etiquetas HTML ni caracteres de control, con
+  largo máximo) y validación de correo y teléfono también en el servidor.
+- El endpoint **ignora** cualquier campo de la parte privada (rol, estado,
+  evaluador, analista) y sus respuestas no devuelven datos de otros candidatos
+  ni de usuarios. El listado público de familias expone solo `_id` y `nombre`.
+
 ### Gestión de candidatos
 
 - Los datos del candidato (nombre, correo y teléfono) se capturan desde el
-  formulario de la solicitud.
+  formulario de la solicitud o desde la postulación pública.
 - **Validaciones** aplicadas en frontend y backend: formato de correo y formato
   de celular chileno (`+56 9` seguido de 8 dígitos, con espacios opcionales).
 
@@ -190,6 +236,9 @@ Situación al 1 de octubre de 2026, organizada por hitos de entrega.
   **Pendiente → En proceso → Finalizada**.
 - Cada tarjeta muestra candidato, cargo, familia de cargo y responsable, y
   permite avanzar de estado, editar o eliminar sin recargar la página.
+- Las solicitudes que llegan desde `/postular` llevan la etiqueta
+  **"Postulación pública"** y, mientras no tengan evaluador, un botón
+  **"Asignar evaluador"**.
 
 ### Evaluaciones
 
@@ -204,7 +253,8 @@ Situación al 1 de octubre de 2026, organizada por hitos de entrega.
 
 ### Carga de CV
 
-- Archivo **opcional** en formato PDF, DOC o DOCX, con un límite de **5 MB**.
+- Archivo en formato PDF, DOC o DOCX, con un límite de **5 MB**: opcional en
+  la vía del analista y obligatorio en la postulación pública.
 - El backend rechaza cualquier otro formato o tamaño con un mensaje claro.
 
 ### Automatización de carpetas y plantillas
@@ -242,6 +292,7 @@ completa para no dejar registros a medias.
 | `correo` | String | Obligatorio, validado como email |
 | `telefono` | String | Obligatorio, validado como celular chileno |
 | `cvUrl` | String | Ruta del CV, opcional |
+| `origen` | String | `analista` \| `postulacion_publica` (por defecto `analista`) |
 
 ### `FamiliaDeCargo`
 
@@ -263,8 +314,8 @@ Familias precargadas: Atención al Cliente, Ventas, Administración y Operacione
 | `cvUrl` | String | Ruta del CV subido |
 | `carpetaCandidato` | String | Nombre de la carpeta generada automáticamente |
 | `observaciones` | String | Texto libre |
-| `profesionalResponsable` | ObjectId → `Usuario` | Obligatorio, debe tener rol `evaluador` |
-| `analistaId` | ObjectId → `Usuario` | Obligatorio, quien creó la solicitud |
+| `profesionalResponsable` | ObjectId → `Usuario` | Debe tener rol `evaluador`. Obligatorio al crear o editar por la vía privada; vacío en las postulaciones públicas hasta que el analista lo asigna |
+| `analistaId` | ObjectId → `Usuario` | Quien creó la solicitud; vacío si la envió el propio candidato desde `/postular` |
 | `estado` | String | `Pendiente` \| `En proceso` \| `Finalizada` |
 | `fecha` | Date | Por defecto, la fecha de creación |
 
@@ -339,6 +390,15 @@ Campos de `POST` y `PUT` de solicitudes: `candidatoNombre`, `candidatoCorreo`,
 `candidatoTelefono`, `familiaDeCargo` (id), `cargo`, `profesionalResponsable`
 (id de un usuario `evaluador`), `observaciones` (opcional) y `cv` (archivo,
 opcional).
+
+### Postulaciones públicas — `/api/postulaciones`
+
+Sin token. Con rate limiting (ver *Postulación pública*).
+
+| Método | Ruta | Descripción |
+| ------ | ---- | ----------- |
+| `GET` | `/api/postulaciones/familias` | Solo `_id` y `nombre` de las familias de cargo, para el selector del formulario. Público. |
+| `POST` | `/api/postulaciones` | Registra una postulación. **`multipart/form-data`** con `nombre`, `correo`, `telefono`, `familiaDeCargo` (id), `cargo` y `cv` (obligatorio). Responde `201`, `400` (datos o archivo inválidos), `409` (correo ya registrado) o `429` (límite alcanzado). Público. |
 
 ### Evaluaciones — `/api/evaluaciones`
 
@@ -429,6 +489,10 @@ Abre `http://localhost:5173`, crea una cuenta y entra.
 > `evaluador`**, porque toda solicitud necesita un profesional responsable.
 > Registra uno desde la pantalla de registro eligiendo ese rol.
 
+Para probar la vía pública, abre `http://localhost:5173/postular` (por ejemplo
+en una ventana de incógnito) y envía una postulación: aparecerá en el panel
+Kanban del analista con la etiqueta "Postulación pública".
+
 ## Scripts disponibles
 
 ### Backend (`cd backend`)
@@ -468,8 +532,8 @@ backend/
 
 frontend/
   src/
-    components/   Componentes reutilizables (Navbar, formulario, ruta protegida)
-    pages/        Vistas (Inicio, Panel, Nueva solicitud, Detalle, Login, Registro)
+    components/   Componentes reutilizables (Navbar, formulario, selector de CV, ruta protegida)
+    pages/        Vistas (Inicio, Panel, Nueva solicitud, Detalle, Login, Registro, Postular)
     services/     Cliente axios y llamadas a la API
     context/      AuthContext: sesión, token y manejo de expiración
 ```

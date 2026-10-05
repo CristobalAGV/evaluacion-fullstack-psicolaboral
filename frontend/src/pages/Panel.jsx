@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listarSolicitudes, actualizarEstadoSolicitud, eliminarSolicitud } from "../services/solicitudService";
 import SolicitudFormulario from "../components/SolicitudFormulario";
+import EtiquetaPostulacionPublica, { esPostulacionPublica } from "../components/EtiquetaPostulacionPublica";
 
 const COLUMNAS = [
   { estado: "Pendiente", siguiente: "En proceso", etiquetaBoton: "Mover a en proceso" },
@@ -91,13 +92,16 @@ export default function Panel() {
                 .filter((s) => s.estado === columna.estado)
                 .map((s) => (
                   <div key={s._id} className="bg-white border border-slate-200 rounded-md p-3 flex flex-col gap-1 shadow-sm">
+                    {esPostulacionPublica(s) && <EtiquetaPostulacionPublica />}
                     <Link to={`/solicitudes/${s._id}`} className="font-semibold text-slate-900 hover:text-indigo-600">
                       {s.candidato?.nombre}
                     </Link>
                     <p className="text-xs text-slate-500">{s.cargo}</p>
                     <p className="text-xs text-slate-500">{s.familiaDeCargo?.nombre}</p>
-                    {s.profesionalResponsable?.nombre && (
+                    {s.profesionalResponsable?.nombre ? (
                       <p className="text-xs text-slate-400">Responsable: {s.profesionalResponsable.nombre}</p>
+                    ) : (
+                      <p className="text-xs text-amber-700">Sin evaluador asignado</p>
                     )}
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                       <button
@@ -105,7 +109,7 @@ export default function Panel() {
                         onClick={() => setSolicitudEnEdicion(s)}
                         className="rounded border border-indigo-600 text-indigo-600 text-xs px-2 py-1 hover:bg-indigo-50"
                       >
-                        Editar
+                        {s.profesionalResponsable ? "Editar" : "Asignar evaluador"}
                       </button>
                       <button
                         type="button"

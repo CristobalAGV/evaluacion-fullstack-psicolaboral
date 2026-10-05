@@ -3,6 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { obtenerSolicitud } from "../services/solicitudService";
 import { listarEvaluaciones, crearEvaluacion, actualizarEvaluacion } from "../services/evaluacionService";
 import { apiOrigin } from "../services/api";
+import SolicitudFormulario from "../components/SolicitudFormulario";
+import EtiquetaPostulacionPublica, { esPostulacionPublica } from "../components/EtiquetaPostulacionPublica";
 
 const ESTADOS_EVALUACION = ["Pendiente", "En proceso", "Finalizada"];
 const campoClases =
@@ -97,6 +99,7 @@ export default function SolicitudDetalle() {
   const [error, setError] = useState("");
   const [mostrarFormularioNueva, setMostrarFormularioNueva] = useState(false);
   const [evaluacionEnEdicion, setEvaluacionEnEdicion] = useState(null);
+  const [editandoSolicitud, setEditandoSolicitud] = useState(false);
 
   useEffect(() => {
     cargarDatos();
@@ -144,7 +147,10 @@ export default function SolicitudDetalle() {
 
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-slate-900">{solicitud.candidato?.nombre}</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-xl font-semibold text-slate-900">{solicitud.candidato?.nombre}</h2>
+            {esPostulacionPublica(solicitud) && <EtiquetaPostulacionPublica />}
+          </div>
           <span className="rounded-full bg-slate-100 text-slate-700 text-xs font-medium px-3 py-1">
             {solicitud.estado}
           </span>
@@ -168,11 +174,25 @@ export default function SolicitudDetalle() {
           </div>
           <div>
             <dt className="text-slate-500">Profesional responsable</dt>
-            <dd className="text-slate-900">{solicitud.profesionalResponsable?.nombre || "-"}</dd>
+            <dd className="text-slate-900">
+              {solicitud.profesionalResponsable?.nombre || (
+                <span className="text-amber-700">Sin evaluador asignado</span>
+              )}{" "}
+              <button
+                type="button"
+                onClick={() => setEditandoSolicitud(true)}
+                className="text-xs text-indigo-600 hover:underline"
+              >
+                {solicitud.profesionalResponsable ? "Cambiar" : "Asignar"}
+              </button>
+            </dd>
           </div>
           <div>
             <dt className="text-slate-500">Analista que la creó</dt>
-            <dd className="text-slate-900">{solicitud.analistaId?.nombre || "-"}</dd>
+            <dd className="text-slate-900">
+              {solicitud.analistaId?.nombre ||
+                (esPostulacionPublica(solicitud) ? "Enviada por el candidato desde /postular" : "-")}
+            </dd>
           </div>
           {solicitud.cvUrl && (
             <div>
@@ -195,6 +215,28 @@ export default function SolicitudDetalle() {
           </div>
         </dl>
       </div>
+
+      {editandoSolicitud && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-10"
+          onClick={() => setEditandoSolicitud(false)}
+        >
+          <div
+            className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <SolicitudFormulario
+              solicitud={solicitud}
+              alGuardar={(actualizada) => {
+                // La respuesta del PUT no trae analistaId populado; se conserva el que ya teníamos.
+                setSolicitud((anterior) => ({ ...anterior, ...actualizada, analistaId: anterior.analistaId }));
+                setEditandoSolicitud(false);
+              }}
+              alCancelar={() => setEditandoSolicitud(false)}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">

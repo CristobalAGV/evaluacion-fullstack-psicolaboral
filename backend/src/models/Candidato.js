@@ -27,6 +27,12 @@ const candidatoSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // Por dónde llegó el candidato: cargado por un analista o desde el formulario público /postular.
+    origen: {
+      type: String,
+      enum: ["analista", "postulacion_publica"],
+      default: "analista",
+    },
   },
   { timestamps: true }
 );

@@ -6,10 +6,8 @@ import FamiliaDeCargo from "../models/FamiliaDeCargo.js";
 import Usuario from "../models/Usuario.js";
 import { UPLOADS_DIR, eliminarArchivo } from "../middleware/upload.js";
 import {
-  PLANTILLAS_DIR,
   CANDIDATOS_DIR,
-  crearCarpetaCandidato,
-  copiarArchivo,
+  prepararCarpetaSolicitud,
   eliminarCarpetaCandidato,
   listarArchivosCarpeta,
 } from "../utils/carpetas.js";
@@ -92,27 +90,12 @@ export async function crearSolicitud(req, res) {
     });
 
     try {
-      const { nombreCarpeta, carpetaAbsoluta } = await crearCarpetaCandidato(
-        candidatoDoc.nombre,
-        solicitud._id
-      );
-
-      if (req.file) {
-        const extensionCv = path.extname(req.file.filename);
-        await copiarArchivo(req.file.path, carpetaAbsoluta, `CV${extensionCv}`);
-      }
-
-      if (familia.plantillaInforme) {
-        const origenInforme = path.join(PLANTILLAS_DIR, familia.plantillaInforme);
-        await copiarArchivo(origenInforme, carpetaAbsoluta, path.basename(familia.plantillaInforme));
-      }
-
-      if (familia.pautaEntrevista) {
-        const origenPauta = path.join(PLANTILLAS_DIR, familia.pautaEntrevista);
-        await copiarArchivo(origenPauta, carpetaAbsoluta, path.basename(familia.pautaEntrevista));
-      }
-
-      solicitud.carpetaCandidato = nombreCarpeta;
+      solicitud.carpetaCandidato = await prepararCarpetaSolicitud({
+        nombreCandidato: candidatoDoc.nombre,
+        solicitudId: solicitud._id,
+        rutaCv: req.file?.path,
+        familia,
+      });
       await solicitud.save();
     } catch (errorCarpeta) {
       await Solicitud.findByIdAndDelete(solicitud._id);

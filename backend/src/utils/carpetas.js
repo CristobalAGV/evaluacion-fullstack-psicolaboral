@@ -38,6 +38,27 @@ export async function copiarArchivo(rutaOrigen, carpetaDestino, nombreDestino) {
   return destino;
 }
 
+// Crea la carpeta de la solicitud con el CV (si hay) y las plantillas de su familia de cargo.
+export async function prepararCarpetaSolicitud({ nombreCandidato, solicitudId, rutaCv, familia }) {
+  const { nombreCarpeta, carpetaAbsoluta } = await crearCarpetaCandidato(nombreCandidato, solicitudId);
+
+  if (rutaCv) {
+    await copiarArchivo(rutaCv, carpetaAbsoluta, `CV${path.extname(rutaCv)}`);
+  }
+
+  if (familia.plantillaInforme) {
+    const origenInforme = path.join(PLANTILLAS_DIR, familia.plantillaInforme);
+    await copiarArchivo(origenInforme, carpetaAbsoluta, path.basename(familia.plantillaInforme));
+  }
+
+  if (familia.pautaEntrevista) {
+    const origenPauta = path.join(PLANTILLAS_DIR, familia.pautaEntrevista);
+    await copiarArchivo(origenPauta, carpetaAbsoluta, path.basename(familia.pautaEntrevista));
+  }
+
+  return nombreCarpeta;
+}
+
 export async function eliminarCarpetaCandidato(nombreCarpeta) {
   if (!nombreCarpeta) return;
   const carpetaAbsoluta = path.join(CANDIDATOS_DIR, nombreCarpeta);

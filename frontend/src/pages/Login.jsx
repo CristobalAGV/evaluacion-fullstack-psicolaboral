@@ -63,6 +63,12 @@ export default function Login() {
           Regístrate
         </Link>
       </p>
+      <p className="mt-2 text-sm text-slate-600">
+        ¿Quieres postular a un cargo?{" "}
+        <Link to="/postular" className="text-indigo-600 hover:underline">
+          Postula aquí
+        </Link>
+      </p>
     </div>
   );
 }
