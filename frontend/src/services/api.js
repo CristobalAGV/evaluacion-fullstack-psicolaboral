@@ -2,10 +2,8 @@ import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
-export const apiOrigin = API_URL.replace(/\/api\/?$/, "");
-
 // En estas rutas un 401 significa "credenciales incorrectas", no "sesión expirada".
-const RUTAS_PUBLICAS = ["/auth/login", "/auth/registro"];
+const RUTAS_PUBLICAS = ["/auth/login", "/auth/registro", "/postulaciones"];
 
 let manejarNoAutorizado = null;
 

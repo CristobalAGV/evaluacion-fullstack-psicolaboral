@@ -1,8 +1,5 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
 import { obtenerInforme, generarInforme, guardarInforme } from "../services/informeService";
-
-const ROLES_QUE_EDITAN = ["evaluador", "admin"];
 
 const campoClases =
   "rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
@@ -24,9 +21,9 @@ function AvisoIa() {
   );
 }
 
-export default function InformePsicolaboral({ solicitudId }) {
-  const { usuario } = useAuth();
-  const puedeEditar = ROLES_QUE_EDITAN.includes(usuario?.rol);
+// puedeEditar lo calcula el detalle con la misma regla del backend: admin, o el evaluador
+// responsable de la solicitud.
+export default function InformePsicolaboral({ solicitudId, puedeEditar }) {
 
   const [informe, setInforme] = useState(null);
   const [apuntes, setApuntes] = useState("");
@@ -110,7 +107,7 @@ export default function InformePsicolaboral({ solicitudId }) {
       <div className="flex flex-col gap-4">
         {!hayContenido ? (
           <p className="text-sm text-slate-400">
-            Todavía no hay un informe para esta solicitud. Solo un evaluador puede generarlo.
+            Todavía no hay un informe para esta solicitud. Solo el evaluador responsable puede generarlo.
           </p>
         ) : (
           <>
@@ -129,7 +126,7 @@ export default function InformePsicolaboral({ solicitudId }) {
               </p>
             )}
             <p className="text-xs text-slate-500">
-              Tu rol ({usuario?.rol}) permite consultar el informe, pero no editarlo.
+              Puedes consultar el informe; solo el evaluador responsable (o un admin) puede editarlo.
             </p>
           </>
         )}

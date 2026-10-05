@@ -2,14 +2,20 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listarSolicitudes, actualizarEstadoSolicitud, eliminarSolicitud } from "../services/solicitudService";
 import SolicitudFormulario from "../components/SolicitudFormulario";
+import EtiquetaPostulacionPublica, { esPostulacionPublica } from "../components/EtiquetaPostulacionPublica";
+import { useAuth } from "../context/AuthContext";
 
 const COLUMNAS = [
-  { estado: "Pendiente", siguiente: "En proceso", etiquetaBoton: "Mover a en proceso" },
+  { estado: "Pendiente", siguiente: "En proceso", etiquetaBoton: "Mover a En proceso" },
   { estado: "En proceso", siguiente: "Finalizada", etiquetaBoton: "Marcar finalizada" },
   { estado: "Finalizada", siguiente: null, etiquetaBoton: null },
 ];
 
 export default function Panel() {
+  const { usuario } = useAuth();
+  // El evaluador ve el tablero, pero solo gestiona evaluaciones (desde el detalle).
+  const puedeGestionar = ["analista", "admin"].includes(usuario?.rol);
+  const puedeEliminar = usuario?.rol === "admin";
   const [solicitudes, setSolicitudes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -74,12 +80,14 @@ export default function Panel() {
     <div>
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-xl font-semibold text-slate-900">Panel de solicitudes</h2>
-        <Link
-          to="/solicitudes/nueva"
-          className="rounded-md bg-indigo-600 text-white font-medium px-4 py-2 text-sm hover:bg-indigo-500"
-        >
-          + Nueva solicitud
-        </Link>
+        {puedeGestionar && (
+          <Link
+            to="/solicitudes/nueva"
+            className="rounded-md bg-indigo-600 text-white font-medium px-4 py-2 text-sm hover:bg-indigo-500"
+          >
+            + Nueva solicitud
+          </Link>
+        )}
       </div>
       {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -91,13 +99,16 @@ export default function Panel() {
                 .filter((s) => s.estado === columna.estado)
                 .map((s) => (
                   <div key={s._id} className="bg-white border border-slate-200 rounded-md p-3 flex flex-col gap-1 shadow-sm">
+                    {esPostulacionPublica(s) && <EtiquetaPostulacionPublica />}
                     <Link to={`/solicitudes/${s._id}`} className="font-semibold text-slate-900 hover:text-indigo-600">
                       {s.candidato?.nombre}
                     </Link>
                     <p className="text-xs text-slate-500">{s.cargo}</p>
                     <p className="text-xs text-slate-500">{s.familiaDeCargo?.nombre}</p>
-                    {s.profesionalResponsable?.nombre && (
+                    {s.profesionalResponsable?.nombre ? (
                       <p className="text-xs text-slate-400">Responsable: {s.profesionalResponsable.nombre}</p>
+                    ) : (
+                      <p className="text-xs text-amber-700">Sin evaluador asignado</p>
                     )}
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                       <Link
@@ -106,30 +117,49 @@ export default function Panel() {
                       >
                         Ver detalle
                       </Link>
-                      <button
-                        type="button"
-                        onClick={() => setSolicitudEnEdicion(s)}
-                        className="rounded border border-indigo-600 text-indigo-600 text-xs px-2 py-1 hover:bg-indigo-50"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        disabled={eliminandoId === s._id}
-                        onClick={() => manejarEliminar(s)}
-                        className="rounded border border-red-600 text-red-600 text-xs px-2 py-1 hover:bg-red-50 disabled:opacity-50"
-                      >
-                        {eliminandoId === s._id ? "Eliminando..." : "Eliminar"}
-                      </button>
-                      {columna.siguiente && (
-                        <button
-                          type="button"
-                          disabled={actualizandoId === s._id}
-                          onClick={() => moverEstado(s._id, columna.siguiente)}
-                          className="rounded bg-indigo-600 text-white text-xs px-2 py-1 hover:bg-indigo-500 disabled:opacity-50"
-                        >
-                          {actualizandoId === s._id ? "Moviendo..." : columna.etiquetaBoton}
-                        </button>
+                      {puedeGestionar && (
+                        <>
+                          {s.profesionalResponsable && (
+                            <button
+                              type="button"
+                              onClick={() => setSolicitudEnEdicion(s)}
+                              className="rounded border border-indigo-600 text-indigo-600 text-xs px-2 py-1 hover:bg-indigo-50"
+                            >
+                              Editar
+                            </button>
+                          )}
+                          {puedeEliminar && (
+                            <button
+                              type="button"
+                              disabled={eliminandoId === s._id}
+                              onClick={() => manejarEliminar(s)}
+                              className="rounded border border-red-600 text-red-600 text-xs px-2 py-1 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              {eliminandoId === s._id ? "Eliminando..." : "Eliminar"}
+                            </button>
+                          )}
+                          {/* Sin evaluador no se puede avanzar de estado: primero hay que asignarlo. */}
+                          {!s.profesionalResponsable ? (
+                            <button
+                              type="button"
+                              onClick={() => setSolicitudEnEdicion(s)}
+                              className="rounded bg-amber-500 text-white text-xs px-2 py-1 hover:bg-amber-400"
+                            >
+                              Asignar evaluador
+                            </button>
+                          ) : (
+                            columna.siguiente && (
+                              <button
+                                type="button"
+                                disabled={actualizandoId === s._id}
+                                onClick={() => moverEstado(s._id, columna.siguiente)}
+                                className="rounded bg-indigo-600 text-white text-xs px-2 py-1 hover:bg-indigo-500 disabled:opacity-50"
+                              >
+                                {actualizandoId === s._id ? "Moviendo..." : columna.etiquetaBoton}
+                              </button>
+                            )
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

@@ -18,6 +18,12 @@ export function verificarToken(req, res, next) {
   }
 }
 
+// true si el usuario es el evaluador responsable de la solicitud (poblada o no).
+export function esEvaluadorResponsable(usuario, solicitud) {
+  const responsable = solicitud.profesionalResponsable?._id ?? solicitud.profesionalResponsable;
+  return usuario?.rol === "evaluador" && Boolean(responsable) && String(responsable) === String(usuario.id);
+}
+
 export function permitirRoles(...rolesPermitidos) {
   return (req, res, next) => {
     if (!req.usuario || !rolesPermitidos.includes(req.usuario.rol)) {

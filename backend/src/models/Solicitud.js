@@ -17,6 +17,8 @@ const solicitudSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // Ruta antigua del CV en disco (datos previos a guardar archivos en MongoDB). Los CV nuevos
+    // se referencian desde Candidato.cvArchivoId.
     cvUrl: {
       type: String,
       default: "",
@@ -29,20 +31,22 @@ const solicitudSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // Las postulaciones públicas llegan sin evaluador; el analista lo asigna después.
     profesionalResponsable: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Usuario",
-      required: true,
+      default: null,
     },
     estado: {
       type: String,
       enum: ["Pendiente", "En proceso", "Finalizada"],
       default: "Pendiente",
     },
+    // Vacío cuando la solicitud la creó el propio candidato desde /postular.
     analistaId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Usuario",
-      required: true,
+      default: null,
     },
     fecha: {
       type: Date,

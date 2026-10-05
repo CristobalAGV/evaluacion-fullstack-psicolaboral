@@ -1,21 +1,48 @@
 # Evaluación Psicolaboral — Digitalización del proceso de Reclutamiento y Selección
 
+**Autor:** Cristobal González, estudiante de Duoc UC Puerto Montt.
+
 Aplicación web (MVP) que digitaliza el proceso de **evaluación psicolaboral**
 dentro de un flujo de Reclutamiento y Selección. Permite registrar solicitudes
 de evaluación para candidatos, asignarles un profesional responsable, seguir su
 avance en un tablero Kanban, registrar las evaluaciones asociadas y consultar
 indicadores en un dashboard.
 
-Hoy ese proceso se lleva de forma manual y dispersa (planillas, correos y
-carpetas sueltas), lo que dificulta saber en qué estado está cada candidato.
-Este MVP centraliza esa información en un solo lugar.
+Cuando un proceso así se gestiona de forma manual y con la información
+repartida en distintos lugares, cuesta saber en qué estado está cada
+candidato. Este MVP propone centralizar esa información en un solo lugar.
+
+## Capturas de pantalla
+
+Tomadas con la aplicación corriendo en local y **datos ficticios** de
+demostración.
+
+**Dashboard de indicadores**
+
+![Dashboard con el total de candidatos y solicitudes por estado](docs/capturas/dashboard.png)
+
+**Panel Kanban de solicitudes**
+
+![Panel Kanban con columnas Pendiente, En proceso y Finalizada](docs/capturas/panel-kanban.png)
+
+**Formulario de nueva solicitud**
+
+![Formulario para crear una solicitud de evaluación](docs/capturas/nueva-solicitud.png)
+
+**Detalle de solicitud con sus evaluaciones**
+
+![Detalle de una solicitud y su evaluación asociada](docs/capturas/detalle-solicitud.png)
+
+**Formulario público de postulación (sin login)**
+
+![Formulario público /postular con datos del candidato y selector de CV](docs/capturas/postulacion-publica.png)
 
 ## Contexto académico
 
 - **Asignatura:** Full Stack II — DSY1104
 - **Institución:** Duoc UC
 - **Tipo de proyecto:** Vinculación con el Medio, en colaboración con **AquaChile**
-- **Alcance evaluado:** Caso DSY1104 + Anexo de Requerimiento de AquaChile
+- **Alcance evaluado:** Caso de la asignatura DSY1104
 
 > ### ⚠️ Aviso sobre los datos
 >
@@ -46,6 +73,153 @@ Este MVP centraliza esa información en un solo lugar.
 > `https://evaluacion-fullstack-psicolaboral.onrender.com/api/health`,
 > que responde `{"estado":"ok"}` cuando el backend ya está despierto.
 
+## Estado del avance
+
+Situación al 5 de octubre de 2026, organizada por hitos de entrega.
+
+| Hito | Estado |
+| ---- | ------ |
+| Hito 1 — Frontend funcional | ✅ Completo |
+| Hito 2 — Integración Full Stack | 🟡 En curso (permisos por rol aplicados; faltan pruebas automatizadas) |
+| Hito 3 — MVP final desplegado | 🟡 En curso (hay una versión desplegada, aún no es la final) |
+
+### Hito 1 — Frontend funcional
+
+**Completo:**
+
+- Vistas de inicio de sesión, registro, dashboard, panel Kanban, nueva
+  solicitud, edición y detalle de solicitud, construidas con React, Vite y
+  Tailwind.
+- Rutas protegidas y navegación con React Router.
+- Validaciones de formulario (correo y celular chileno) y mensajes de error.
+- Formulario público de postulación (`/postular`), sin login.
+- La interfaz se adapta al rol: cada usuario solo ve los botones de las
+  acciones que puede hacer.
+- Corregido: la fecha de cada evaluación ya no se muestra un día antes. Se
+  trata como día de calendario (sin zona horaria) al guardarla y al mostrarla.
+
+### Hito 2 — Integración Full Stack
+
+**Completo:**
+
+- El frontend consume la API REST real (Express 5 + MongoDB Atlas) en todas
+  sus vistas; no hay datos simulados en la interfaz.
+- Autenticación con JWT de punta a punta, incluido el manejo de sesión
+  expirada.
+- CRUD de solicitudes, cambio de estado, evaluaciones, dashboard calculado en
+  el backend, carga de CV y creación automática de la carpeta del candidato
+  con sus plantillas.
+- **Permisos por rol aplicados en el servidor** con `permitirRoles` y, para
+  las evaluaciones y el informe, con una verificación de que el evaluador sea
+  el responsable de la solicitud (ver *Autenticación y roles*).
+- **Registro restringido:** solo crea analistas y evaluadores; el servidor
+  rechaza `admin` o cualquier otro rol aunque se envíe a mano.
+- Informe de entrevista (Word) adjunto al candidato, además del CV.
+- Regla del Kanban: una solicitud sin evaluador no puede pasar a "En proceso"
+  ni a "Finalizada".
+- **Archivos en MongoDB:** los CV y los informes se guardan en la base de
+  datos (modelo `Archivo`) y solo se descargan con sesión iniciada.
+
+**Pendiente:**
+
+- **Crear administradores.** Como el registro ya no permite `admin`, un
+  administrador nuevo se crea directamente en la base de datos.
+- **Sin pruebas automatizadas** en backend ni en frontend; la verificación
+  ha sido manual.
+- Los modelos `Entrevista` e `Informe` siguen sin exponerse en la API (ver
+  la nota de alcance en *Modelo de datos*).
+
+### Hito 3 — MVP final desplegado
+
+**Completo:**
+
+- Frontend desplegado en Vercel y backend en Render, conectados a MongoDB
+  Atlas (URLs en la sección *Despliegue*).
+- Etiqueta `v1.0-mvp` (17 de septiembre de 2026) que congela la versión
+  desplegada actual.
+
+**Pendiente:**
+
+- Desplegar la versión final una vez cerrados los pendientes del Hito 2.
+- El backend usa el plan gratuito de Render: la primera carga tras un rato
+  sin uso puede tardar hasta ~50 segundos.
+- Los CV e informes subidos **antes** del cambio a MongoDB se guardaban en el
+  disco efímero de Render y ya se perdieron; en el detalle aparecen como
+  "Archivo no disponible" y hay que volver a subirlos.
+
+> La integración con IA se trabaja aparte, en la rama
+> `feature/integracion-ia`. Es experimental, no forma parte del alcance
+> evaluado y no está incluida en `main`.
+
+## Integración con IA (solo en esta rama)
+
+Esta rama, `feature/integracion-ia`, incluye todo lo de `main` y agrega un
+**asistente para redactar el informe psicolaboral** con Google Gemini. Es
+experimental y no forma parte del alcance evaluado.
+
+**Cómo funciona**
+
+1. En el detalle de una solicitud, la sección **Informe psicolaboral** permite
+   al evaluador escribir sus apuntes de la entrevista y, opcionalmente,
+   indicaciones de estilo (tono, énfasis, extensión).
+2. El backend arma el prompt con las secciones del informe de la familia de
+   cargo y llama a Gemini. **La IA se usa solo desde el backend:** la clave
+   `GEMINI_API_KEY` vive en el servidor y nunca llega al navegador.
+3. Gemini devuelve un **borrador** por secciones. **No se guarda
+   automáticamente:** el evaluador lo revisa, lo corrige y decide guardarlo
+   (como borrador o finalizado). La interfaz muestra un aviso permanente de
+   que es texto generado por IA y que la responsabilidad del contenido final
+   es del profesional.
+
+**Quién puede usarla**
+
+- Generar y guardar el informe: el **evaluador responsable** de la solicitud
+  o un **admin** (`permitirRoles("evaluador", "admin")` más la misma
+  verificación de responsable que usan las evaluaciones). Así un evaluador
+  ajeno no puede editarlo ni gastar cuota de la IA en esa solicitud.
+- Leer el informe: cualquier usuario con sesión (el analista lo ve en modo
+  solo lectura).
+
+**Salvaguardas del prompt**
+
+- Reglas que el modelo no puede relajar: basarse solo en los apuntes, no
+  inventar datos, no emitir diagnósticos clínicos y no declarar al candidato
+  apto o no apto (esa decisión es del profesional).
+- Los apuntes e indicaciones van delimitados y se tratan como **datos, no como
+  órdenes**; si piden saltarse las reglas, esa parte se ignora. Un
+  recordatorio de las reglas cierra el prompt, después del texto del evaluador.
+- La respuesta se pide con un esquema JSON cuyos títulos están restringidos a
+  las secciones de la familia de cargo, y se reconstruye en ese orden.
+- El backend valida que los apuntes sean texto, no estén vacíos y no excedan
+  20.000 caracteres (las indicaciones, 2.000).
+
+**Configuración** (`backend/.env`)
+
+| Variable | Para qué sirve |
+| -------- | -------------- |
+| `GEMINI_API_KEY` | Clave de la API de Gemini (https://aistudio.google.com/apikey). Sin ella, generar responde con un aviso de "servicio no configurado". |
+| `GEMINI_MODEL` | Modelo a usar (opcional). Por defecto `gemini-3.6-flash`. |
+
+**Endpoints**
+
+| Método | Ruta | Descripción |
+| ------ | ---- | ----------- |
+| `GET` | `/api/solicitudes/:id/informe` | Informe guardado de la solicitud (o `null`). Cualquier usuario autenticado. |
+| `POST` | `/api/solicitudes/:id/informe/generar` | Genera un borrador con IA a partir de `apuntes` e `instrucciones`. No lo guarda. Evaluador responsable o admin. |
+| `PUT` | `/api/solicitudes/:id/informe` | Guarda el informe (`secciones`, `apuntes`, `instrucciones`, `modeloIa`, `estado`). Evaluador responsable o admin. |
+
+**Otros cambios propios de esta rama**
+
+- Botón **"Ver detalle"** en cada tarjeta del Kanban, visible para todos los
+  roles.
+- Plantillas de informe y pautas de entrevista con tildes y signos de
+  apertura corregidos (y `npm run migrar-titulos-informes` para reparar
+  títulos guardados con caracteres de reemplazo).
+- Campo de contraseña con botón para **mostrar/ocultar** en el login y el
+  registro.
+- `npm run seed-usuarios`, que crea las cuentas de demostración (ver
+  *Usar la aplicación*).
+
 ## Stack tecnológico
 
 **Frontend**
@@ -60,7 +234,8 @@ Este MVP centraliza esa información en un solo lugar.
 - Node.js con **Express 5** (API REST, ES Modules)
 - **MongoDB Atlas** como base de datos, con **Mongoose** como ODM
 - **JWT** (`jsonwebtoken`) para autenticación, y `bcryptjs` para el hasheo de contraseñas
-- `multer` para la carga de archivos (CV)
+- `multer` (en memoria) para recibir los archivos, que se guardan en MongoDB
+- `express-rate-limit` para limitar las postulaciones públicas por IP
 - `exceljs` y `docx` para generar las plantillas de informe y pauta de entrevista
 
 ## Funcionalidades implementadas
@@ -69,7 +244,22 @@ Este MVP centraliza esa información en un solo lugar.
 
 - Registro e inicio de sesión con JWT; la contraseña se guarda hasheada con bcrypt.
 - Tres roles: **`analista`**, **`evaluador`** y **`admin`**.
+- El registro público solo permite elegir **analista** o **evaluador**; el
+  servidor rechaza cualquier otro valor (incluido `admin`).
 - Todas las rutas de negocio exigen token válido.
+- **Permisos por rol**, aplicados en el servidor (la interfaz además oculta lo
+  que el rol no puede hacer):
+
+  | Acción | Analista | Evaluador | Admin |
+  | ------ | :------: | :-------: | :---: |
+  | Ver dashboard, Kanban y detalle de solicitudes | ✅ | ✅ | ✅ |
+  | Crear y editar solicitudes y candidatos, asignar evaluador, mover de estado | ✅ | — | ✅ |
+  | Crear y editar evaluaciones | — | Solo si es el responsable | ✅ |
+  | Subir el informe de entrevista | ✅ | Solo si es el responsable | ✅ |
+  | Eliminar solicitudes | — | — | ✅ |
+
+- Las solicitudes que llegan por `/postular` (sin analista) las ven todos los
+  analistas.
 - Rutas protegidas en el frontend: sin sesión, se redirige a inicio de sesión.
 - **Manejo de sesión expirada:** si la API responde `401`, la aplicación limpia
   la sesión, redirige al login y avisa "Tu sesión expiró, vuelve a iniciar sesión".
@@ -82,10 +272,49 @@ Este MVP centraliza esa información en un solo lugar.
 - Al eliminar una solicitud se borran también su CV y su carpeta de candidato,
   para no dejar archivos huérfanos.
 
+### Postulación pública (sin login)
+
+Además de la vía privada del analista, un candidato **interno o externo** puede
+postular por su cuenta, sin crear una cuenta. Ambas vías escriben en la misma
+base de datos.
+
+1. El candidato entra a **`/postular`** (también enlazado desde el login con
+   "¿Quieres postular a un cargo? Postula aquí"). La página no muestra la barra
+   de navegación privada.
+2. Ingresa nombre completo, correo, teléfono (celular chileno), familia de
+   cargo, cargo al que postula y su **CV obligatorio** (PDF, DOC o DOCX, máx. 5 MB).
+3. Al enviar ve la confirmación **"Postulación recibida"**.
+4. El backend crea el `Candidato` con `origen: "postulacion_publica"` y una
+   `Solicitud` en estado **Pendiente sin evaluador asignado**, con su carpeta de
+   candidato (CV + plantillas) igual que en el flujo privado.
+5. La solicitud aparece en el **Kanban** del analista con la etiqueta
+   **"Postulación pública"** y el aviso "Sin evaluador asignado". Desde la
+   tarjeta ("Asignar evaluador") o desde el detalle, el analista le asigna un
+   evaluador y la gestiona como cualquier otra.
+
+Si ya existe un candidato con el mismo correo, la postulación se rechaza con un
+mensaje claro (no se duplica ni se sobrescriben datos existentes).
+
+**Seguridad del endpoint público:**
+
+- **Rate limiting:** máximo 5 postulaciones aceptadas por hora e IP, y un tope
+  de 20 intentos cada 15 minutos (incluidos los fallidos).
+- **Validación estricta del CV en el servidor:** extensión, tipo MIME y firma
+  real del archivo (los primeros bytes de un PDF, DOC o DOCX), y tamaño máximo
+  de 5 MB. El archivo se valida en memoria y se guarda en MongoDB (ver
+  *Archivos del candidato*).
+- **Honeypot anti-bots:** un campo oculto que solo los bots completan; si
+  viene lleno, la postulación se descarta en silencio.
+- **Sanitización** del texto (sin etiquetas HTML ni caracteres de control, con
+  largo máximo) y validación de correo y teléfono también en el servidor.
+- El endpoint **ignora** cualquier campo de la parte privada (rol, estado,
+  evaluador, analista) y sus respuestas no devuelven datos de otros candidatos
+  ni de usuarios. El listado público de familias expone solo `_id` y `nombre`.
+
 ### Gestión de candidatos
 
 - Los datos del candidato (nombre, correo y teléfono) se capturan desde el
-  formulario de la solicitud.
+  formulario de la solicitud o desde la postulación pública.
 - **Validaciones** aplicadas en frontend y backend: formato de correo y formato
   de celular chileno (`+56 9` seguido de 8 dígitos, con espacios opcionales).
 
@@ -94,7 +323,14 @@ Este MVP centraliza esa información en un solo lugar.
 - Tablero con tres columnas según el estado de la solicitud:
   **Pendiente → En proceso → Finalizada**.
 - Cada tarjeta muestra candidato, cargo, familia de cargo y responsable, y
-  permite avanzar de estado, editar o eliminar sin recargar la página.
+  permite avanzar de estado y editar sin recargar la página. El botón
+  "Eliminar" solo lo ve un admin.
+- **Regla de negocio:** una solicitud sin evaluador asignado no puede pasar a
+  "En proceso" ni a "Finalizada". El servidor lo rechaza con un mensaje claro
+  y, en la tarjeta, el botón de avance se reemplaza por "Asignar evaluador".
+- Las solicitudes que llegan desde `/postular` llevan la etiqueta
+  **"Postulación pública"** y, mientras no tengan evaluador, un botón
+  **"Asignar evaluador"**.
 
 ### Evaluaciones
 
@@ -107,26 +343,61 @@ Este MVP centraliza esa información en un solo lugar.
 - Tarjetas con el total de candidatos y el número de solicitudes pendientes,
   en proceso y finalizadas, calculadas en el backend.
 
+### Informe de entrevista
+
+- Además del CV, cada candidato puede tener adjunto el **informe de la
+  entrevista** en Word (`.doc` o `.docx`, máx. 5 MB).
+- Lo pueden subir o reemplazar el analista, el evaluador responsable de la
+  solicitud o un admin. El servidor valida extensión, tipo y firma real del
+  archivo.
+- El detalle de la solicitud muestra la sección **Archivos del candidato**
+  con el CV y el informe, cada uno con su botón de descarga.
+
 ### Carga de CV
 
-- Archivo **opcional** en formato PDF, DOC o DOCX, con un límite de **5 MB**.
+- Archivo en formato PDF, DOC o DOCX, con un límite de **5 MB**: opcional en
+  la vía del analista y obligatorio en la postulación pública.
 - El backend rechaza cualquier otro formato o tamaño con un mensaje claro.
+
+### Archivos del candidato (CV e informe) en MongoDB
+
+- Los archivos **no se guardan en el disco del servidor**: el disco de Render
+  es efímero y se borraba al reiniciarse o dormirse el servicio. Ahora cada
+  archivo es un documento del modelo `Archivo` en MongoDB (con el contenido
+  como `Buffer`), referenciado desde el candidato (`cvArchivoId` e
+  `informeArchivoId`). Con el límite de 5 MB queda muy por debajo del máximo
+  de 16 MB por documento, por lo que no hace falta GridFS.
+- `multer` recibe el archivo en memoria; el servidor valida extensión, tipo
+  MIME, firma real del contenido y tamaño antes de guardarlo.
+- **Descarga solo con sesión:** `GET /api/archivos/:id` exige token
+  (analista, evaluador o admin) y responde con el `Content-Type` y el nombre
+  original del archivo. Ya no existe la carpeta pública `/uploads`. En el
+  frontend, el botón "Descargar" pide el archivo con el token y dispara la
+  descarga; no hay enlaces directos.
+- Al eliminar una solicitud (solo admin) se borran también el candidato y sus
+  archivos.
+- Los datos anteriores al cambio que aún apuntan a una ruta en disco se
+  muestran como **"Archivo no disponible"**, sin romper la pantalla.
 
 ### Automatización de carpetas y plantillas
 
 Cada familia de cargo tiene su propia plantilla de informe (`.xlsx`) y pauta de
 entrevista (`.docx`), generadas por script en `backend/plantillas/<familia>/`.
 
-Al crear una solicitud, el sistema arma automáticamente la carpeta
+Como **comodidad local**, al crear una solicitud el sistema arma la carpeta
 `backend/candidatos/<nombre-candidato>-<id-solicitud>/` y copia dentro:
 
-1. El CV del candidato (si se adjuntó).
+1. Una copia del CV del candidato (si se adjuntó).
 2. La plantilla de informe de su familia de cargo.
 3. La pauta de entrevista de su familia de cargo.
 
-El endpoint `GET /api/solicitudes/:id/carpeta` permite consultar el contenido de
-esa carpeta. Si la creación de la carpeta falla, la solicitud se revierte
-completa para no dejar registros a medias.
+Al subir el informe de entrevista, también se deja una copia
+(`Informe_entrevista.docx`). El endpoint `GET /api/solicitudes/:id/carpeta`
+permite consultar el contenido de esa carpeta.
+
+La carpeta es opcional: los archivos reales viven en MongoDB. Si escribir en
+disco falla (por ejemplo en Render), el error se registra en el log y la
+solicitud, la postulación o el informe se guardan igual.
 
 ## Modelo de datos
 
@@ -146,7 +417,23 @@ completa para no dejar registros a medias.
 | `nombre` | String | Obligatorio |
 | `correo` | String | Obligatorio, validado como email |
 | `telefono` | String | Obligatorio, validado como celular chileno |
-| `cvUrl` | String | Ruta del CV, opcional |
+| `cvArchivoId` | ObjectId → `Archivo` | CV del candidato, opcional |
+| `informeArchivoId` | ObjectId → `Archivo` | Informe de entrevista (Word), opcional |
+| `cvUrl`, `informeEntrevistaUrl` | String | Rutas antiguas en disco (datos previos a MongoDB); solo para mostrar "Archivo no disponible" |
+| `origen` | String | `analista` \| `postulacion_publica` (por defecto `analista`) |
+
+### `Archivo`
+
+| Campo | Tipo | Detalle |
+| ----- | ---- | ------- |
+| `nombreOriginal` | String | Nombre con el que se subió; se usa al descargar |
+| `mimeType` | String | Tipo del archivo (PDF o Word) |
+| `tamano` | Number | Bytes, máximo 5 MB |
+| `tipo` | String | `cv` \| `informe` |
+| `datos` | Buffer | Contenido; no se incluye en las consultas normales |
+| `candidatoId` | ObjectId → `Candidato` | Obligatorio |
+| `subidoPor` | ObjectId → `Usuario` | Quién lo subió; vacío en las postulaciones públicas |
+| `fecha` | Date | Por defecto, la fecha de carga |
 
 ### `FamiliaDeCargo`
 
@@ -165,11 +452,11 @@ Familias precargadas: Atención al Cliente, Ventas, Administración y Operacione
 | `candidato` | ObjectId → `Candidato` | Obligatorio |
 | `familiaDeCargo` | ObjectId → `FamiliaDeCargo` | Obligatorio |
 | `cargo` | String | Obligatorio |
-| `cvUrl` | String | Ruta del CV subido |
-| `carpetaCandidato` | String | Nombre de la carpeta generada automáticamente |
+| `cvUrl` | String | Ruta antigua del CV en disco (datos previos a MongoDB) |
+| `carpetaCandidato` | String | Nombre de la carpeta local generada (vacío si el disco no estaba disponible) |
 | `observaciones` | String | Texto libre |
-| `profesionalResponsable` | ObjectId → `Usuario` | Obligatorio, debe tener rol `evaluador` |
-| `analistaId` | ObjectId → `Usuario` | Obligatorio, quien creó la solicitud |
+| `profesionalResponsable` | ObjectId → `Usuario` | Debe tener rol `evaluador`. Obligatorio al crear o editar por la vía privada; vacío en las postulaciones públicas hasta que el analista lo asigna |
+| `analistaId` | ObjectId → `Usuario` | Quien creó la solicitud; vacío si la envió el propio candidato desde `/postular` |
 | `estado` | String | `Pendiente` \| `En proceso` \| `Finalizada` |
 | `fecha` | Date | Por defecto, la fecha de creación |
 
@@ -218,7 +505,7 @@ Authorization: Bearer <token>
 
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
-| `GET` | `/api/usuarios` | Lista usuarios. Acepta `?rol=evaluador` para filtrar (lo usa el selector de profesional responsable). |
+| `GET` | `/api/usuarios` | Lista usuarios. Acepta `?rol=evaluador` para filtrar (lo usa el selector de profesional responsable). Analista y admin. |
 
 ### Familias de cargo — `/api/familias`
 
@@ -234,22 +521,32 @@ Authorization: Bearer <token>
 | `POST` | `/api/solicitudes` | Crea una solicitud. **`multipart/form-data`**. |
 | `GET` | `/api/solicitudes/:id` | Detalle de una solicitud. |
 | `PUT` | `/api/solicitudes/:id` | Edita la solicitud. **`multipart/form-data`**; si se adjunta un CV nuevo, reemplaza el anterior. |
-| `DELETE` | `/api/solicitudes/:id` | Elimina la solicitud, su CV y su carpeta de candidato. |
-| `PATCH` | `/api/solicitudes/:id/estado` | Cambia el estado (`Pendiente`, `En proceso` o `Finalizada`). |
+| `DELETE` | `/api/solicitudes/:id` | Elimina la solicitud, sus evaluaciones, su CV, el informe y su carpeta de candidato. Solo admin. |
+| `PATCH` | `/api/solicitudes/:id/estado` | Cambia el estado (`Pendiente`, `En proceso` o `Finalizada`). Rechaza "En proceso" y "Finalizada" si no hay evaluador asignado. |
 | `GET` | `/api/solicitudes/:id/carpeta` | Lista los archivos de la carpeta del candidato. |
+| `PUT` | `/api/solicitudes/:id/informe-entrevista` | Sube o reemplaza el informe de entrevista (`informe`, Word, máx. 5 MB). **`multipart/form-data`**. Analista, admin o evaluador responsable. |
 | `GET` | `/api/solicitudes/:id/evaluaciones` | Lista las evaluaciones de esa solicitud. |
-| `POST` | `/api/solicitudes/:id/evaluaciones` | Crea una evaluación asociada a esa solicitud. |
+| `POST` | `/api/solicitudes/:id/evaluaciones` | Crea una evaluación asociada a esa solicitud (`fechaEvaluacion` en formato `AAAA-MM-DD`). Evaluador responsable o admin. |
 
 Campos de `POST` y `PUT` de solicitudes: `candidatoNombre`, `candidatoCorreo`,
 `candidatoTelefono`, `familiaDeCargo` (id), `cargo`, `profesionalResponsable`
 (id de un usuario `evaluador`), `observaciones` (opcional) y `cv` (archivo,
 opcional).
 
+### Postulaciones públicas — `/api/postulaciones`
+
+Sin token. Con rate limiting (ver *Postulación pública*).
+
+| Método | Ruta | Descripción |
+| ------ | ---- | ----------- |
+| `GET` | `/api/postulaciones/familias` | Solo `_id` y `nombre` de las familias de cargo, para el selector del formulario. Público. |
+| `POST` | `/api/postulaciones` | Registra una postulación. **`multipart/form-data`** con `nombre`, `correo`, `telefono`, `familiaDeCargo` (id), `cargo` y `cv` (obligatorio). Responde `201`, `400` (datos o archivo inválidos), `409` (correo ya registrado) o `429` (límite alcanzado). Público. |
+
 ### Evaluaciones — `/api/evaluaciones`
 
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
-| `PUT` | `/api/evaluaciones/:id` | Edita una evaluación (`fechaEvaluacion`, `resultado`, `estado`). |
+| `PUT` | `/api/evaluaciones/:id` | Edita una evaluación (`fechaEvaluacion`, `resultado`, `estado`). Evaluador responsable o admin. |
 
 ### Dashboard — `/api/dashboard`
 
@@ -261,7 +558,7 @@ opcional).
 
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
-| `GET` | `/uploads/<archivo>` | Sirve los CV subidos. |
+| `GET` | `/api/archivos/:id` | Descarga un CV o informe guardado en MongoDB, con su `Content-Type` y nombre original. Requiere token (analista, evaluador o admin): sin token responde `401`. |
 
 ## Instalación y ejecución local
 
@@ -340,7 +637,9 @@ dejó `npm run seed-usuarios`. Todas comparten la misma contraseña, `Demo1234`:
 | `carolina.diaz@ejemplo.cl` | `evaluador` |
 | `paula.vera@ejemplo.cl` | `admin` |
 
-También puedes crear tu propia cuenta desde la pantalla de registro.
+También puedes crear tu propia cuenta (analista o evaluador) desde la pantalla
+de registro. El registro no permite crear administradores: el admin de
+demostración lo crea `npm run seed-usuarios`.
 
 > Para crear una solicitud debe existir **al menos un usuario con rol
 > `evaluador`**, porque toda solicitud necesita un profesional responsable.
@@ -350,6 +649,10 @@ También puedes crear tu propia cuenta desde la pantalla de registro.
 > **Son credenciales ficticias, pensadas solo para desarrollo y demostración.**
 > Si el proyecto llegara a manejar datos reales, estas cuentas deben eliminarse
 > y la contraseña compartida dejar de usarse.
+
+Para probar la vía pública, abre `http://localhost:5173/postular` (por ejemplo
+en una ventana de incógnito) y envía una postulación: aparecerá en el panel
+Kanban del analista con la etiqueta "Postulación pública".
 
 ## Scripts disponibles
 
@@ -383,96 +686,27 @@ backend/
     controllers/  Lógica de cada recurso
     routes/       Definición de los endpoints
     middleware/   Autenticación JWT y carga de archivos (multer)
-    utils/        Creación de carpetas de candidato y copia de plantillas
+    utils/        Validación y guardado de archivos, carpetas de candidato y plantillas
     seed/         Scripts de datos iniciales, migración y plantillas
   plantillas/     Plantillas .xlsx y .docx por familia de cargo
-  candidatos/     Carpetas generadas automáticamente (no versionadas)
-  uploads/        CV subidos (no versionados)
+  candidatos/     Carpetas locales generadas automáticamente (no versionadas, opcionales)
+  uploads/        Ya no se usa: los archivos se guardan en MongoDB
 
 frontend/
   src/
-    components/   Componentes reutilizables (Navbar, formulario, ruta protegida)
-    pages/        Vistas (Inicio, Panel, Nueva solicitud, Detalle, Login, Registro)
+    components/   Componentes reutilizables (Navbar, formulario, selector de CV, ruta protegida)
+    pages/        Vistas (Inicio, Panel, Nueva solicitud, Detalle, Login, Registro, Postular)
     services/     Cliente axios y llamadas a la API
     context/      AuthContext: sesión, token y manejo de expiración
 ```
 
 ## Ramas del proyecto
 
-Una **rama** es una copia paralela del proyecto. Sirve para probar cosas
-nuevas sin tocar la versión que funciona. Este repo tiene dos:
-
 | Rama | Para qué sirve |
 | ---- | -------------- |
 | `main` | La versión oficial, la que se entrega y se despliega. **No experimentar aquí.** |
 | `feature/integracion-ia` | Espacio para probar la integración de IA, que no es parte del alcance evaluado. |
 
-Además hay una **etiqueta** (tag) llamada `v1.0-mvp`. Una etiqueta es una
-foto congelada de un momento del proyecto: marca el MVP terminado, para
-poder volver a él si algo se rompe más adelante.
+Además existe el tag `v1.0-mvp`, que marca el MVP terminado para poder volver a él si algo se rompe más adelante.
 
-### Ver en qué rama estoy
-
-```bash
-git status
-```
-
-La primera línea dice `On branch main` o `On branch feature/integracion-ia`.
-También sirve `git branch`: muestra la lista y la actual lleva un `*`.
-
-### Cambiar de rama
-
-**Antes de cambiar, guarda tu trabajo.** Git no te deja cambiar de rama si
-tienes cambios sin guardar (o peor, se los lleva a la otra rama). Revisa con
-`git status`; si aparecen archivos modificados, haz un commit:
-
-```bash
-git add .
-git commit -m "describe brevemente lo que hiciste"
-```
-
-Luego cambia de rama:
-
-```bash
-git checkout feature/integracion-ia   # ir a la rama de IA
-git checkout main                     # volver a la oficial
-```
-
-Al cambiar de rama, los archivos de tu carpeta cambian solos: el editor te
-va a mostrar la versión de esa rama. Es normal, no se borró nada.
-
-### Subir lo que trabajaste en la rama de IA
-
-```bash
-git push origin feature/integracion-ia
-```
-
-Estando en `main`, se sube igual pero con `git push origin main`.
-
-### Si la rama no aparece (por ejemplo, en otro computador)
-
-```bash
-git fetch origin                      # trae las novedades del remoto
-git checkout feature/integracion-ia   # ya la encuentra y la crea localmente
-```
-
-### Volver a la foto del MVP
-
-```bash
-git checkout v1.0-mvp
-```
-
-Esto te deja "mirando" ese punto del historial, no en una rama (git lo llama
-*detached HEAD*). Para volver a la normalidad:
-
-```bash
-git checkout main
-```
-
-### Dos cosas que conviene recordar
-
-- Si las dos ramas tienen dependencias distintas, después de cambiar corre
-  `npm install` en `backend/` y en `frontend/`.
-- El archivo `.env` no viaja entre ramas: no está versionado (por seguridad,
-  porque tiene la contraseña de la base de datos). Se queda tal cual en tu
-  carpeta al cambiar de rama.
+Para ver, cambiar y subir ramas, o volver al tag, consulta la [guía rápida de git](docs/guia-git.md).
