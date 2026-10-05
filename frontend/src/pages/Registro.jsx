@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import CampoPassword from "../components/CampoPassword";
 
 export default function Registro() {
   const [nombre, setNombre] = useState("");
@@ -37,17 +38,12 @@ export default function Registro() {
           Correo
           <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} required className={campoClases} />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Contraseña
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            minLength={6}
-            required
-            className={campoClases}
-          />
-        </label>
+        <CampoPassword
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="new-password"
+          minLength={6}
+        />
         <label className="flex flex-col gap-1 text-sm text-slate-700">
           Rol
           <select value={rol} onChange={(e) => setRol(e.target.value)} className={campoClases}>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import CampoPassword from "../components/CampoPassword";
 
 export default function Login() {
   const [correo, setCorreo] = useState("");
@@ -39,16 +40,11 @@ export default function Login() {
             className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Contraseña
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </label>
+        <CampoPassword
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+        />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="submit"
