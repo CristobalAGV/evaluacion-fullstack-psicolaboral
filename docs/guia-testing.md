@@ -109,8 +109,8 @@ no que se haya comprobado todo. Por eso lo importante es que las pruebas tengan 
 **En la terminal**, al final de `npm test`:
 
 ```
-Executed 41 of 41 SUCCESS
-TOTAL: 41 SUCCESS
+Executed 118 of 118 SUCCESS
+TOTAL: 118 SUCCESS
 ```
 
 - `SUCCESS`: todas pasaron.
@@ -132,14 +132,62 @@ Postular.jsx    |   89.47 |    88.23 |   92.85 |   90.74 | 51-52,56-57,188
 se ve con colores: **verde** = ejecutado por las pruebas, **rojo** = no ejecutado,
 **amarillo** = condición probada solo en uno de sus caminos.
 
-## 7. Resultados del proyecto en una frase
+## 7. Ideas extra que usamos
 
-**41 pruebas, todas aprobadas.** Cubren casi por completo las piezas clave: login, rutas
-protegidas por rol, barra de navegación, formulario público de postulación (con validación de
-teléfono y CV), descarga segura de archivos, Kanban con la regla del evaluador y el arreglo de
-fechas. La cobertura total es de **44 % de líneas**, porque las pantallas más grandes (detalle
-de solicitud y formulario de solicitud) aún no tienen pruebas; están listadas como trabajo
-pendiente en `cobertura-testing.md`.
+### Probar un interceptor con un "adapter" falso
 
-Y una comprobación extra: rompimos a propósito la regla del Kanban y **la prueba correspondiente
-falló**, que es justo lo que tiene que pasar.
+`api.js` tiene **interceptores**: código que corre en *todas* las peticiones (agrega el token)
+y en *todas* las respuestas con error (si llega un 401, cierra la sesión). Si espiamos
+`api.get` directamente, la petición nunca pasa por ellos.
+
+Por eso usamos un **adapter falso**: el adapter es la pieza de axios que hace la llamada HTTP
+real. Le pasamos uno de mentira que no sale a Internet y responde lo que queremos:
+
+```js
+await api.get("/solicitudes", { adapter: adapterConError(401) });
+```
+
+La petición recorre los interceptores de verdad y llega al adapter falso. Así comprobamos que
+la cabecera `Authorization` se agregó y que, ante un 401, la app borra la sesión y lleva al
+login con el mensaje "Tu sesión expiró, vuelve a iniciar sesión".
+
+### `act()`: avisarle a React que algo va a cambiar
+
+Cuando algo cambia el estado de un componente **fuera de un clic o de un evento** (por ejemplo,
+cuando responde una promesa), React pide envolverlo en `act(...)`. Si no, muestra una
+advertencia en la consola. Lo usamos en la prueba del 401.
+
+### Una trampa de Jasmine con `waitFor`
+
+En Jasmine, un `expect` que falla **no detiene** la prueba en ese momento: solo anota la
+falla. `waitFor` (de Testing Library) espera hasta que su función *no lance un error*; como
+el `expect` de Jasmine no lanza, `waitFor` terminaba de inmediato. Por eso creamos
+`esperarQue(condición)`, que sí lanza un error mientras la condición no se cumpla.
+
+### Pruebas de mutación: ¿las pruebas detectan errores?
+
+Una cobertura alta no prueba que las pruebas sirvan. Para comprobarlo, **metimos errores a
+propósito** en la app y corrimos las pruebas:
+
+- `api.js` deja de mandar el token → falla "agrega el token…".
+- El registro ofrece el rol admin → falla "el selector de rol NO ofrece admin".
+- Cualquier usuario puede subir el informe → falla "evaluador ajeno: solo puede mirar".
+
+Cada error fue detectado por la prueba que lo cuida. Después se dejó el código como estaba.
+
+### Lo que el navegador no deja simular
+
+La regla "contraseña de al menos 6 caracteres" (`minlength`) el navegador la aplica **solo a
+lo que la persona escribe con el teclado**, no a un valor puesto por un script. Por eso esa
+prueba verifica que la regla esté declarada en el campo, en vez de fingir algo que el
+navegador no hace. Es mejor decirlo que forzar una prueba engañosa.
+
+## 8. Resultados del proyecto en una frase
+
+**118 pruebas, todas aprobadas**, estables en 8 corridas seguidas en orden aleatorio. La
+cobertura subió de **44 % a 95,86 % de líneas** (y de 33 % a **88,19 % de ramas**). Cubre login
+y registro, rutas protegidas por rol, interceptores de sesión, el formulario público, el
+detalle de solicitud con sus permisos por rol, evaluaciones, informe Word, descarga segura de
+archivos, el Kanban completo y todos los servicios.
+
+Lo que falta (y por qué) está en `cobertura-testing.md`, sección 7.

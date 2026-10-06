@@ -594,9 +594,11 @@ Kanban del analista con la etiqueta "Postulación pública".
 
 ## Pruebas
 
-El frontend tiene **41 pruebas unitarias** con **Jasmine** y **Karma**, que
-corren en Chrome sin interfaz (ChromeHeadless). Usan spies de Jasmine como
-mocks del backend (axios), de la sesión y de las APIs de descarga del navegador.
+El frontend tiene **118 pruebas unitarias** con **Jasmine** y **Karma**, que
+corren en Chrome sin interfaz (ChromeHeadless), con una cobertura de **95,86 %
+de líneas y 88,19 % de ramas**. Usan spies de Jasmine como mocks del backend
+(axios), de la sesión y de las APIs de descarga del navegador, y un adapter
+falso de axios para probar los interceptores.
 
 Requisito: Google Chrome instalado. Desde `frontend/`:
 

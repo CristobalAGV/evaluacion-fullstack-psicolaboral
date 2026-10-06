@@ -2,6 +2,7 @@
 import { render, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "../context/AuthContext";
+import api from "../services/api";
 
 // Simula una sesión iniciada tal como la deja el login: AuthProvider lee el usuario de localStorage.
 export function iniciarSesionSimulada(usuario) {
@@ -63,5 +64,16 @@ export function elegirArchivo(input, archivo) {
 export function esperarQue(condicion, descripcion = "la condición esperada") {
   return waitFor(() => {
     if (!condicion()) throw new Error(`Todavía no se cumple: ${descripcion}`);
+  });
+}
+
+// Simula varias rutas GET del backend a la vez con un spy sobre axios. Cada clave es una ruta y
+// su valor la respuesta (o un Error para simular una falla). Una ruta no declarada responde 404,
+// así una pantalla que pida algo inesperado hace fallar la prueba en vez de pasar en silencio.
+export function simularGet(respuestas) {
+  return spyOn(api, "get").and.callFake((ruta) => {
+    if (!(ruta in respuestas)) return Promise.reject(errorAxios(404, `Ruta no simulada en la prueba: ${ruta}`));
+    const respuesta = respuestas[ruta];
+    return respuesta instanceof Error ? Promise.reject(respuesta) : Promise.resolve({ data: respuesta });
   });
 }
