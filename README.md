@@ -124,8 +124,9 @@ Situación al 5 de octubre de 2026, organizada por hitos de entrega.
 
 - **Crear administradores.** Como el registro ya no permite `admin`, un
   administrador nuevo se crea directamente en la base de datos.
-- **Sin pruebas automatizadas** en backend ni en frontend; la verificación
-  ha sido manual.
+- **Pruebas automatizadas del backend.** El frontend ya tiene pruebas
+  unitarias con Jasmine y Karma (ver *Pruebas*); el backend se ha verificado
+  con pruebas manuales y scripts de API que no forman parte del repositorio.
 - Los modelos `Entrevista` e `Informe` siguen sin exponerse en la API (ver
   la nota de alcance en *Modelo de datos*).
 
@@ -159,6 +160,8 @@ Situación al 5 de octubre de 2026, organizada por hitos de entrega.
 - **Tailwind CSS v4** (integrado con el plugin `@tailwindcss/vite`)
 - React Router para la navegación entre vistas
 - Axios como cliente HTTP, con interceptores para el token y el manejo de sesión
+- **Jasmine + Karma** (ChromeHeadless) para las pruebas unitarias, con cobertura de
+  `karma-coverage`
 
 **Backend**
 
@@ -586,6 +589,30 @@ Kanban del analista con la etiqueta "Postulación pública".
 | `npm run build` | Compila la versión de producción en `dist/`. |
 | `npm run preview` | Sirve localmente lo que generó `build`, para revisarlo antes de desplegar. |
 | `npm run lint` | Revisa el código con oxlint. |
+| `npm test` | Corre las pruebas unitarias una vez en ChromeHeadless. |
+| `npm run test:cobertura` | Corre las pruebas y genera el reporte de cobertura en `frontend/coverage/`. |
+
+## Pruebas
+
+El frontend tiene **41 pruebas unitarias** con **Jasmine** y **Karma**, que
+corren en Chrome sin interfaz (ChromeHeadless). Usan spies de Jasmine como
+mocks del backend (axios), de la sesión y de las APIs de descarga del navegador.
+
+Requisito: Google Chrome instalado. Desde `frontend/`:
+
+```bash
+npm install
+npm test                 # una sola ejecución
+npm run test:cobertura   # además genera el reporte de cobertura
+```
+
+El reporte navegable queda en `frontend/coverage/html/index.html`.
+
+- Pruebas: `frontend/src/pruebas/` · Configuración: `frontend/karma.conf.cjs`.
+- Detalle por componente, mocks, cobertura por archivo y lo que falta cubrir:
+  [`docs/cobertura-testing.md`](docs/cobertura-testing.md).
+- Explicación sencilla de los conceptos (para presentar):
+  [`docs/guia-testing.md`](docs/guia-testing.md).
 
 ## Estructura del repositorio
 
@@ -609,6 +636,11 @@ frontend/
     pages/        Vistas (Inicio, Panel, Nueva solicitud, Detalle, Login, Registro, Postular)
     services/     Cliente axios y llamadas a la API
     context/      AuthContext: sesión, token y manejo de expiración
+    utils/        Utilidades (fechas de calendario)
+    pruebas/      Pruebas unitarias (Jasmine + Karma)
+  karma.conf.cjs  Configuración de Karma
+
+docs/             Capturas, guía de git y documentación de pruebas
 ```
 
 ## Ramas del proyecto
