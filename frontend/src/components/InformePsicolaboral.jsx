@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { obtenerInforme, generarInforme, guardarInforme } from "../services/informeService";
+import { mensajeErrorIa } from "../utils/mensajeErrorIa";
+import EvaluacionIa from "./EvaluacionIa";
 
 const campoClases =
   "rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
@@ -22,8 +24,8 @@ function AvisoIa() {
 }
 
 // puedeEditar lo calcula el detalle con la misma regla del backend: admin, o el evaluador
-// responsable de la solicitud.
-export default function InformePsicolaboral({ solicitudId, puedeEditar }) {
+// responsable de la solicitud. tieneCv y tieneInforme habilitan la evaluación con nota.
+export default function InformePsicolaboral({ solicitudId, puedeEditar, tieneCv, tieneInforme }) {
 
   const [informe, setInforme] = useState(null);
   const [apuntes, setApuntes] = useState("");
@@ -64,7 +66,7 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar }) {
       setModeloIa(borrador.modeloIa || "");
       setAviso("Borrador generado. Revísalo y corrígelo antes de guardar.");
     } catch (err) {
-      setError(err.response?.data?.mensaje || "No se pudo generar el borrador. Intenta nuevamente.");
+      setError(mensajeErrorIa(err, "No se pudo generar el borrador. Intenta nuevamente."));
     } finally {
       setGenerando(false);
     }
@@ -101,6 +103,17 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar }) {
 
   const hayContenido = secciones.length > 0;
 
+  // Tarjeta de la evaluación con nota: misma sección y mismos permisos que el informe.
+  const tarjetaEvaluacion = (
+    <EvaluacionIa
+      solicitudId={solicitudId}
+      puedeEditar={puedeEditar}
+      apuntes={apuntes}
+      tieneCv={tieneCv}
+      tieneInforme={tieneInforme}
+    />
+  );
+
   // Vista de solo lectura para quien no puede editar (por ejemplo, el analista).
   if (!puedeEditar) {
     return (
@@ -130,6 +143,7 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar }) {
             </p>
           </>
         )}
+        {tarjetaEvaluacion}
       </div>
     );
   }
@@ -229,6 +243,8 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar }) {
           )}
         </div>
       )}
+
+      {tarjetaEvaluacion}
     </div>
   );
 }

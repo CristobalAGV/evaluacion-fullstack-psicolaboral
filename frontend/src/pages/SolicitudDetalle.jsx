@@ -337,7 +337,12 @@ export default function SolicitudDetalle() {
 
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
         <h3 className="mb-4 text-lg font-semibold text-slate-900">Informe psicolaboral</h3>
-        <InformePsicolaboral solicitudId={id} puedeEditar={puedeGestionarEvaluaciones} />
+        <InformePsicolaboral
+          solicitudId={id}
+          puedeEditar={puedeGestionarEvaluaciones}
+          tieneCv={Boolean(solicitud.candidato?.cvArchivoId)}
+          tieneInforme={Boolean(solicitud.candidato?.informeArchivoId)}
+        />
       </div>
 
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">

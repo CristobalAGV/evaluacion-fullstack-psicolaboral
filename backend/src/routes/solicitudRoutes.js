@@ -10,7 +10,14 @@ import {
   subirInformeEntrevista,
 } from "../controllers/solicitudController.js";
 import { crearEvaluacion, listarEvaluacionesPorSolicitud } from "../controllers/evaluacionController.js";
-import { obtenerInforme, generarInforme, guardarInforme } from "../controllers/informeController.js";
+import {
+  obtenerInforme,
+  generarInforme,
+  guardarInforme,
+  obtenerEvaluacionIa,
+  generarEvaluacionIa,
+  guardarEvaluacionIa,
+} from "../controllers/informeController.js";
 import { verificarToken, permitirRoles } from "../middleware/auth.js";
 import { recibirArchivo } from "../middleware/upload.js";
 
@@ -39,5 +46,10 @@ router.post("/:id/evaluaciones", permitirRoles("evaluador", "admin"), crearEvalu
 router.get("/:id/informe", obtenerInforme);
 router.post("/:id/informe/generar", permitirRoles("evaluador", "admin"), generarInforme);
 router.put("/:id/informe", permitirRoles("evaluador", "admin"), guardarInforme);
+
+// Evaluación de apoyo con nota (CV + informe de entrevista): mismas reglas que el informe.
+router.get("/:id/informe/evaluacion", obtenerEvaluacionIa);
+router.post("/:id/informe/evaluacion/generar", permitirRoles("evaluador", "admin"), generarEvaluacionIa);
+router.put("/:id/informe/evaluacion", permitirRoles("evaluador", "admin"), guardarEvaluacionIa);
 
 export default router;

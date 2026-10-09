@@ -49,6 +49,8 @@ async function abrirDetalle(usuario, { solicitud = crearSolicitud(), evaluacione
   const get = simularGet({
     "/solicitudes/s1": solicitud,
     "/solicitudes/s1/evaluaciones": evaluaciones,
+    "/solicitudes/s1/informe": null,
+    "/solicitudes/s1/informe/evaluacion": null,
     "/familias": [{ _id: "fam-ventas", nombre: "Ventas" }],
     "/usuarios": [
       { _id: USUARIOS.evaluador.id, nombre: "Eva Evaluadora" },
@@ -115,6 +117,62 @@ describe("SolicitudDetalle", () => {
       renderizar(<SolicitudDetalle />, { ruta: "/solicitudes/s1", rutaDelElemento: "/solicitudes/:id" });
 
       expect(await screen.findByText("Solicitud no encontrada")).toBeTruthy();
+    });
+  });
+
+  describe("informe y evaluación con IA según el rol", () => {
+    // Espera a que carguen las dos tarjetas de IA de la sección "Informe psicolaboral".
+    async function abrirSeccionIa(usuario, opciones) {
+      await abrirDetalle(usuario, opciones);
+      await screen.findByRole("heading", { name: "Evaluación de apoyo con IA" });
+      await esperarQue(() => !screen.queryByText("Cargando evaluación..."), "que cargue la evaluación");
+    }
+
+    const botonesIa = () => ({
+      borrador: screen.queryByRole("button", { name: "Generar borrador con IA" }),
+      evaluacion: screen.queryByRole("button", { name: "Generar evaluación con IA" }),
+    });
+
+    for (const [nombre, usuario] of [
+      ["evaluador responsable", USUARIOS.evaluador],
+      ["admin", USUARIOS.admin],
+    ]) {
+      it(`${nombre}: ve los botones de IA`, async () => {
+        await abrirSeccionIa(usuario);
+
+        expect(botonesIa().borrador).toBeTruthy();
+        expect(botonesIa().evaluacion).toBeTruthy();
+        expect(screen.getByText(/Apoyo generado por IA; la decisión final es del evaluador/)).toBeTruthy();
+      });
+    }
+
+    for (const [nombre, usuario] of [
+      ["analista", USUARIOS.analista],
+      ["evaluador ajeno", EVALUADOR_AJENO],
+    ]) {
+      it(`${nombre}: no ve los botones de IA`, async () => {
+        await abrirSeccionIa(usuario);
+
+        expect(botonesIa().borrador).toBeNull();
+        expect(botonesIa().evaluacion).toBeNull();
+      });
+    }
+
+    it("sin informe de entrevista (Word) la evaluación con nota queda deshabilitada", async () => {
+      // La solicitud de prueba tiene CV pero no informe de entrevista
+      await abrirSeccionIa(USUARIOS.evaluador);
+
+      expect(botonesIa().evaluacion.disabled).toBeTrue();
+      expect(screen.getByText(/debe tener cargados el CV y el informe de entrevista/)).toBeTruthy();
+    });
+
+    it("con CV e informe de entrevista la evaluación con nota se puede generar", async () => {
+      const solicitud = crearSolicitud();
+      solicitud.candidato = { ...solicitud.candidato, informeArchivoId: { _id: "a-inf", nombreOriginal: "Informe.docx" } };
+
+      await abrirSeccionIa(USUARIOS.evaluador, { solicitud });
+
+      expect(botonesIa().evaluacion.disabled).toBeFalse();
     });
   });
 

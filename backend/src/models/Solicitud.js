@@ -1,5 +1,33 @@
 import mongoose from "mongoose";
 
+const puntaje = { type: Number, min: 0, max: 100 };
+
+// Evaluación de apoyo generada con IA (nota y retroalimentación). Solo se guarda cuando el
+// evaluador confirma el borrador. Una competencia sin evidencia queda con puntaje null.
+const evaluacionIaSchema = new mongoose.Schema(
+  {
+    puntajeGlobal: { ...puntaje, required: true },
+    competencias: [
+      new mongoose.Schema(
+        {
+          nombre: { type: String, required: true },
+          puntaje: { ...puntaje, default: null },
+          justificacion: { type: String, default: "" },
+        },
+        { _id: false }
+      ),
+    ],
+    fortalezas: { type: [String], default: [] },
+    areasDeMejora: { type: [String], default: [] },
+    recomendaciones: { type: [String], default: [] },
+    resumen: { type: String, default: "" },
+    modeloIa: { type: String, default: "" },
+    generadoPor: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario", required: true },
+    generadoEn: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const solicitudSchema = new mongoose.Schema(
   {
     candidato: {
@@ -51,6 +79,10 @@ const solicitudSchema = new mongoose.Schema(
     fecha: {
       type: Date,
       default: Date.now,
+    },
+    evaluacionIa: {
+      type: evaluacionIaSchema,
+      default: null,
     },
   },
   { timestamps: true }
