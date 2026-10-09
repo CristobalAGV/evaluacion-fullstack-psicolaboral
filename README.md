@@ -221,6 +221,21 @@ experimental y no forma parte del alcance evaluado.
 - `npm run seed-usuarios`, que crea las cuentas de demostración (ver
   *Usar la aplicación*).
 
+**Pruebas en esta rama**
+
+- Además de las 118 pruebas de `main`, esta rama agrega 11 para el campo de
+  contraseña (`frontend/src/pruebas/campo-password.spec.js`): mostrar/ocultar,
+  que el botón no envíe el formulario y que Login y Registro sigan enviando la
+  contraseña escrita. En total, **129 pruebas**, con **89,69 % de líneas y
+  79,79 % de ramas** de cobertura.
+- La cobertura es menor que en `main` porque la interfaz del informe con IA
+  (`InformePsicolaboral.jsx` e `informeService.js`) todavía no tiene pruebas
+  unitarias.
+- Los permisos y validaciones de los endpoints del informe se verificaron
+  contra el backend sin llamar a Gemini (con `GEMINI_API_KEY` vacía, el
+  evaluador responsable y el admin reciben el aviso 503 de "servicio no
+  configurado").
+
 ## Stack tecnológico
 
 **Frontend**
