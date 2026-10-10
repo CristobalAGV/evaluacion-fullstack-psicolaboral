@@ -11,7 +11,8 @@
     "seed-usuarios": "node src/seed/seedUsuarios.js",
     "migrar-familias": "node src/seed/migrarNombresFamilias.js",
     "migrar-titulos-informes": "node src/seed/migrarTitulosInformes.js",
-    "generar-plantillas": "node src/seed/generarPlantillas.js"
+    "generar-plantillas": "node src/seed/generarPlantillas.js",
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",

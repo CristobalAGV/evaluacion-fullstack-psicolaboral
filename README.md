@@ -234,11 +234,17 @@ indicaciones, 2.000).
 | Variable | Para qué sirve |
 | -------- | -------------- |
 | `GEMINI_API_KEY` | Clave de la API de Gemini (https://aistudio.google.com/apikey). Sin ella, generar responde con un aviso de "servicio no configurado". |
-| `GEMINI_MODEL` | Modelo a usar (opcional). Por defecto `gemini-3.6-flash`. |
+| `GEMINI_MODEL` | Modelo a usar (opcional). Por defecto `gemini-3.6-flash`. La verificación real del 9-10 de octubre de 2026 funcionó con `gemini-3.8-flash`. |
+| `GEMINI_MODEL_RESPALDO` | Modelo de respaldo (opcional), por ejemplo `gemini-3.8-flash`. Se usa una sola vez cuando el modelo principal sigue saturado (503) después de los reintentos. Si no está definida, no hay respaldo. |
+| `GEMINI_ESPERAS_REINTENTO_MS` | Esperas en milisegundos antes de cada reintento ante un 503, separadas por coma (opcional). Por defecto `2000,5000`: dos reintentos, a los 2 s y a los 5 s. Vacía desactiva los reintentos. Pensada para las pruebas (por ejemplo `0,0`). |
 
-Si se agota la cuota gratuita (HTTP 429) o el modelo está con alta demanda
-(HTTP 503), la interfaz muestra un mensaje claro y no se pierde nada de lo
-escrito.
+**Resiliencia ante alta demanda.** Cuando Gemini responde 503 ("high
+demand"), el backend reintenta hasta 2 veces (a los 2 s y a los 5 s) y, si
+sigue saturado, prueba una vez el modelo de `GEMINI_MODEL_RESPALDO`. **Solo
+se reintenta el 503:** un 429 (cuota agotada), 400, 401, 403 o 404 no cambia
+por insistir, así que no se reintenta para no gastar cuota. Si todo falla, o
+si se agota la cuota, la interfaz muestra un mensaje claro y no se pierde nada
+de lo escrito.
 
 **Endpoints**
 
@@ -272,7 +278,16 @@ escrito.
   error 429, borrador, confirmar y guardar, aviso visible) y los botones de IA
   por rol en el detalle. Detalle en
   [`docs/cobertura-testing.md`](docs/cobertura-testing.md).
-- **Backend (evaluación con nota):** 61 comprobaciones contra el backend real,
+- **Backend, pruebas unitarias (`cd backend && npm test`):** 18 pruebas de
+  `servicioIa.js` con Gemini simulado. Cubren 503 y luego éxito, 503 tres veces y
+  luego el respaldo, 503 en todo, que 429/400/401/404 **no** se reintentan, sin
+  respaldo definido, las esperas configurables y que la clave va solo en el
+  header.
+- **Gemini real (9-10 oct 2026):** con `gemini-3.8-flash` por `generateContent`,
+  el CV y el informe de entrevista de prueba de "Valentina Prueba Araya" dieron
+  una evaluación válida: puntaje global 82, las 5 competencias con puntajes
+  enteros (una "Sin evidencia suficiente"), y el JSON cumplió el esquema.
+- **Backend (evaluación con nota):** 67 comprobaciones contra el backend real,
   con una base de datos desechable y **Gemini simulado**: extracción con PDF,
   DOCX y `.doc` reales; errores sin archivo, PDF escaneado y `.doc` ilegible
   (sin llamar a Gemini); recorte a 15.000 caracteres; permisos; validación de
@@ -727,6 +742,7 @@ Kanban del analista con la etiqueta "Postulación pública".
 | `npm run generar-plantillas` | Genera los archivos `plantilla_informe.xlsx` y `pauta_entrevista.docx` de cada familia en `backend/plantillas/`. | Una vez al preparar el proyecto, o si quieres regenerar las plantillas tras modificar el script. |
 | `npm run seed` | Crea (o actualiza) las cuatro familias de cargo en la base de datos. | Al montar el proyecto en una base nueva. Es idempotente: ejecutarlo varias veces no duplica nada. |
 | `npm run seed-usuarios` | Crea (o actualiza) las cuatro cuentas de demostración con la contraseña `Demo1234`. Busca cada usuario por su correo y conserva su `_id`, para no romper las solicitudes que lo referencian. Acepta `SEED_PASSWORD=otraclave` para usar otra. | Al montar el proyecto en una base nueva, o cuando nadie recuerde las contraseñas. Es idempotente. |
+| `npm test` | Corre las pruebas del backend con el runner de Node (`node --test`): reintentos ante 503 y modelo de respaldo de la IA, con Gemini simulado (nunca llama a la API real). | Antes de subir cambios en `servicioIa.js`. |
 | `npm run migrar-familias` | Corrige los nombres de familias guardados sin tilde (`Administracion` → `Administración`), actualizando cada documento **por su `_id`** para no romper las solicitudes que las referencian. | Solo en bases creadas antes de esa corrección. Es idempotente y seguro de repetir. |
 
 ### Frontend (`cd frontend`)
