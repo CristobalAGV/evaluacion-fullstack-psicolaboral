@@ -1,4 +1,7 @@
-const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions";
+// Endpoint clasico generateContent (el modelo va en la ruta; la clave, en el header
+// x-goog-api-key, nunca en la URL). Reemplaza a /v1beta/interactions, que es mas nuevo y
+// no acepta todos los modelos.
+const URL_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 // gemini-2.5-flash quedo retirado para proyectos nuevos; la propia API
 // recomienda gemini-3.6-flash como reemplazo.
 const MODELO_POR_DEFECTO = "gemini-3.6-flash";
@@ -28,21 +31,34 @@ function comoDato(texto) {
 // ---------------------------------------------------------------------------
 
 function extraerTexto(datos) {
-  // La respuesta real entrega el texto dentro de steps: los pasos de tipo
-  // "model_output" traen un arreglo content con los bloques de texto. Se
-  // aceptan ademas output_text / outputText por si la API los incluye.
-  if (typeof datos?.output_text === "string" && datos.output_text) return datos.output_text;
-  if (typeof datos?.outputText === "string" && datos.outputText) return datos.outputText;
+  // generateContent entrega el texto en candidates[0].content.parts[].text. Se omiten las
+  // partes de razonamiento ("thought"), que no son parte de la respuesta.
+  const partes = datos?.candidates?.[0]?.content?.parts;
+  if (!Array.isArray(partes)) return "";
 
-  const pasos = Array.isArray(datos?.steps) ? datos.steps : [];
-
-  return pasos
-    .filter((paso) => paso?.type === "model_output")
-    .flatMap((paso) => (Array.isArray(paso.content) ? paso.content : []))
-    .filter((bloque) => bloque?.type === "text" && typeof bloque.text === "string")
-    .map((bloque) => bloque.text)
+  return partes
+    .filter((parte) => typeof parte?.text === "string" && !parte.thought)
+    .map((parte) => parte.text)
     .join("")
     .trim();
+}
+
+// Los esquemas se escriben en estilo JSON Schema (type: "object"); generateContent usa su
+// propio formato de Schema, con los tipos en mayusculas y format "enum" junto a enum.
+function aEsquemaGemini(esquema) {
+  if (Array.isArray(esquema)) return esquema.map(aEsquemaGemini);
+  if (!esquema || typeof esquema !== "object") return esquema;
+
+  const convertido = {};
+  for (const [clave, valor] of Object.entries(esquema)) {
+    if (clave === "type" && typeof valor === "string") convertido.type = valor.toUpperCase();
+    else if (clave === "properties") {
+      convertido.properties = Object.fromEntries(Object.entries(valor).map(([k, v]) => [k, aEsquemaGemini(v)]));
+    } else if (clave === "items") convertido.items = aEsquemaGemini(valor);
+    else convertido[clave] = valor;
+  }
+  if (Array.isArray(esquema.enum)) convertido.format = "enum";
+  return convertido;
 }
 
 // Lanza 503 sin llamar a la API si la clave no esta configurada.
@@ -66,22 +82,20 @@ async function llamarGemini({ instruccionSistema, entrada, esquema, temperatura 
 
   let respuesta;
   try {
-    respuesta = await fetch(ENDPOINT, {
+    respuesta = await fetch(`${URL_BASE}/${encodeURIComponent(modelo)}:generateContent`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-goog-api-key": apiKey,
       },
       body: JSON.stringify({
-        model: modelo,
-        system_instruction: instruccionSistema,
-        input: entrada,
-        response_format: {
-          type: "text",
-          mime_type: "application/json",
-          schema: esquema,
+        systemInstruction: { parts: [{ text: instruccionSistema }] },
+        contents: [{ role: "user", parts: [{ text: entrada }] }],
+        generationConfig: {
+          temperature: temperatura,
+          responseMimeType: "application/json",
+          responseSchema: aEsquemaGemini(esquema),
         },
-        generation_config: { temperature: temperatura },
       }),
       signal: controlador.signal,
     });
@@ -107,6 +121,13 @@ async function llamarGemini({ instruccionSistema, entrada, esquema, temperatura 
       throw new ErrorIa(
         "Se agoto la cuota gratuita del servicio de IA por ahora. Espera unos minutos y vuelve a intentarlo.",
         429
+      );
+    }
+    if (respuesta.status === 503) {
+      // Google lo usa cuando el modelo esta saturado ("high demand"); suele ser temporal.
+      throw new ErrorIa(
+        "El servicio de IA esta con alta demanda en este momento. Espera unos minutos y vuelve a intentarlo.",
+        503
       );
     }
     if (respuesta.status === 401) {
@@ -136,6 +157,15 @@ async function llamarGemini({ instruccionSistema, entrada, esquema, temperatura 
   }
 
   const datos = await respuesta.json().catch(() => null);
+
+  // Los filtros de seguridad de Gemini pueden bloquear el pedido o la respuesta.
+  if (datos?.promptFeedback?.blockReason || datos?.candidates?.[0]?.finishReason === "SAFETY") {
+    throw new ErrorIa(
+      "El servicio de IA bloqueo la respuesta por sus filtros de seguridad. Revisa el texto enviado y vuelve a intentarlo.",
+      502
+    );
+  }
+
   const texto = extraerTexto(datos);
 
   if (!texto) {

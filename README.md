@@ -164,8 +164,10 @@ apoyo con nota**. Es experimental y no forma parte del alcance evaluado.
 1. El evaluador escribe sus apuntes de la entrevista y, si quiere,
    indicaciones de estilo (tono, énfasis, extensión).
 2. El backend arma el prompt con las secciones del informe de la familia de
-   cargo y llama a Gemini. **La IA se usa solo desde el backend:** la clave
-   `GEMINI_API_KEY` vive en el servidor y nunca llega al navegador.
+   cargo y llama a Gemini con el endpoint `generateContent`
+   (`/v1beta/models/{modelo}:generateContent`). **La IA se usa solo desde el
+   backend:** la clave `GEMINI_API_KEY` vive en el servidor, viaja en el header
+   `x-goog-api-key` (nunca en la URL) y nunca llega al navegador.
 3. Gemini devuelve un **borrador** por secciones. **No se guarda
    automáticamente:** el evaluador lo revisa, lo corrige y decide guardarlo
    (como borrador o finalizado). La interfaz muestra un aviso permanente de
@@ -184,7 +186,7 @@ apoyo con nota**. Es experimental y no forma parte del alcance evaluado.
    informe, si el PDF es escaneado (sin texto) o si un `.doc` no se puede leer,
    responde un error claro en español y **no llama a Gemini**. Cada documento
    se recorta a **15.000 caracteres**, y la respuesta lo avisa cuando pasa.
-3. Gemini responde en JSON (mismo `response_format` que el informe) con
+3. Gemini responde en JSON (con `responseSchema`, igual que el informe) con
    `puntaje_global` (0-100, nivel de ajuste al cargo), `competencias`
    (`nombre`, `puntaje` 0-100 y justificación de una línea), `fortalezas`,
    `areas_de_mejora`, `recomendaciones` y `resumen` (máx. 4 líneas). **El
@@ -234,8 +236,9 @@ indicaciones, 2.000).
 | `GEMINI_API_KEY` | Clave de la API de Gemini (https://aistudio.google.com/apikey). Sin ella, generar responde con un aviso de "servicio no configurado". |
 | `GEMINI_MODEL` | Modelo a usar (opcional). Por defecto `gemini-3.6-flash`. |
 
-Si se agota la cuota gratuita (HTTP 429), la interfaz muestra un mensaje
-amable y no se pierde nada de lo escrito.
+Si se agota la cuota gratuita (HTTP 429) o el modelo está con alta demanda
+(HTTP 503), la interfaz muestra un mensaje claro y no se pierde nada de lo
+escrito.
 
 **Endpoints**
 
