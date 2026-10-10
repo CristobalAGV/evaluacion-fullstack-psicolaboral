@@ -3,7 +3,7 @@
 // Ejecutar con: npm test (desde backend/).
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { generarBorradorInforme, esperasDeReintento, ErrorIa } from "../src/services/servicioIa.js";
+import { generarBorradorInforme, esperasDeReintento, nivelDeRazonamiento, ErrorIa } from "../src/services/servicioIa.js";
 
 const MENSAJE_ALTA_DEMANDA = /alta demanda/;
 const fetchOriginal = globalThis.fetch;
@@ -23,7 +23,7 @@ const respuestaError = (status) => new Response(JSON.stringify({ error: { code: 
 // Cada llamada a fetch consume la siguiente respuesta de la cola y queda registrada.
 function simularGemini(...respuestas) {
   globalThis.fetch = async (url, opciones) => {
-    llamadas.push({ url: String(url), clave: new Headers(opciones.headers).get("x-goog-api-key") });
+    llamadas.push({ url: String(url), clave: new Headers(opciones.headers).get("x-goog-api-key"), cuerpo: JSON.parse(opciones.body) });
     const siguiente = respuestas.shift();
     if (!siguiente) throw new Error("La prueba no esperaba otra llamada a Gemini");
     return typeof siguiente === "number" ? respuestaError(siguiente) : siguiente;
@@ -42,6 +42,7 @@ describe("servicioIa: reintentos ante 503 y modelo de respaldo", () => {
     process.env.GEMINI_MODEL = "modelo-principal";
     process.env.GEMINI_ESPERAS_REINTENTO_MS = "0,0"; // 2 reintentos sin esperar
     delete process.env.GEMINI_MODEL_RESPALDO;
+    delete process.env.GEMINI_NIVEL_RAZONAMIENTO;
   });
 
   afterEach(() => {
@@ -198,5 +199,82 @@ describe("esperasDeReintento", () => {
   test("ignora valores no válidos", () => {
     process.env.GEMINI_ESPERAS_REINTENTO_MS = "100,abc,-5,200";
     assert.deepEqual(esperasDeReintento(), [100, 200]);
+  });
+});
+
+describe("servicioIa: nivel de razonamiento (thinkingConfig)", () => {
+  const thinkingDe = (llamada) => llamada.cuerpo.generationConfig.thinkingConfig;
+
+  beforeEach(() => {
+    llamadas = [];
+    avisos = [];
+    console.warn = (mensaje) => avisos.push(String(mensaje));
+    process.env.GEMINI_API_KEY = "clave-de-prueba";
+    process.env.GEMINI_MODEL = "modelo-principal";
+    process.env.GEMINI_ESPERAS_REINTENTO_MS = "0,0";
+    delete process.env.GEMINI_MODEL_RESPALDO;
+    delete process.env.GEMINI_NIVEL_RAZONAMIENTO;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = fetchOriginal;
+    console.warn = warnOriginal;
+    delete process.env.GEMINI_NIVEL_RAZONAMIENTO;
+  });
+
+  test("definido: viaja en generationConfig.thinkingConfig.thinkingLevel", async () => {
+    process.env.GEMINI_NIVEL_RAZONAMIENTO = "medium";
+    simularGemini(respuestaExitosa());
+
+    await generar();
+
+    assert.deepEqual(thinkingDe(llamadas[0]), { thinkingLevel: "medium" });
+  });
+
+  test('sin definir: se envía "low" (el más bajo que acepta gemini-3.8-flash)', async () => {
+    simularGemini(respuestaExitosa());
+
+    await generar();
+
+    assert.deepEqual(thinkingDe(llamadas[0]), { thinkingLevel: "low" });
+  });
+
+  test("vacía: no se envía thinkingConfig", async () => {
+    process.env.GEMINI_NIVEL_RAZONAMIENTO = "";
+    simularGemini(respuestaExitosa());
+
+    await generar();
+
+    assert.equal("thinkingConfig" in llamadas[0].cuerpo.generationConfig, false);
+    // El resto de generationConfig sigue igual
+    assert.equal(llamadas[0].cuerpo.generationConfig.responseMimeType, "application/json");
+  });
+
+  test("también viaja en los reintentos y en el modelo de respaldo", async () => {
+    process.env.GEMINI_NIVEL_RAZONAMIENTO = "low";
+    process.env.GEMINI_MODEL_RESPALDO = "modelo-respaldo";
+    simularGemini(503, 503, 503, respuestaExitosa());
+
+    await generar();
+
+    assert.equal(llamadas.length, 4);
+    assert.ok(llamadas.every((l) => l.cuerpo.generationConfig.thinkingConfig?.thinkingLevel === "low"));
+  });
+
+  test("valor no válido: no se envía y queda un aviso en el log", async () => {
+    process.env.GEMINI_NIVEL_RAZONAMIENTO = "maximo";
+    simularGemini(respuestaExitosa());
+
+    await generar();
+
+    assert.equal("thinkingConfig" in llamadas[0].cuerpo.generationConfig, false);
+    assert.ok(avisos.some((a) => a.includes("GEMINI_NIVEL_RAZONAMIENTO")));
+  });
+
+  test("nivelDeRazonamiento normaliza mayúsculas y espacios", () => {
+    process.env.GEMINI_NIVEL_RAZONAMIENTO = "  HIGH ";
+    assert.equal(nivelDeRazonamiento(), "high");
+    process.env.GEMINI_NIVEL_RAZONAMIENTO = "minimal";
+    assert.equal(nivelDeRazonamiento(), "minimal");
   });
 });

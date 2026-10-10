@@ -103,6 +103,27 @@ export function esperasDeReintento() {
 
 const esperar = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
 
+// Nivel de razonamiento ("thinking") de los modelos Gemini 3, en
+// generationConfig.thinkingConfig.thinkingLevel (ai.google.dev, guia de thinking de
+// generateContent). Por defecto "low": el mas bajo que acepta gemini-3.8-flash ("minimal" da
+// error en ese modelo) y que tambien acepta gemini-3.6-flash. Baja la latencia; con el valor
+// por defecto del modelo ("medium") una evaluacion llego a pasar de 90 s.
+// GEMINI_NIVEL_RAZONAMIENTO lo cambia; vacia, no se envia el campo (el modelo usa su defecto).
+const NIVEL_RAZONAMIENTO_POR_DEFECTO = "low";
+const NIVELES_RAZONAMIENTO = ["minimal", "low", "medium", "high"];
+
+export function nivelDeRazonamiento() {
+  const valor = process.env.GEMINI_NIVEL_RAZONAMIENTO;
+  if (valor === undefined) return NIVEL_RAZONAMIENTO_POR_DEFECTO;
+  const nivel = valor.trim().toLowerCase();
+  if (!nivel) return null;
+  if (!NIVELES_RAZONAMIENTO.includes(nivel)) {
+    console.warn(`GEMINI_NIVEL_RAZONAMIENTO="${valor}" no es valido (${NIVELES_RAZONAMIENTO.join(", ")}): no se envia.`);
+    return null;
+  }
+  return nivel;
+}
+
 // Un solo pedido a un modelo. Devuelve el JSON generado o lanza ErrorIa.
 async function pedirUnaVez({ modelo, apiKey, cuerpo }) {
   const controlador = new AbortController();
@@ -205,6 +226,9 @@ async function llamarGemini({ instruccionSistema, entrada, esquema, temperatura 
   const apiKey = obtenerClave();
   const principal = process.env.GEMINI_MODEL || MODELO_POR_DEFECTO;
   const respaldo = (process.env.GEMINI_MODEL_RESPALDO || "").trim();
+  const nivel = nivelDeRazonamiento();
+  // El mismo cuerpo (incluido thinkingLevel) se usa con el modelo principal y con el respaldo:
+  // ambos son Gemini 3 y aceptan el mismo parametro.
   const cuerpo = JSON.stringify({
     systemInstruction: { parts: [{ text: instruccionSistema }] },
     contents: [{ role: "user", parts: [{ text: entrada }] }],
@@ -212,6 +236,7 @@ async function llamarGemini({ instruccionSistema, entrada, esquema, temperatura 
       temperature: temperatura,
       responseMimeType: "application/json",
       responseSchema: aEsquemaGemini(esquema),
+      ...(nivel && { thinkingConfig: { thinkingLevel: nivel } }),
     },
   });
 
