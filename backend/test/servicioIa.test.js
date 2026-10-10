@@ -160,6 +160,16 @@ describe("servicioIa: reintentos ante 503 y modelo de respaldo", () => {
     assert.equal(llamadas.length, 0);
   });
 
+  test("sin GEMINI_MODEL usa gemini-3.8-flash por defecto", async () => {
+    delete process.env.GEMINI_MODEL;
+    simularGemini(respuestaExitosa());
+
+    const resultado = await generar();
+
+    assert.equal(modeloDe(llamadas[0]), "gemini-3.8-flash");
+    assert.equal(resultado.modelo, "gemini-3.8-flash");
+  });
+
   test("la clave va solo en el header x-goog-api-key, nunca en la URL", async () => {
     simularGemini(respuestaExitosa());
 

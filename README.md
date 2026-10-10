@@ -234,8 +234,8 @@ indicaciones, 2.000).
 | Variable | Para qué sirve |
 | -------- | -------------- |
 | `GEMINI_API_KEY` | Clave de la API de Gemini (https://aistudio.google.com/apikey). Sin ella, generar responde con un aviso de "servicio no configurado". |
-| `GEMINI_MODEL` | Modelo a usar (opcional). Por defecto `gemini-3.6-flash`. La verificación real del 9-10 de octubre de 2026 funcionó con `gemini-3.8-flash`. |
-| `GEMINI_MODEL_RESPALDO` | Modelo de respaldo (opcional), por ejemplo `gemini-3.8-flash`. Se usa una sola vez cuando el modelo principal sigue saturado (503) después de los reintentos. Si no está definida, no hay respaldo. |
+| `GEMINI_MODEL` | Modelo a usar (opcional). Por defecto `gemini-3.8-flash`, con el que funcionó la verificación real del 9-10 de octubre de 2026 (`gemini-3.6-flash` respondía 503 por alta demanda). |
+| `GEMINI_MODEL_RESPALDO` | Modelo de respaldo (opcional), por ejemplo `gemini-3.6-flash`. Se usa una sola vez cuando el modelo principal sigue saturado (503) después de los reintentos. Si no está definida, no hay respaldo. |
 | `GEMINI_ESPERAS_REINTENTO_MS` | Esperas en milisegundos antes de cada reintento ante un 503, separadas por coma (opcional). Por defecto `2000,5000`: dos reintentos, a los 2 s y a los 5 s. Vacía desactiva los reintentos. Pensada para las pruebas (por ejemplo `0,0`). |
 
 **Resiliencia ante alta demanda.** Cuando Gemini responde 503 ("high

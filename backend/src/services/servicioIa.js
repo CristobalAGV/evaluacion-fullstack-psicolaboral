@@ -2,9 +2,9 @@
 // x-goog-api-key, nunca en la URL). Reemplaza a /v1beta/interactions, que es mas nuevo y
 // no acepta todos los modelos.
 const URL_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-// gemini-2.5-flash quedo retirado para proyectos nuevos; la propia API
-// recomienda gemini-3.6-flash como reemplazo.
-const MODELO_POR_DEFECTO = "gemini-3.6-flash";
+// gemini-2.5-flash quedo retirado para proyectos nuevos y gemini-3.6-flash respondia 503
+// (alta demanda) con frecuencia; gemini-3.8-flash es el que la API recomienda hoy.
+const MODELO_POR_DEFECTO = "gemini-3.8-flash";
 // 90 s: con 45 s una generacion de informe largo alcanzo a pasarse del limite.
 const TIEMPO_LIMITE_MS = 90000;
 
