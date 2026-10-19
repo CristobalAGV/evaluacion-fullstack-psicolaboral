@@ -347,7 +347,7 @@ export default function SolicitudDetalle() {
 
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-slate-900">Evaluaciones</h3>
+          <h3 className="text-lg font-semibold text-slate-900">Evaluaciones del evaluador</h3>
           {puedeGestionarEvaluaciones && !mostrarFormularioNueva && (
             <button
               type="button"
