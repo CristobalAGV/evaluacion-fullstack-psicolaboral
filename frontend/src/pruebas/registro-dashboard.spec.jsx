@@ -173,4 +173,56 @@ describe("Dashboard", () => {
 
     expect(await screen.findByText("Error al cargar el dashboard")).toBeTruthy();
   });
+
+  it("cada cantidad aparece junto a su título, con datos distintos entre sí", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { totalCandidatos: 1234, solicitudesPendientes: 7, solicitudesEnProceso: 21, solicitudesFinalizadas: 100 },
+    });
+
+    renderizar(<Dashboard />);
+
+    await screen.findByRole("heading", { name: "Dashboard" });
+    const valorDe = (titulo) => screen.getByText(titulo).nextElementSibling.textContent;
+    expect(valorDe("Total candidatos")).toBe("1234");
+    expect(valorDe("Solicitudes pendientes")).toBe("7");
+    expect(valorDe("Solicitudes en proceso")).toBe("21");
+    expect(valorDe("Solicitudes finalizadas")).toBe("100");
+  });
+
+  it("el estado de carga se anuncia como estado y muestra el indicador de carga", () => {
+    vi.spyOn(api, "get").mockReturnValue(new Promise(() => {}));
+
+    renderizar(<Dashboard />);
+
+    const estado = screen.getByRole("status");
+    expect(within(estado).getByText("Cargando dashboard...")).toBeTruthy();
+    expect(estado.querySelector(".spinner-border")).not.toBeNull();
+    expect(screen.queryByRole("heading", { name: "Dashboard" })).toBeNull();
+  });
+
+  it("el error se muestra como alerta, con el título de la página", async () => {
+    vi.spyOn(api, "get").mockRejectedValue(errorAxios(500, "Error al calcular el dashboard"));
+
+    renderizar(<Dashboard />);
+
+    const alerta = await screen.findByRole("alert");
+    expect(alerta.textContent).toBe("Error al calcular el dashboard");
+    expect(screen.getByRole("heading", { name: "Dashboard" })).toBeTruthy();
+  });
+
+  it("usa una grilla responsiva: una tarjeta por columna (1 en móvil, 2 en tablet, 4 en escritorio)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { totalCandidatos: 1, solicitudesPendientes: 2, solicitudesEnProceso: 3, solicitudesFinalizadas: 4 },
+    });
+
+    renderizar(<Dashboard />);
+
+    await screen.findByRole("heading", { name: "Dashboard" });
+    const columnas = [...document.querySelectorAll(".row > div")];
+    expect(columnas.length).toBe(4);
+    for (const columna of columnas) {
+      expect([...columna.classList]).toEqual(["col-12", "col-md-6", "col-xl-3"]);
+      expect(columna.querySelectorAll(".card").length).toBe(1);
+    }
+  });
 });
