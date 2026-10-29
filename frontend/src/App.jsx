@@ -1,6 +1,7 @@
-import { Routes, Route, Outlet } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
+import { useAuth } from './context/AuthContext'
 import AppLayout from './layouts/AppLayout'
-import Navbar from './components/Navbar'
+import PublicLayout from './layouts/PublicLayout'
 import RutaProtegida from './components/RutaProtegida'
 import Login from './pages/Login'
 import Registro from './pages/Registro'
@@ -11,30 +12,24 @@ import SolicitudDetalle from './pages/SolicitudDetalle'
 import Postular from './pages/Postular'
 import NotFoundPage from './pages/NotFoundPage'
 
-// Marco provisional de las páginas públicas (todavía con Tailwind): barra de navegación y
-// contenedor centrado, como antes del layout. La postulación pública va sin barra del equipo.
-function MarcoPublico({ conNavbar = true }) {
-  return (
-    <div className="min-h-screen bg-slate-50">
-      {conNavbar && <Navbar />}
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <Outlet />
-      </main>
-    </div>
-  )
-}
-
 function App() {
+  const { usuario } = useAuth()
+
   return (
     <Routes>
-      <Route element={<MarcoPublico />}>
+      <Route element={<PublicLayout />}>
         <Route path="/login" element={<Login />} />
         <Route path="/registro" element={<Registro />} />
-        <Route path="*" element={<NotFoundPage />} />
       </Route>
-      <Route element={<MarcoPublico conNavbar={false} />}>
-        <Route path="/postular" element={<Postular />} />
-      </Route>
+      {/* Provisional: el formulario de postulación sigue con Tailwind hasta que se migre. */}
+      <Route
+        path="/postular"
+        element={
+          <div className="min-vh-100 bg-body-tertiary p-3 p-md-4">
+            <Postular />
+          </div>
+        }
+      />
       {/* Zona privada: sin sesión se redirige a /login; cada ruta con roles lo vuelve a exigir. */}
       <Route
         element={
@@ -54,6 +49,10 @@ function App() {
           }
         />
         <Route path="/solicitudes/:id" element={<SolicitudDetalle />} />
+      </Route>
+      {/* 404: con sesión se ve dentro del marco privado; sin sesión, dentro del público. */}
+      <Route path="*" element={usuario ? <AppLayout /> : <PublicLayout />}>
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
   )
