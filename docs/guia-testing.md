@@ -108,8 +108,8 @@ no que se haya comprobado todo. Por eso lo importante es que las pruebas tengan 
 **En la terminal**, al final de `npm test`:
 
 ```
- Test Files  15 passed (15)
-      Tests  163 passed (163)
+ Test Files  20 passed (20)
+      Tests  262 passed (262)
 ```
 
 - `passed`: todas pasaron.
@@ -156,6 +156,16 @@ Cuando algo cambia el estado de un componente **fuera de un clic o de un evento*
 cuando responde una promesa), React pide envolverlo en `act(...)`. Si no, muestra una
 advertencia en la consola. Lo usamos en la prueba del 401.
 
+### Por qué `silent: false`
+
+Vitest 5 **oculta lo que se escribe en la consola mientras la prueba pasa**. Eso incluye las
+advertencias de React, por ejemplo `An update to X inside a test was not wrapped in act(...)`,
+que indican que un cambio de estado ocurrió fuera de lo que la prueba esperaba. Para no
+perderlas, `vite.config.js` define `silent: false`: así aparecen en `npm test`. Se comprobó
+provocando una a propósito (solo se veía con la opción desactivada) y con ella las pruebas del
+detalle de solicitud mostraban 3; se arreglaron esperando a que terminen de cargar las tarjetas
+de IA, y hoy `npm test` no muestra ninguna.
+
 ### `waitFor` y `esperarQue`
 
 `waitFor` (de Testing Library) espera hasta que su función *no lance un error*. En Vitest un
@@ -187,8 +197,8 @@ navegador no hace. (Tampoco existe `DataTransfer` en jsdom, así que el ayudante
 
 ## 8. Resultados del proyecto en una frase
 
-**163 pruebas, todas aprobadas**, en orden aleatorio. La cobertura es de
-**96,85 % de líneas y 88,88 % de ramas** (subió desde 44 % de líneas y 33 % de ramas en la
+**262 pruebas en 20 archivos, todas aprobadas**, en orden aleatorio. La cobertura es de
+**97,73 % de líneas y 90,28 % de ramas** (subió desde 44 % de líneas y 33 % de ramas en la
 primera ronda). Cubre login
 y registro, rutas protegidas por rol, interceptores de sesión, el formulario público, el
 detalle de solicitud con sus permisos por rol, evaluaciones, informe Word, descarga segura de

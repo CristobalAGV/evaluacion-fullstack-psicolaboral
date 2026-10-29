@@ -89,7 +89,7 @@ Situación al 5 de octubre de 2026, organizada por hitos de entrega.
 
 - Vistas de inicio de sesión, registro, dashboard, panel Kanban, nueva
   solicitud, edición y detalle de solicitud, construidas con React, Vite y
-  Tailwind.
+  Bootstrap 5.
 - Rutas protegidas y navegación con React Router.
 - Validaciones de formulario (correo y celular chileno) y mensajes de error.
 - Formulario público de postulación (`/postular`), sin login.
@@ -272,14 +272,15 @@ de lo escrito.
 
 **Pruebas en esta rama**
 
-- **Frontend: 163 pruebas** (las 118 de `main` más 45 propias), con
-  **96,85 % de líneas y 88,88 % de ramas**. Las propias cubren el campo de
+- **Frontend: 262 pruebas** en 20 archivos, con
+  **97,73 % de líneas y 90,28 % de ramas** (cifras de la última migración a Bootstrap; ver
+  *Pruebas*). Las de esta rama cubren el campo de
   contraseña, `InformePsicolaboral.jsx`, la tarjeta `EvaluacionIa.jsx` (render,
   botones solo para el evaluador responsable y el admin, estado de carga,
   error 429, borrador, confirmar y guardar, aviso visible) y los botones de IA
   por rol en el detalle. Detalle en
   [`docs/cobertura-testing.md`](docs/cobertura-testing.md).
-- **Backend, pruebas unitarias (`cd backend && npm test`):** 18 pruebas de
+- **Backend, pruebas unitarias (`cd backend && npm test`):** 25 pruebas de
   `servicioIa.js` con Gemini simulado. Cubren 503 y luego éxito, 503 tres veces y
   luego el respaldo, 503 en todo, que 429/400/401/404 **no** se reintentan, sin
   respaldo definido, las esperas configurables y que la clave va solo en el
@@ -300,11 +301,11 @@ de lo escrito.
 
 **Frontend**
 
-- React 19 con **Vite** como bundler y servidor de desarrollo
-- **Tailwind CSS v4** (integrado con el plugin `@tailwindcss/vite`)
+- React 19 con **Vite 8** como bundler y servidor de desarrollo
+- **Bootstrap 5** (solo su CSS, con clases; sin `react-bootstrap` ni el JavaScript de Bootstrap)
 - React Router para la navegación entre vistas
 - Axios como cliente HTTP, con interceptores para el token y el manejo de sesión
-- **Vitest + jsdom** para las pruebas unitarias, con cobertura v8
+- **Vitest 5 + jsdom** con Testing Library para las pruebas unitarias, con cobertura v8
   (`@vitest/coverage-v8`)
 
 **Backend**
@@ -642,7 +643,7 @@ Sin token. Con rate limiting (ver *Postulación pública*).
 
 ### Requisitos previos
 
-- **Node.js 18 o superior** y npm
+- **Node.js 22.12 o superior** (probado con Node 24) y npm
 - Una base de datos MongoDB: una instancia local o una gratuita en **MongoDB Atlas**
 
 > Si usas MongoDB Atlas, recuerda agregar tu IP en **Network Access**; de lo
@@ -759,11 +760,13 @@ Kanban del analista con la etiqueta "Postulación pública".
 
 ## Pruebas
 
-El frontend tiene **163 pruebas unitarias** con **Vitest** y **jsdom**, con una
-cobertura de **96,85 % de líneas y 88,88 % de ramas**. Usan spies de Vitest
+El frontend tiene **262 pruebas unitarias** en 20 archivos, con **Vitest** y **jsdom**.
+Cobertura de la última ejecución: **97,73 % de líneas, 96,95 % de sentencias,
+98,70 % de funciones y 90,28 % de ramas**. Usan spies de Vitest
 (`vi.spyOn`, `vi.fn`) como mocks del backend (axios), de la sesión y de las APIs
 de descarga del navegador, y un adapter falso de axios para probar los
-interceptores.
+interceptores. Incluyen pruebas de layouts, de búsqueda y filtros del panel y
+del marcado de Bootstrap (clases, roles y atributos de accesibilidad).
 
 Desde `frontend/`:
 
@@ -776,10 +779,28 @@ npm run test:cobertura   # además genera el reporte de cobertura
 El reporte navegable queda en `frontend/coverage/index.html`.
 
 - Pruebas: `frontend/src/pruebas/` · Configuración: `frontend/vite.config.js` (sección `test`).
+- `silent: false` en esa configuración: Vitest 5 oculta lo que las pruebas escriben en la consola
+  mientras pasan, y con eso se esconderían advertencias de React como `not wrapped in act(...)`.
+  Con la opción desactivada aparecen en `npm test`.
 - Detalle por componente, mocks, cobertura por archivo y lo que falta cubrir:
   [`docs/cobertura-testing.md`](docs/cobertura-testing.md).
 - Explicación sencilla de los conceptos (para presentar):
   [`docs/guia-testing.md`](docs/guia-testing.md).
+
+## Layouts
+
+El frontend usa dos marcos de página (`frontend/src/layouts/`), declarados en `App.jsx` como rutas
+con `<Outlet />`:
+
+| Layout | Qué contiene | Rutas que lo usan |
+| ------ | ------------ | ----------------- |
+| `AppLayout` | Barra superior (`Navbar`, con menú desplegable en móvil), menú lateral (`Sidebar`, solo en escritorio), contenido y pie (`Footer`). Está protegido: sin sesión redirige a `/login`. | `/` (Dashboard), `/panel`, `/solicitudes/nueva` (solo analista y admin), `/solicitudes/:id`, y el 404 cuando hay sesión |
+| `PublicLayout` | Barra simple (`NavbarPublico`), contenido centrado y pie. Sin menú lateral. | `/login`, `/registro`, `/postular` (aquí la barra muestra solo la marca) y el 404 sin sesión |
+
+Los enlaces del menú (Inicio, Panel, Nueva solicitud) están en `layouts/enlaces.js` y se filtran
+por rol; los usan tanto el `Sidebar` como el menú móvil del `Navbar`, así ambos muestran siempre
+lo mismo. El CSS propio se limita a `AppLayout.css` (cuadrícula del cuerpo) y `SelectorCv.css`
+(borde punteado y foco de la zona de archivo); todo lo demás son clases de Bootstrap.
 
 ## Estructura del repositorio
 
@@ -799,11 +820,14 @@ backend/
 
 frontend/
   src/
-    components/   Componentes reutilizables (Navbar, formulario, selector de CV, ruta protegida)
-    pages/        Vistas (Inicio, Panel, Nueva solicitud, Detalle, Login, Registro, Postular)
+    layouts/      AppLayout (zona privada) y PublicLayout (zona pública) con su CSS y los enlaces del menú
+    components/   Componentes reutilizables (Navbar, Sidebar, Footer, Modal, filtros del panel,
+                  formularios, selectores de archivo, tarjetas de IA, ruta protegida)
+    pages/        Vistas (Dashboard, Panel, Nueva solicitud, Detalle, Login, Registro, Postular, 404)
+    hooks/        Hooks propios (validación visible de formularios)
     services/     Cliente axios y llamadas a la API
     context/      AuthContext: sesión, token y manejo de expiración
-    utils/        Utilidades (fechas de calendario)
+    utils/        Utilidades (fechas de calendario, filtros del panel, mensajes de error de IA)
     pruebas/      Pruebas unitarias (Vitest)
 
 docs/             Capturas, guía de git y documentación de pruebas
