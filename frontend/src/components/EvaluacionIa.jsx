@@ -6,21 +6,25 @@ const AVISO_APOYO_IA = "Apoyo generado por IA; la decisión final es del evaluad
 
 function AvisoApoyo() {
   return (
-    <p className="rounded-md border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+    <div className="alert alert-info mb-0" role="note">
       ⚠️ {AVISO_APOYO_IA}. La nota resume la evidencia del CV, el informe de entrevista y tus apuntes;
       no es un veredicto sobre la persona.
-    </p>
+    </div>
   );
+}
+
+function Spinner() {
+  return <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />;
 }
 
 function ListaDeTextos({ titulo, items }) {
   return (
-    <div className="rounded-md border border-slate-200 p-3">
-      <h5 className="text-sm font-semibold text-slate-900">{titulo}</h5>
+    <div className="border rounded p-3 h-100 bg-white">
+      <h5 className="h6 fw-semibold">{titulo}</h5>
       {items.length === 0 ? (
-        <p className="mt-1 text-sm text-slate-400">Sin evidencia suficiente.</p>
+        <p className="small text-secondary mb-0">Sin evidencia suficiente.</p>
       ) : (
-        <ul className="mt-1 list-disc pl-5 text-sm text-slate-700">
+        <ul className="small ps-3 mb-0">
           {items.map((item, i) => (
             <li key={i}>{item}</li>
           ))}
@@ -33,46 +37,62 @@ function ListaDeTextos({ titulo, items }) {
 // Nota global, competencias con barra y bloques de retroalimentación.
 function VistaEvaluacion({ evaluacion }) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="text-center sm:w-40 sm:shrink-0" aria-label={`Nota global: ${evaluacion.puntajeGlobal} de 100`}>
-          <p className="text-5xl font-bold text-indigo-700">{evaluacion.puntajeGlobal}</p>
-          <p className="text-xs text-slate-500">de 100 · nivel de ajuste al cargo</p>
+    <div className="d-flex flex-column gap-4">
+      <div className="row g-3 align-items-center">
+        <div className="col-12 col-sm-4 col-md-3 text-center" aria-label={`Nota global: ${evaluacion.puntajeGlobal} de 100`}>
+          <p className="display-5 fw-bold text-primary mb-1">{evaluacion.puntajeGlobal}</p>
+          <span className="badge text-bg-primary">de 100</span>
+          <p className="small text-secondary mt-1 mb-0">nivel de ajuste al cargo</p>
         </div>
-        <p className="whitespace-pre-line text-sm text-slate-700">{evaluacion.resumen}</p>
+        <div className="col-12 col-sm-8 col-md-9">
+          <p className="mb-0" style={{ whiteSpace: "pre-line" }}>
+            {evaluacion.resumen}
+          </p>
+        </div>
       </div>
 
       <div>
-        <h5 className="mb-2 text-sm font-semibold text-slate-900">Competencias</h5>
-        <ul className="flex flex-col gap-3">
+        <h5 className="h6 fw-semibold mb-3">Competencias</h5>
+        <ul className="list-unstyled d-flex flex-column gap-3 mb-0">
           {evaluacion.competencias.map((c) => (
             <li key={c.nombre}>
-              <div className="flex items-baseline justify-between gap-2 text-sm">
-                <span className="font-medium text-slate-800">{c.nombre}</span>
-                <span className="shrink-0 text-slate-600">{c.puntaje === null ? "Sin evidencia" : `${c.puntaje}/100`}</span>
-              </div>
-              <div
-                className="mt-1 h-2 rounded-full bg-slate-100"
-                role="progressbar"
-                aria-label={c.nombre}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={c.puntaje ?? undefined}
-              >
-                {c.puntaje !== null && (
-                  <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${c.puntaje}%` }} />
+              <div className="d-flex align-items-baseline justify-content-between gap-2">
+                <span className="fw-medium">{c.nombre}</span>
+                {c.puntaje === null ? (
+                  <span className="badge text-bg-secondary flex-shrink-0">Sin evidencia suficiente</span>
+                ) : (
+                  <span className="flex-shrink-0 text-secondary">{c.puntaje}/100</span>
                 )}
               </div>
-              <p className="mt-1 text-xs text-slate-500">{c.justificacion}</p>
+              {c.puntaje !== null && (
+                <div
+                  className="progress mt-1"
+                  style={{ height: 8 }}
+                  role="progressbar"
+                  aria-label={c.nombre}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={c.puntaje}
+                >
+                  <div className="progress-bar" style={{ width: `${c.puntaje}%` }} />
+                </div>
+              )}
+              <p className="small text-secondary mt-1 mb-0">{c.justificacion}</p>
             </li>
           ))}
         </ul>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <ListaDeTextos titulo="Fortalezas" items={evaluacion.fortalezas} />
-        <ListaDeTextos titulo="Áreas de mejora" items={evaluacion.areasDeMejora} />
-        <ListaDeTextos titulo="Recomendaciones para el evaluador" items={evaluacion.recomendaciones} />
+      <div className="row g-3">
+        <div className="col-12 col-md-4">
+          <ListaDeTextos titulo="Fortalezas" items={evaluacion.fortalezas} />
+        </div>
+        <div className="col-12 col-md-4">
+          <ListaDeTextos titulo="Áreas de mejora" items={evaluacion.areasDeMejora} />
+        </div>
+        <div className="col-12 col-md-4">
+          <ListaDeTextos titulo="Recomendaciones para el evaluador" items={evaluacion.recomendaciones} />
+        </div>
       </div>
     </div>
   );
@@ -127,102 +147,117 @@ export default function EvaluacionIa({ solicitudId, puedeEditar, apuntes = "", t
   const mostrada = borrador ?? guardada;
 
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-indigo-200 bg-indigo-50/30 p-4">
-      <div>
-        <h4 className="text-base font-semibold text-slate-900">Evaluación de apoyo con IA</h4>
-        <p className="mt-1 text-sm text-slate-600">
+    <section className="card border-primary-subtle">
+      <div className="card-header bg-primary-subtle">
+        <h4 className="h6 fw-semibold mb-0">Evaluación de apoyo con IA</h4>
+      </div>
+      <div className="card-body d-flex flex-column gap-3">
+        <p className="small text-secondary mb-0">
           Retroalimentación y nota de ajuste al cargo a partir del CV y del informe de entrevista (Word) del
           candidato.
         </p>
-      </div>
 
-      <AvisoApoyo />
+        <AvisoApoyo />
 
-      {cargando ? (
-        <p className="text-sm text-slate-500">Cargando evaluación...</p>
-      ) : (
-        <>
-          {puedeEditar && (
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={handleGenerar}
-                  disabled={generando || guardando || faltaArchivo}
-                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-                >
-                  {generando ? "Generando..." : "Generar evaluación con IA"}
-                </button>
-                {borrador && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleConfirmar}
-                      disabled={guardando || generando}
-                      className="rounded-md border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
-                    >
-                      {guardando ? "Guardando..." : "Confirmar y guardar"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBorrador(null)}
-                      disabled={guardando || generando}
-                      className="rounded-md px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-                    >
-                      Descartar borrador
-                    </button>
-                  </>
+        {cargando ? (
+          <div className="d-flex align-items-center gap-2 text-secondary" role="status">
+            <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+            <span>Cargando evaluación...</span>
+          </div>
+        ) : (
+          <>
+            {puedeEditar && (
+              <div className="d-flex flex-column gap-2">
+                <div className="d-flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGenerar}
+                    disabled={generando || guardando || faltaArchivo}
+                    className="btn btn-primary"
+                  >
+                    {generando && <Spinner />}
+                    {generando ? "Generando..." : "Generar evaluación con IA"}
+                  </button>
+                  {borrador && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleConfirmar}
+                        disabled={guardando || generando}
+                        className="btn btn-success"
+                      >
+                        {guardando && <Spinner />}
+                        {guardando ? "Guardando..." : "Confirmar y guardar"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBorrador(null)}
+                        disabled={guardando || generando}
+                        className="btn btn-outline-secondary"
+                      >
+                        Descartar borrador
+                      </button>
+                    </>
+                  )}
+                </div>
+                {faltaArchivo && (
+                  <p className="small text-secondary mb-0">
+                    Para generarla, el candidato debe tener cargados el CV y el informe de entrevista.
+                  </p>
                 )}
               </div>
-              {faltaArchivo && (
-                <p className="text-xs text-slate-500">
-                  Para generarla, el candidato debe tener cargados el CV y el informe de entrevista.
+            )}
+
+            {generando && (
+              <div className="d-flex align-items-center gap-2 text-secondary" role="status">
+                <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                <span>Generando… puede tardar hasta 1 minuto.</span>
+              </div>
+            )}
+            {error && (
+              <div className="alert alert-danger mb-0" role="alert">
+                {error}
+              </div>
+            )}
+            {aviso && (
+              <div className="alert alert-success mb-0" role="status">
+                {aviso}
+              </div>
+            )}
+
+            {borrador && (
+              <div className="alert alert-warning mb-0 py-2" role="note">
+                <p className="small fw-semibold text-uppercase mb-1">
+                  Borrador sin guardar: revísalo y confírmalo para guardarlo en la solicitud
                 </p>
-              )}
-            </div>
-          )}
+                {borrador.avisos?.map((avisoIa) => (
+                  <p key={avisoIa} className="small mb-0">
+                    {avisoIa}
+                  </p>
+                ))}
+              </div>
+            )}
 
-          {generando && (
-            <p className="text-sm text-slate-500" role="status">
-              Generando… puede tardar hasta 1 minuto.
-            </p>
-          )}
-          {error && (
-            <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-          )}
-          {aviso && <p className="text-sm text-emerald-700">{aviso}</p>}
-
-          {borrador && (
-            <div className="flex flex-col gap-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-                Borrador sin guardar: revísalo y confírmalo para guardarlo en la solicitud
-              </p>
-              {borrador.avisos?.map((avisoIa) => (
-                <p key={avisoIa} className="text-xs text-amber-700">
-                  {avisoIa}
+            {mostrada ? (
+              <VistaEvaluacion evaluacion={mostrada} />
+            ) : (
+              !puedeEditar && (
+                <p className="text-secondary mb-0">
+                  Todavía no hay una evaluación guardada. Solo el evaluador responsable (o un admin) puede
+                  generarla.
                 </p>
-              ))}
-            </div>
-          )}
+              )
+            )}
 
-          {mostrada ? (
-            <VistaEvaluacion evaluacion={mostrada} />
-          ) : (
-            !puedeEditar && (
-              <p className="text-sm text-slate-400">
-                Todavía no hay una evaluación guardada. Solo el evaluador responsable (o un admin) puede generarla.
+            {!borrador && guardada?.generadoPor?.nombre && (
+              <p className="small text-secondary mb-0">
+                Guardada por {guardada.generadoPor.nombre} · {new Date(guardada.generadoEn).toLocaleString()}
+                {guardada.modeloIa ? ` · generada con ${guardada.modeloIa}` : ""}
               </p>
-            )
-          )}
-
-          {!borrador && guardada?.generadoPor?.nombre && (
-            <p className="text-xs text-slate-400">
-              Guardada por {guardada.generadoPor.nombre} · {new Date(guardada.generadoEn).toLocaleString()}
-              {guardada.modeloIa ? ` · generada con ${guardada.modeloIa}` : ""}
-            </p>
-          )}
-        </>
-      )}
+            )}
+          </>
+        )}
+      </div>
     </section>
   );
 }

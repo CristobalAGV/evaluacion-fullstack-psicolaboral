@@ -59,6 +59,12 @@ async function abrirDetalle(usuario, { solicitud = crearSolicitud(), evaluacione
   });
   renderizar(<SolicitudDetalle />, { ruta: "/solicitudes/s1", rutaDelElemento: "/solicitudes/:id" });
   await screen.findByRole("heading", { name: "Archivos del candidato" });
+  // Las tarjetas de IA cargan sus datos aparte: se espera a que terminen para que ningún cambio de
+  // estado ocurra fuera de la prueba (eso es lo que React avisa con "not wrapped in act").
+  await esperarQue(
+    () => !screen.queryByText("Cargando informe...") && !screen.queryByText("Cargando evaluación..."),
+    "que terminen de cargar el informe y la evaluación de IA"
+  );
   return get;
 }
 

@@ -66,8 +66,9 @@ describe("EvaluacionIa", () => {
       expect(screen.getByText("80/100")).toBeTruthy();
       expect(screen.getByText("Superó metas de venta dos años seguidos.")).toBeTruthy();
       // La competencia sin evidencia no muestra un 0 (se leería como desempeño malo)
-      expect(screen.getByText("Sin evidencia")).toBeTruthy();
-      expect(screen.getByRole("progressbar", { name: "Manejo del rechazo" }).hasAttribute("aria-valuenow")).toBe(false);
+      const sinEvidencia = screen.getByText("Sin evidencia suficiente", { selector: ".badge" });
+      expect(sinEvidencia.classList.contains("text-bg-secondary")).toBe(true);
+      expect(screen.queryByRole("progressbar", { name: "Manejo del rechazo" })).toBeNull();
       expect(within(screen.getByText("Fortalezas").parentElement).getByText("Experiencia en ventas en terreno")).toBeTruthy();
       expect(within(screen.getByText("Áreas de mejora").parentElement).getByText("Uso de herramientas CRM")).toBeTruthy();
       expect(screen.getByText("Profundizar en cómo maneja clientes que rechazan la oferta")).toBeTruthy();

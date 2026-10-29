@@ -1,18 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { obtenerInforme, generarInforme, guardarInforme } from "../services/informeService";
 import { mensajeErrorIa } from "../utils/mensajeErrorIa";
 import EvaluacionIa from "./EvaluacionIa";
 
-const campoClases =
-  "rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
-
 function AvisoIa() {
   return (
-    <div className="rounded-md border-l-4 border-amber-500 bg-amber-50 p-4">
-      <p className="text-sm font-semibold text-amber-900">
-        ⚠️ Borrador generado por inteligencia artificial
-      </p>
-      <p className="mt-1 text-sm text-amber-800">
+    <div className="alert alert-warning mb-0" role="note">
+      <p className="fw-semibold mb-1">⚠️ Borrador generado por inteligencia artificial</p>
+      <p className="small mb-0">
         Este texto es una <strong>propuesta inicial</strong> y puede contener errores, omisiones o
         interpretaciones incorrectas de los apuntes. <strong>Debe ser revisado, corregido y validado
         por el profesional evaluador</strong> antes de usarse o compartirse. Un informe psicolaboral
@@ -26,6 +21,7 @@ function AvisoIa() {
 // puedeEditar lo calcula el detalle con la misma regla del backend: admin, o el evaluador
 // responsable de la solicitud. tieneCv y tieneInforme habilitan la evaluación con nota.
 export default function InformePsicolaboral({ solicitudId, puedeEditar, tieneCv, tieneInforme }) {
+  const prefijoId = useId();
 
   const [informe, setInforme] = useState(null);
   const [apuntes, setApuntes] = useState("");
@@ -98,7 +94,12 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar, tieneCv,
   }
 
   if (cargando) {
-    return <p className="text-sm text-slate-500">Cargando informe...</p>;
+    return (
+      <div className="d-flex align-items-center gap-2 text-secondary" role="status">
+        <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+        <span>Cargando informe...</span>
+      </div>
+    );
   }
 
   const hayContenido = secciones.length > 0;
@@ -117,9 +118,9 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar, tieneCv,
   // Vista de solo lectura para quien no puede editar (por ejemplo, el analista).
   if (!puedeEditar) {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="d-flex flex-column gap-4">
         {!hayContenido ? (
-          <p className="text-sm text-slate-400">
+          <p className="text-secondary mb-0">
             Todavía no hay un informe para esta solicitud. Solo el evaluador responsable puede generarlo.
           </p>
         ) : (
@@ -127,18 +128,20 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar, tieneCv,
             <AvisoIa />
             {secciones.map((seccion) => (
               <div key={seccion.titulo}>
-                <h4 className="text-sm font-semibold text-slate-900">{seccion.titulo}</h4>
-                <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{seccion.contenido}</p>
+                <h4 className="h6 fw-semibold">{seccion.titulo}</h4>
+                <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>
+                  {seccion.contenido}
+                </p>
               </div>
             ))}
             {informe?.generadoPor?.nombre && (
-              <p className="text-xs text-slate-400">
+              <p className="small text-secondary mb-0">
                 Última edición: {informe.generadoPor.nombre} ·{" "}
                 {new Date(informe.generadoEn).toLocaleString()}
                 {informe.modeloIa ? ` · borrador inicial generado con ${informe.modeloIa}` : ""}
               </p>
             )}
-            <p className="text-xs text-slate-500">
+            <p className="small text-secondary mb-0">
               Puedes consultar el informe; solo el evaluador responsable (o un admin) puede editarlo.
             </p>
           </>
@@ -149,47 +152,55 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar, tieneCv,
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="d-flex flex-column gap-4">
       <AvisoIa />
 
-      <label className="flex flex-col gap-1 text-sm text-slate-700">
-        Apuntes de la entrevista
-        <span className="text-xs text-slate-500">
-          Escribe o pega aquí tus observaciones. La IA redactará el borrador únicamente a partir de
-          este texto.
-        </span>
+      <div>
+        <label htmlFor={`${prefijoId}-apuntes`} className="form-label">
+          Apuntes de la entrevista
+        </label>
         <textarea
+          id={`${prefijoId}-apuntes`}
+          aria-describedby={`${prefijoId}-apuntes-ayuda`}
           value={apuntes}
           onChange={(e) => setApuntes(e.target.value)}
           rows={7}
           placeholder="Ej.: Candidata con 4 años de experiencia en atención de público. Relata manejo de reclamos..."
-          className={`${campoClases} mt-1`}
+          className="form-control"
         />
-      </label>
+        <div id={`${prefijoId}-apuntes-ayuda`} className="form-text">
+          Escribe o pega aquí tus observaciones. La IA redactará el borrador únicamente a partir de este texto.
+        </div>
+      </div>
 
-      <label className="flex flex-col gap-1 text-sm text-slate-700">
-        Instrucciones adicionales para la IA <span className="text-slate-400">(opcional)</span>
-        <span className="text-xs text-slate-500">
-          Indica cómo quieres el borrador. Por ejemplo: "enfócate en el trabajo en equipo", "hazlo
-          más breve", "usa un tono más formal", "profundiza en las áreas de mejora". Solo ajustan el
-          estilo y el énfasis: no cambian las reglas del informe.
-        </span>
+      <div>
+        <label htmlFor={`${prefijoId}-instrucciones`} className="form-label">
+          Instrucciones adicionales para la IA <span className="text-secondary">(opcional)</span>
+        </label>
         <textarea
+          id={`${prefijoId}-instrucciones`}
+          aria-describedby={`${prefijoId}-instrucciones-ayuda`}
           value={instrucciones}
           onChange={(e) => setInstrucciones(e.target.value)}
           rows={3}
           placeholder="Ej.: hazlo más breve y profundiza en las áreas de mejora."
-          className={`${campoClases} mt-1`}
+          className="form-control"
         />
-      </label>
+        <div id={`${prefijoId}-instrucciones-ayuda`} className="form-text">
+          Indica cómo quieres el borrador. Por ejemplo: "enfócate en el trabajo en equipo", "hazlo más
+          breve", "usa un tono más formal", "profundiza en las áreas de mejora". Solo ajustan el estilo y
+          el énfasis: no cambian las reglas del informe.
+        </div>
+      </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="d-flex flex-wrap gap-2">
         <button
           type="button"
           onClick={handleGenerar}
           disabled={generando || !apuntes.trim()}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+          className="btn btn-primary"
         >
+          {generando && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
           {generando
             ? "Generando borrador..."
             : hayContenido
@@ -201,41 +212,50 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar, tieneCv,
             type="button"
             onClick={handleGuardar}
             disabled={guardando || generando}
-            className="rounded-md border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
+            className="btn btn-success"
           >
+            {guardando && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
             {guardando ? "Guardando..." : "Guardar informe"}
           </button>
         )}
       </div>
 
       {generando && (
-        <p className="text-sm text-slate-500">
-          Redactando el borrador, esto puede tardar unos segundos. Tus apuntes no se pierden.
-        </p>
+        <div className="d-flex align-items-center gap-2 text-secondary" role="status">
+          <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+          <span>Redactando el borrador, esto puede tardar unos segundos. Tus apuntes no se pierden.</span>
+        </div>
       )}
       {error && (
-        <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="alert alert-danger mb-0" role="alert">
           {error}
-        </p>
+        </div>
       )}
-      {aviso && <p className="text-sm text-emerald-700">{aviso}</p>}
+      {aviso && (
+        <div className="alert alert-success mb-0" role="status">
+          {aviso}
+        </div>
+      )}
 
       {hayContenido && (
-        <div className="flex flex-col gap-4 border-t border-slate-200 pt-4">
+        <div className="d-flex flex-column gap-3 border-top pt-3">
           {secciones.map((seccion, indice) => (
-            <label key={seccion.titulo} className="flex flex-col gap-1 text-sm text-slate-700">
-              <span className="font-semibold text-slate-900">{seccion.titulo}</span>
+            <div key={seccion.titulo}>
+              <label htmlFor={`${prefijoId}-seccion-${indice}`} className="form-label fw-semibold">
+                {seccion.titulo}
+              </label>
               <textarea
+                id={`${prefijoId}-seccion-${indice}`}
                 value={seccion.contenido}
                 onChange={(e) => cambiarSeccion(indice, e.target.value)}
                 rows={5}
-                className={campoClases}
+                className="form-control"
               />
-            </label>
+            </div>
           ))}
 
           {informe?.generadoPor?.nombre && (
-            <p className="text-xs text-slate-400">
+            <p className="small text-secondary mb-0">
               Última edición guardada: {informe.generadoPor.nombre} ·{" "}
               {new Date(informe.generadoEn).toLocaleString()}
               {informe.modeloIa ? ` · borrador inicial generado con ${informe.modeloIa}` : ""}

@@ -1,5 +1,9 @@
+import { useId } from "react";
+import "./SelectorCv.css";
+
 // Zona clickable para elegir un archivo (por defecto, el CV). El <input type="file"> queda
-// oculto y toda la tarjeta funciona como su etiqueta.
+// oculto visualmente y toda la zona funciona como su etiqueta. Lo usa el detalle de la solicitud
+// para subir el informe de entrevista.
 export default function SelectorCv({
   etiqueta,
   archivo,
@@ -9,17 +13,24 @@ export default function SelectorCv({
   textoSeleccionar = "Haz clic para seleccionar el CV",
   formatos = "PDF, DOC o DOCX · máx. 5MB",
 }) {
+  const id = useId();
+
   return (
-    <div className="flex flex-col gap-1 text-sm text-slate-700">
-      <span>{etiqueta}</span>
-      <label className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center transition-colors hover:border-indigo-400 hover:bg-indigo-50 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500">
+    <div>
+      <span className="form-label d-block">{etiqueta}</span>
+      <label
+        htmlFor={id}
+        className="selector-cv d-flex flex-column align-items-center justify-content-center gap-1 border border-2 rounded bg-body-tertiary px-3 py-4 text-center"
+      >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
           strokeWidth={1.5}
           stroke="currentColor"
-          className="h-8 w-8 text-indigo-500"
+          width="32"
+          height="32"
+          className="text-primary"
           aria-hidden="true"
         >
           <path
@@ -30,21 +41,22 @@ export default function SelectorCv({
         </svg>
         {archivo ? (
           <>
-            <span className="font-medium text-slate-900 break-all">{archivo.name}</span>
-            <span className="text-xs text-indigo-600">Haz clic para cambiar el archivo</span>
+            <span className="fw-medium text-break">{archivo.name}</span>
+            <span className="small text-primary">Haz clic para cambiar el archivo</span>
           </>
         ) : (
           <>
-            <span className="font-medium text-indigo-600">{textoSeleccionar}</span>
-            <span className="text-xs text-slate-500">{formatos}</span>
+            <span className="fw-medium text-primary">{textoSeleccionar}</span>
+            <span className="small text-secondary">{formatos}</span>
           </>
         )}
         <input
+          id={id}
           type="file"
           accept={accept}
           required={required}
           onChange={(e) => onChange(e.target.files[0] || null)}
-          className="sr-only"
+          className="visually-hidden"
         />
       </label>
     </div>

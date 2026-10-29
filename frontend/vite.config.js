@@ -8,6 +8,9 @@ export default defineConfig({
   // Pruebas unitarias con Vitest (https://vitest.dev/config/).
   test: {
     environment: 'jsdom',
+    // Muestra console.error/warn aunque la prueba pase (por defecto Vitest los oculta); así las
+    // advertencias de React, como "not wrapped in act", no pasan desapercibidas.
+    silent: false,
     // describe/it/expect/vi como globales, igual que en las pruebas de siempre (sin importarlos).
     globals: true,
     include: ['src/pruebas/**/*.spec.jsx'],

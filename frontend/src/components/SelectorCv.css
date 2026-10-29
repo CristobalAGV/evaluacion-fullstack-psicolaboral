@@ -1,0 +1,14 @@
+/* Borde punteado y resaltado al enfocar el campo oculto (Bootstrap no trae ninguno de los dos). */
+.selector-cv {
+  border-style: dashed !important;
+  cursor: pointer;
+}
+
+.selector-cv:hover,
+.selector-cv:focus-within {
+  border-color: var(--bs-primary) !important;
+}
+
+.selector-cv:focus-within {
+  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+}
