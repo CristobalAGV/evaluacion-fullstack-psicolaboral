@@ -183,6 +183,36 @@ describe("SolicitudDetalle: marcado de Bootstrap", () => {
     });
   });
 
+  describe("origen de la solicitud", () => {
+    const origen = () => within(seccion("Datos de la solicitud")).getByText("Origen").nextElementSibling.textContent;
+
+    it("una postulación pública dice que viene del candidato, sin mostrar rutas técnicas", async () => {
+      await abrir(USUARIOS.analista);
+
+      expect(origen()).toBe("Postulación pública del candidato");
+      expect(screen.queryByText("Analista que la creó")).toBeNull();
+      expect(screen.queryByText(/\/postular/)).toBeNull();
+    });
+
+    it("una solicitud creada por un analista dice quién la creó", async () => {
+      const creada = {
+        ...SOLICITUD,
+        candidato: { ...SOLICITUD.candidato, origen: "analista" },
+        analistaId: { _id: USUARIOS.analista.id, nombre: "Ana Analista" },
+      };
+      await abrir(USUARIOS.analista, { ...RESPUESTAS, "/solicitudes/s1": creada });
+
+      expect(origen()).toBe("Creada por Ana Analista");
+    });
+
+    it('si no se conoce al analista, dice "Creada por el equipo"', async () => {
+      const creada = { ...SOLICITUD, candidato: { ...SOLICITUD.candidato, origen: "analista" }, analistaId: null };
+      await abrir(USUARIOS.analista, { ...RESPUESTAS, "/solicitudes/s1": creada });
+
+      expect(origen()).toBe("Creada por el equipo");
+    });
+  });
+
   describe("evaluaciones del evaluador", () => {
     it("cada evaluación es una tarjeta con la fecha, un badge de estado de color y su resultado", async () => {
       await abrir(USUARIOS.evaluador);

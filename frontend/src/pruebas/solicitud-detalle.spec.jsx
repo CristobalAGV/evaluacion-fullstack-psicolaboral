@@ -85,7 +85,7 @@ describe("SolicitudDetalle", () => {
       expect(screen.getByText("Ejecutiva de ventas")).toBeTruthy();
       expect(screen.getByText("Ventas")).toBeTruthy();
       expect(screen.getByText("Eva Evaluadora")).toBeTruthy();
-      expect(screen.getByText("Enviada por el candidato desde /postular")).toBeTruthy();
+      expect(screen.getByText("Postulación pública del candidato")).toBeTruthy();
       expect(screen.getByText("Postula a la sucursal norte")).toBeTruthy();
     });
 
@@ -355,7 +355,7 @@ describe("SolicitudDetalle", () => {
       // Assert: se cierra el modal, cambia el responsable y se conserva el analista ya poblado
       await esperarQue(() => screen.queryByRole("heading", { name: "Editar solicitud" }) === null, "que se cierre el modal");
       expect(screen.getByText("Otto Evaluador")).toBeTruthy();
-      expect(screen.getByText("Ana Analista")).toBeTruthy();
+      expect(screen.getByText("Creada por Ana Analista")).toBeTruthy();
       expect(put.mock.lastCall[0]).toBe("/solicitudes/s1");
     });
 

@@ -307,10 +307,11 @@ export default function SolicitudDetalle() {
                 </dd>
               </div>
               <div className="list-group-item">
-                <dt className="small text-secondary fw-normal">Analista que la creó</dt>
+                <dt className="small text-secondary fw-normal">Origen</dt>
                 <dd className="mb-0">
-                  {solicitud.analistaId?.nombre ||
-                    (esPostulacionPublica(solicitud) ? "Enviada por el candidato desde /postular" : "-")}
+                  {esPostulacionPublica(solicitud)
+                    ? "Postulación pública del candidato"
+                    : `Creada por ${solicitud.analistaId?.nombre || "el equipo"}`}
                 </dd>
               </div>
               <div className="list-group-item">
