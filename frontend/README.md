@@ -1,11 +1,11 @@
 # Frontend — Evaluación Psicolaboral
 
-Aplicación React 19 + Vite + Tailwind CSS del proyecto. Se puede usar por separado del resto
+Aplicación React 19 + Vite + Bootstrap 5 del proyecto. Se puede usar por separado del resto
 del repositorio: solo necesita una API del backend a la cual conectarse.
 
 ## Requisitos
 
-- Node.js 20 o superior (probado con Node 24) y npm.
+- Node.js 22.12 o superior (probado con Node 24) y npm.
 
 ## Instalar
 

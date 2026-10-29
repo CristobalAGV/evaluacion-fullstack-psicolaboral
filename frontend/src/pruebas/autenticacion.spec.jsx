@@ -123,14 +123,12 @@ describe("RutaProtegida", () => {
 describe("Navbar", () => {
   afterEach(() => limpiarSesion());
 
-  it("sin sesión muestra solo iniciar sesión y registrarse", () => {
+  it("sin sesión no muestra nada (la zona privada redirige al login antes de llegar aquí)", () => {
     limpiarSesion();
 
     renderizar(<Navbar />);
 
-    expect(screen.getByRole("link", { name: "Iniciar sesión" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Registrarse" })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Panel" })).toBeNull();
+    expect(screen.queryByRole("navigation")).toBeNull();
   });
 
   it("al analista le muestra Panel y Nueva solicitud, con su nombre y rol", () => {
@@ -155,11 +153,11 @@ describe("Navbar", () => {
 
   it("cerrar sesión borra la sesión guardada y vuelve al login", async () => {
     iniciarSesionSimulada(USUARIOS.admin);
-    renderizar(<Navbar />);
+    renderizar(<Navbar />, { rutasExtra: [{ path: "/login", texto: "Pantalla de login" }] });
 
     fireEvent.click(screen.getByRole("button", { name: "Cerrar sesión" }));
 
-    await waitFor(() => expect(screen.getByRole("link", { name: "Iniciar sesión" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Pantalla de login")).toBeTruthy());
     expect(localStorage.getItem("token")).toBeNull();
     expect(localStorage.getItem("usuario")).toBeNull();
   });

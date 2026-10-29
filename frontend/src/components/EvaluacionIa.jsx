@@ -24,14 +24,26 @@ function ListaDeTextos({ titulo, items }) {
       {items.length === 0 ? (
         <p className="small text-secondary mb-0">Sin evidencia suficiente.</p>
       ) : (
-        <ul className="small ps-3 mb-0">
+        <ul className="small ps-3 mb-0" style={{ listStyleType: "disc" }}>
           {items.map((item, i) => (
-            <li key={i}>{item}</li>
+            <li key={i} className="mb-2">
+              {item}
+            </li>
           ))}
         </ul>
       )}
     </div>
   );
+}
+
+const TEXTO_SIN_EVIDENCIA = "sin evidencia suficiente";
+
+// La justificación de una competencia sin evidencia suele repetir el texto del badge: en ese caso
+// (o si viene vacía) no se muestra, para no decir lo mismo dos veces.
+function repiteElBadge(competencia) {
+  if (competencia.puntaje !== null) return false;
+  const texto = (competencia.justificacion ?? "").trim().replace(/\.$/, "").toLowerCase();
+  return texto === "" || texto === TEXTO_SIN_EVIDENCIA;
 }
 
 // Nota global, competencias con barra y bloques de retroalimentación.
@@ -77,7 +89,7 @@ function VistaEvaluacion({ evaluacion }) {
                   <div className="progress-bar" style={{ width: `${c.puntaje}%` }} />
                 </div>
               )}
-              <p className="small text-secondary mt-1 mb-0">{c.justificacion}</p>
+              {!repiteElBadge(c) && <p className="small text-secondary mt-1 mb-0">{c.justificacion}</p>}
             </li>
           ))}
         </ul>

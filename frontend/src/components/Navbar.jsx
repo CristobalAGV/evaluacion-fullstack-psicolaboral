@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { enlacesPara } from "../layouts/enlaces";
 
+// Barra superior de la zona privada (AppLayout). Las páginas públicas usan NavbarPublico.
 export default function Navbar() {
   const { usuario, cerrarSesion } = useAuth();
   const navigate = useNavigate();
@@ -13,6 +14,9 @@ export default function Navbar() {
     cerrarSesion();
     navigate("/login");
   }
+
+  // Sin sesión (por ejemplo, justo al cerrarla) no hay nada que mostrar: se redirige al login.
+  if (!usuario) return null;
 
   return (
     <nav className="navbar navbar-expand-md bg-white border-bottom">
@@ -31,41 +35,24 @@ export default function Navbar() {
           <span className="navbar-toggler-icon" />
         </button>
         <div id="menu-navbar" className={`navbar-collapse collapse${abierto ? " show" : ""}`}>
-          {usuario ? (
-            <>
-              {/* En escritorio estos enlaces están en el Sidebar; aquí solo se ven en móvil. */}
-              <ul className="navbar-nav me-auto d-md-none">
-                {enlacesPara(usuario.rol).map((enlace) => (
-                  <li key={enlace.a} className="nav-item">
-                    <NavLink to={enlace.a} end className="nav-link" onClick={() => setAbierto(false)}>
-                      {enlace.texto}
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
-              <div className="ms-md-auto d-flex flex-column flex-md-row align-items-md-center gap-2 py-2 py-md-0">
-                <span className="navbar-text">
-                  {usuario.nombre} <span className="text-body-tertiary">({usuario.rol})</span>
-                </span>
-                <button type="button" onClick={handleLogout} className="btn btn-dark btn-sm">
-                  Cerrar sesión
-                </button>
-              </div>
-            </>
-          ) : (
-            <ul className="navbar-nav ms-md-auto align-items-md-center gap-md-2">
-              <li className="nav-item">
-                <Link to="/login" className="nav-link" onClick={() => setAbierto(false)}>
-                  Iniciar sesión
-                </Link>
+          {/* En escritorio estos enlaces están en el Sidebar; aquí solo se ven en móvil. */}
+          <ul className="navbar-nav me-auto d-md-none">
+            {enlacesPara(usuario.rol).map((enlace) => (
+              <li key={enlace.a} className="nav-item">
+                <NavLink to={enlace.a} end className="nav-link" onClick={() => setAbierto(false)}>
+                  {enlace.texto}
+                </NavLink>
               </li>
-              <li className="nav-item">
-                <Link to="/registro" className="btn btn-primary btn-sm" onClick={() => setAbierto(false)}>
-                  Registrarse
-                </Link>
-              </li>
-            </ul>
-          )}
+            ))}
+          </ul>
+          <div className="ms-md-auto d-flex flex-column flex-md-row align-items-md-center gap-2 py-2 py-md-0">
+            <span className="navbar-text">
+              {usuario.nombre} <span className="text-body-tertiary">({usuario.rol})</span>
+            </span>
+            <button type="button" onClick={handleLogout} className="btn btn-dark btn-sm">
+              Cerrar sesión
+            </button>
+          </div>
         </div>
       </div>
     </nav>

@@ -6,7 +6,11 @@ import { useEffect, useRef } from "react";
 export default function Modal({ etiqueta, onCerrar, tamano = "", pie = null, children }) {
   const dialogoRef = useRef(null);
   const cerrarRef = useRef(onCerrar);
-  cerrarRef.current = onCerrar;
+
+  // Guarda siempre la última función de cierre, sin volver a registrar el listener de Escape.
+  useEffect(() => {
+    cerrarRef.current = onCerrar;
+  });
 
   useEffect(() => {
     function alPresionarTecla(e) {

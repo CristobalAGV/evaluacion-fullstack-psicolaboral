@@ -141,6 +141,52 @@ describe("EvaluacionIa: marcado de Bootstrap", () => {
     expect(guardando.querySelector(".spinner-border")).not.toBeNull();
   });
 
+  it("si la justificación de una competencia sin evidencia repite el badge, se muestra solo el badge", async () => {
+    const competencias = [
+      { nombre: "Liderazgo", puntaje: null, justificacion: "Sin evidencia suficiente" },
+      { nombre: "Autonomía", puntaje: null, justificacion: " sin evidencia suficiente. " },
+      { nombre: "Adaptación", puntaje: null, justificacion: "" },
+    ];
+    await abrir({ guardada: { ...EVALUACION, competencias, generadoPor: { nombre: "Eva" }, generadoEn: "2026-10-08T15:00:00.000Z" } });
+
+    expect(screen.getAllByText("Sin evidencia suficiente", { selector: ".badge" }).length).toBe(3);
+    // El texto aparece una sola vez por competencia (en el badge), sin párrafo repetido.
+    expect(screen.getAllByText(/sin evidencia suficiente/i, { selector: "p, li, span" }).length).toBe(3);
+    expect(document.querySelectorAll("li p").length).toBe(0);
+  });
+
+  it("si la competencia sin evidencia trae otra justificación, se muestra junto al badge", async () => {
+    const competencias = [{ nombre: "Liderazgo", puntaje: null, justificacion: "El informe no menciona equipos a cargo." }];
+    await abrir({ guardada: { ...EVALUACION, competencias, generadoPor: { nombre: "Eva" }, generadoEn: "2026-10-08T15:00:00.000Z" } });
+
+    expect(screen.getByText("Sin evidencia suficiente", { selector: ".badge" })).toBeTruthy();
+    expect(screen.getByText("El informe no menciona equipos a cargo.")).toBeTruthy();
+  });
+
+  it("una competencia con puntaje conserva su justificación aunque diga lo mismo", async () => {
+    const competencias = [{ nombre: "Liderazgo", puntaje: 40, justificacion: "Sin evidencia suficiente" }];
+    await abrir({ guardada: { ...EVALUACION, competencias, generadoPor: { nombre: "Eva" }, generadoEn: "2026-10-08T15:00:00.000Z" } });
+
+    expect(screen.getByText("Sin evidencia suficiente")).toBeTruthy();
+  });
+
+  it("fortalezas, mejoras y recomendaciones se muestran como listas con viñetas y espacio entre ítems", async () => {
+    const guardada = {
+      ...EVALUACION,
+      fortalezas: ["Primera fortaleza", "Segunda fortaleza"],
+      generadoPor: { nombre: "Eva" },
+      generadoEn: "2026-10-08T15:00:00.000Z",
+    };
+    await abrir({ guardada });
+
+    const lista = screen.getByText("Primera fortaleza").closest("ul");
+    expect(lista.style.listStyleType).toBe("disc");
+    expect(lista.classList.contains("ps-3")).toBe(true);
+    const items = within(lista).getAllByRole("listitem");
+    expect(items.map((li) => li.textContent)).toEqual(["Primera fortaleza", "Segunda fortaleza"]);
+    for (const li of items) expect(li.classList.contains("mb-2")).toBe(true);
+  });
+
   it("es una tarjeta de Bootstrap con su encabezado", async () => {
     await abrir();
 

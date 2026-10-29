@@ -8,7 +8,6 @@ import App from "../App";
 import { AuthProvider } from "../context/AuthContext";
 import AppLayout from "../layouts/AppLayout";
 import PublicLayout from "../layouts/PublicLayout";
-import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import { iniciarSesionSimulada, limpiarSesion, simularGet, USUARIOS } from "./ayudantes";
 
@@ -109,24 +108,6 @@ describe("Layouts", () => {
       fireEvent.click(within(menu).getByRole("link", { name: "Panel" }));
 
       expect(screen.getByText("Contenido del panel")).toBeTruthy();
-      expect(menu.classList.contains("show")).toBe(false);
-    });
-
-    it("sin sesión, el Navbar ofrece iniciar sesión y registrarse, y su menú se cierra al elegir uno", () => {
-      render(
-        <MemoryRouter>
-          <AuthProvider>
-            <Navbar />
-          </AuthProvider>
-        </MemoryRouter>
-      );
-      const boton = screen.getByRole("button", { name: "Abrir menú" });
-      const menu = document.getElementById("menu-navbar");
-      fireEvent.click(boton);
-      expect(menu.classList.contains("show")).toBe(true);
-
-      fireEvent.click(within(menu).getByRole("link", { name: "Registrarse" }));
-
       expect(menu.classList.contains("show")).toBe(false);
     });
 
