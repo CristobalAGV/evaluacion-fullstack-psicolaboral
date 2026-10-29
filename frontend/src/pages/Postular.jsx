@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import SelectorCv from "../components/SelectorCv";
+import CampoArchivo from "../components/CampoArchivo";
+import { useValidacionFormulario } from "../hooks/useValidacionFormulario";
 import { listarFamiliasPublicas, enviarPostulacion } from "../services/postulacionService";
-
-const campoClases =
-  "rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
 const TELEFONO_REGEX = /^\+?56\s?9\s?\d{4}\s?\d{4}$/;
 const MENSAJE_TELEFONO = "Ingresa un celular chileno válido: +56 9 1234 5678";
@@ -35,6 +33,7 @@ export default function Postular() {
   const [enviando, setEnviando] = useState(false);
   const [cargandoFamilias, setCargandoFamilias] = useState(true);
   const [enviada, setEnviada] = useState(false);
+  const { mensajes, validar, limpiar } = useValidacionFormulario();
 
   useEffect(() => {
     listarFamiliasPublicas()
@@ -47,6 +46,7 @@ export default function Postular() {
     e.preventDefault();
     setError("");
 
+    if (!validar(e.currentTarget)) return;
     if (!TELEFONO_REGEX.test(telefono.trim())) {
       setError(MENSAJE_TELEFONO);
       return;
@@ -68,147 +68,221 @@ export default function Postular() {
     }
   }
 
+  // Cada campo borra su mensaje de error al volver a escribir en él.
+  const alCambiar = (setter) => (e) => {
+    setter(e.target.value);
+    limpiar(e.target.name);
+  };
+  const claseCampo = (campo, base = "form-control") => `${base}${mensajes[campo] ? " is-invalid" : ""}`;
+  const retroalimentacion = (campo) => mensajes[campo] && <div className="invalid-feedback">{mensajes[campo]}</div>;
+
   if (enviada) {
     return (
-      <div className="max-w-lg mx-auto mt-12 bg-white border border-slate-200 rounded-lg shadow-sm p-8 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-6 w-6" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-          </svg>
+      <div className="row justify-content-center">
+        <div className="col-12 col-md-9 col-lg-7 col-xl-6">
+          <div className="card shadow-sm">
+            <div className="card-body p-4 text-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                width="48"
+                height="48"
+                className="text-success mb-3"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+              </svg>
+              <h2 className="h4 mb-3">Postulación recibida</h2>
+              <div className="alert alert-success mb-0" role="alert">
+                Gracias, {nombre.trim().split(" ")[0]}. Recibimos tus datos y tu CV. El equipo de selección revisará
+                tu postulación y te contactará al correo o teléfono que indicaste.
+              </div>
+            </div>
+          </div>
         </div>
-        <h2 className="text-xl font-semibold text-slate-900 mb-2">Postulación recibida</h2>
-        <p className="text-sm text-slate-600">
-          Gracias, {nombre.trim().split(" ")[0]}. Recibimos tus datos y tu CV. El equipo de selección revisará tu
-          postulación y te contactará al correo o teléfono que indicaste.
-        </p>
       </div>
     );
   }
 
   const telefonoInvalido = telefono.trim() !== "" && !TELEFONO_REGEX.test(telefono.trim());
-  const errorArchivo = cv ? validarArchivoCv(cv) : "";
+  const errorTelefono = telefonoInvalido ? MENSAJE_TELEFONO : mensajes.telefono;
+  const errorArchivo = (cv ? validarArchivoCv(cv) : "") || mensajes.cv;
 
   return (
-    <div className="max-w-lg mx-auto mt-6 bg-white border border-slate-200 rounded-lg shadow-sm p-6">
-      <h1 className="text-xl font-semibold text-slate-900">Postula a un cargo</h1>
-      <p className="text-sm text-slate-600 mt-1 mb-5">
-        Completa tus datos y adjunta tu CV. No necesitas crear una cuenta.
-      </p>
+    <div className="row justify-content-center">
+      <div className="col-12 col-md-9 col-lg-7 col-xl-6">
+        <div className="card shadow-sm">
+          <div className="card-body p-4">
+            <h1 className="h4">Postula a un cargo</h1>
+            <p className="text-body-secondary mb-4">
+              Completa tus datos y adjunta tu CV. No necesitas crear una cuenta.
+            </p>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Nombre completo
-          <input
-            type="text"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            required
-            minLength={3}
-            maxLength={100}
-            autoComplete="name"
-            className={campoClases}
-          />
-        </label>
+            <form onSubmit={handleSubmit} noValidate className="position-relative">
+              <div className="row g-3">
+                <div className="col-12">
+                  <label htmlFor="postular-nombre" className="form-label">
+                    Nombre completo
+                  </label>
+                  <input
+                    id="postular-nombre"
+                    name="nombre"
+                    type="text"
+                    value={nombre}
+                    onChange={alCambiar(setNombre)}
+                    required
+                    minLength={3}
+                    maxLength={100}
+                    autoComplete="name"
+                    className={claseCampo("nombre")}
+                  />
+                  {retroalimentacion("nombre")}
+                </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1 text-sm text-slate-700">
-            Correo
-            <input
-              type="email"
-              value={correo}
-              onChange={(e) => setCorreo(e.target.value)}
-              required
-              maxLength={254}
-              placeholder="nombre@ejemplo.cl"
-              autoComplete="email"
-              className={campoClases}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm text-slate-700">
-            Teléfono
-            <input
-              type="tel"
-              value={telefono}
-              onChange={(e) => setTelefono(e.target.value)}
-              required
-              placeholder="+56 9 1234 5678"
-              autoComplete="tel"
-              aria-invalid={telefonoInvalido}
-              className={`${campoClases} ${telefonoInvalido ? "border-red-500 focus:ring-red-500" : ""}`}
-            />
-            {telefonoInvalido && <span className="text-xs text-red-600">{MENSAJE_TELEFONO}</span>}
-          </label>
+                <div className="col-12 col-md-6">
+                  <label htmlFor="postular-correo" className="form-label">
+                    Correo
+                  </label>
+                  <input
+                    id="postular-correo"
+                    name="correo"
+                    type="email"
+                    value={correo}
+                    onChange={alCambiar(setCorreo)}
+                    required
+                    maxLength={254}
+                    placeholder="nombre@ejemplo.cl"
+                    autoComplete="email"
+                    className={claseCampo("correo")}
+                  />
+                  {retroalimentacion("correo")}
+                </div>
+                <div className="col-12 col-md-6">
+                  <label htmlFor="postular-telefono" className="form-label">
+                    Teléfono
+                  </label>
+                  <input
+                    id="postular-telefono"
+                    name="telefono"
+                    type="tel"
+                    value={telefono}
+                    onChange={alCambiar(setTelefono)}
+                    required
+                    placeholder="+56 9 1234 5678"
+                    autoComplete="tel"
+                    aria-invalid={Boolean(errorTelefono)}
+                    className={`form-control${errorTelefono ? " is-invalid" : ""}`}
+                  />
+                  {errorTelefono && <div className="invalid-feedback">{errorTelefono}</div>}
+                </div>
+
+                <div className="col-12">
+                  <label htmlFor="postular-area" className="form-label">
+                    Área de interés
+                  </label>
+                  <select
+                    id="postular-area"
+                    name="area"
+                    value={familiaDeCargo}
+                    onChange={alCambiar(setFamiliaDeCargo)}
+                    required
+                    disabled={cargandoFamilias}
+                    className={claseCampo("area", "form-select")}
+                  >
+                    <option value="" disabled>
+                      {cargandoFamilias ? "Cargando..." : "Selecciona un área"}
+                    </option>
+                    {familias.map((familia) => (
+                      <option key={familia._id} value={familia._id}>
+                        {familia.nombre}
+                      </option>
+                    ))}
+                  </select>
+                  {retroalimentacion("area")}
+                </div>
+
+                <div className="col-12">
+                  <label htmlFor="postular-cargo" className="form-label">
+                    Cargo al que postulas
+                  </label>
+                  <input
+                    id="postular-cargo"
+                    name="cargo"
+                    type="text"
+                    value={cargo}
+                    onChange={alCambiar(setCargo)}
+                    required
+                    minLength={2}
+                    maxLength={100}
+                    placeholder="Por ejemplo: Ejecutivo de ventas"
+                    className={claseCampo("cargo")}
+                  />
+                  {retroalimentacion("cargo")}
+                </div>
+
+                <div className="col-12">
+                  <CampoArchivo
+                    nombre="cv"
+                    etiqueta="CV"
+                    archivo={cv}
+                    onChange={(archivo) => {
+                      setCv(archivo);
+                      limpiar("cv");
+                    }}
+                    error={errorArchivo}
+                    required
+                  />
+                </div>
+
+                {/* Campo trampa para bots: oculto para las personas y fuera del orden de tabulación. */}
+                <div
+                  aria-hidden="true"
+                  className="position-absolute overflow-hidden"
+                  style={{ left: "-9999px", width: 1, height: 1 }}
+                >
+                  <label>
+                    Sitio web
+                    <input
+                      type="text"
+                      name="sitioWeb"
+                      value={sitioWeb}
+                      onChange={(e) => setSitioWeb(e.target.value)}
+                      tabIndex={-1}
+                      autoComplete="off"
+                    />
+                  </label>
+                </div>
+
+                {error && (
+                  <div className="col-12">
+                    <div className="alert alert-danger mb-0" role="alert">
+                      {error}
+                    </div>
+                  </div>
+                )}
+
+                <div className="col-12 d-grid">
+                  <button
+                    type="submit"
+                    disabled={enviando || cargandoFamilias || telefonoInvalido || Boolean(errorArchivo)}
+                    className="btn btn-primary"
+                  >
+                    {enviando && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
+                    {enviando ? "Enviando..." : "Enviar postulación"}
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            <p className="mt-4 mb-0 small text-body-secondary">
+              ¿Eres parte del equipo de selección? <Link to="/login">Inicia sesión</Link>
+            </p>
+          </div>
         </div>
-
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Área de interés
-          <select
-            value={familiaDeCargo}
-            onChange={(e) => setFamiliaDeCargo(e.target.value)}
-            required
-            disabled={cargandoFamilias}
-            className={campoClases}
-          >
-            <option value="" disabled>
-              {cargandoFamilias ? "Cargando..." : "Selecciona un área"}
-            </option>
-            {familias.map((familia) => (
-              <option key={familia._id} value={familia._id}>
-                {familia.nombre}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Cargo al que postulas
-          <input
-            type="text"
-            value={cargo}
-            onChange={(e) => setCargo(e.target.value)}
-            required
-            minLength={2}
-            maxLength={100}
-            placeholder="Por ejemplo: Ejecutivo de ventas"
-            className={campoClases}
-          />
-        </label>
-
-        <SelectorCv etiqueta="CV" archivo={cv} onChange={setCv} required />
-        {errorArchivo && <p className="text-xs text-red-600 -mt-2">{errorArchivo}</p>}
-
-        {/* Campo trampa para bots: oculto para las personas y fuera del orden de tabulación. */}
-        <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
-          <label>
-            Sitio web
-            <input
-              type="text"
-              name="sitioWeb"
-              value={sitioWeb}
-              onChange={(e) => setSitioWeb(e.target.value)}
-              tabIndex={-1}
-              autoComplete="off"
-            />
-          </label>
-        </div>
-
-        {error && <p className="text-sm text-red-600">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={enviando || cargandoFamilias || telefonoInvalido || Boolean(errorArchivo)}
-          className="rounded-md bg-indigo-600 text-white font-medium py-2 text-sm hover:bg-indigo-500 disabled:opacity-50"
-        >
-          {enviando ? "Enviando..." : "Enviar postulación"}
-        </button>
-      </form>
-
-      <p className="mt-4 text-xs text-slate-500">
-        ¿Eres parte del equipo de selección?{" "}
-        <Link to="/login" className="text-indigo-600 hover:underline">
-          Inicia sesión
-        </Link>
-      </p>
+      </div>
     </div>
   );
 }

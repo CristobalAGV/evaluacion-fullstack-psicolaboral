@@ -5,8 +5,14 @@ export default function NuevaSolicitud() {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
-      <SolicitudFormulario alGuardar={() => navigate("/panel")} />
+    <div className="row">
+      <div className="col-12 col-xl-8">
+        <div className="card shadow-sm">
+          <div className="card-body p-4">
+            <SolicitudFormulario alGuardar={() => navigate("/panel")} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

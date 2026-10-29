@@ -188,3 +188,81 @@ describe("NuevaSolicitud", () => {
     expect(await screen.findByText("Pantalla del panel")).toBeTruthy();
   });
 });
+
+describe("SolicitudFormulario: validación visible y estados de envío", () => {
+  async function abrir() {
+    simularGet(DATOS_BASE);
+    render(<SolicitudFormulario alGuardar={() => {}} />);
+    await screen.findByRole("heading", { name: "Nueva solicitud" });
+  }
+
+  it("al enviar con campos obligatorios vacíos los marca con su mensaje y no envía nada", async () => {
+    const post = vi.spyOn(api, "post");
+    await abrir();
+
+    fireEvent.click(screen.getByRole("button", { name: "Crear solicitud" }));
+
+    for (const etiqueta of ["Nombre del candidato", "Correo del candidato", "Teléfono del candidato", "Cargo"]) {
+      const campo = screen.getByLabelText(etiqueta);
+      expect(campo.classList.contains("is-invalid"), etiqueta).toBe(true);
+      expect(campo.nextElementSibling.classList.contains("invalid-feedback"), etiqueta).toBe(true);
+      expect(campo.nextElementSibling.textContent, etiqueta).toBe("Este campo es obligatorio");
+    }
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("al corregir un campo marcado se quita su mensaje", async () => {
+    await abrir();
+    fireEvent.click(screen.getByRole("button", { name: "Crear solicitud" }));
+
+    fireEvent.change(screen.getByLabelText("Cargo"), { target: { value: "Contador" } });
+
+    expect(screen.getByLabelText("Cargo").classList.contains("is-invalid")).toBe(false);
+    expect(screen.getByLabelText("Nombre del candidato").classList.contains("is-invalid")).toBe(true);
+  });
+
+  it("un teléfono inválido marca el campo y muestra el mensaje a su lado", async () => {
+    await abrir();
+
+    completarCandidato({ telefono: "123" });
+
+    const telefono = screen.getByLabelText("Teléfono del candidato");
+    expect(telefono.classList.contains("is-invalid")).toBe(true);
+    expect(telefono.nextElementSibling.textContent).toBe(MENSAJE_TELEFONO);
+  });
+
+  it("mientras guarda, el botón queda deshabilitado con un indicador de carga", async () => {
+    vi.spyOn(api, "post").mockReturnValue(new Promise(() => {}));
+    await abrir();
+    completarCandidato();
+
+    fireEvent.click(screen.getByRole("button", { name: "Crear solicitud" }));
+
+    const boton = await screen.findByRole("button", { name: "Guardando..." });
+    expect(boton.disabled).toBe(true);
+    expect(boton.querySelector(".spinner-border")).not.toBeNull();
+  });
+
+  it("el error del servidor se muestra como alerta de error", async () => {
+    vi.spyOn(api, "post").mockRejectedValue(errorAxios(400, "Datos del candidato inválidos"));
+    await abrir();
+    completarCandidato();
+
+    fireEvent.click(screen.getByRole("button", { name: "Crear solicitud" }));
+
+    const alerta = await screen.findByRole("alert");
+    expect(alerta.classList.contains("alert-danger")).toBe(true);
+    expect(alerta.textContent).toBe("Datos del candidato inválidos");
+  });
+
+  it("muestra el nombre del CV elegido y es opcional (no se marca si se deja vacío)", async () => {
+    await abrir();
+    const cv = document.querySelector('input[type="file"]');
+    expect(cv.required).toBe(false);
+
+    elegirArchivo(cv, archivoDePrueba("cv-diego.pdf", "application/pdf"));
+
+    expect(screen.getByText("cv-diego.pdf")).toBeTruthy();
+    expect(cv.classList.contains("is-invalid")).toBe(false);
+  });
+});

@@ -127,4 +127,112 @@ describe("Postular (formulario público)", () => {
       expect(screen.getByText("No pudimos cargar los cargos disponibles. Recarga la página.")).toBeTruthy()
     );
   });
+
+  describe("validación visible (is-invalid e invalid-feedback)", () => {
+    it("al enviar vacío marca cada campo obligatorio, muestra su mensaje y no envía nada", async () => {
+      const post = vi.spyOn(api, "post");
+      await abrirFormulario();
+
+      fireEvent.click(botonEnviar());
+
+      for (const etiqueta of ["Nombre completo", "Correo", "Teléfono", "Área de interés", "Cargo al que postulas"]) {
+        const campo = screen.getByLabelText(etiqueta);
+        expect(campo.classList.contains("is-invalid"), etiqueta).toBe(true);
+        expect(campo.nextElementSibling.classList.contains("invalid-feedback"), etiqueta).toBe(true);
+        expect(campo.nextElementSibling.textContent, etiqueta).toBe("Este campo es obligatorio");
+      }
+      const cv = document.querySelector('input[type="file"]');
+      expect(cv.classList.contains("is-invalid")).toBe(true);
+      expect(cv.nextElementSibling.textContent).toBe("Este campo es obligatorio");
+      expect(post).not.toHaveBeenCalled();
+    });
+
+    it("un correo mal escrito se marca como inválido con su mensaje", async () => {
+      await abrirFormulario();
+      completarDatos();
+      fireEvent.change(screen.getByLabelText("Correo"), { target: { value: "no-es-un-correo" } });
+
+      fireEvent.click(botonEnviar());
+
+      const correo = screen.getByLabelText("Correo");
+      expect(correo.classList.contains("is-invalid")).toBe(true);
+      expect(correo.nextElementSibling.textContent).toBe("Ingresa un correo válido");
+    });
+
+    it("al volver a escribir en un campo marcado, se quita su mensaje", async () => {
+      await abrirFormulario();
+      fireEvent.click(botonEnviar());
+      expect(screen.getByLabelText("Nombre completo").classList.contains("is-invalid")).toBe(true);
+
+      fireEvent.change(screen.getByLabelText("Nombre completo"), { target: { value: "Camila" } });
+
+      const nombre = screen.getByLabelText("Nombre completo");
+      expect(nombre.classList.contains("is-invalid")).toBe(false);
+      expect(nombre.nextElementSibling).toBeNull();
+      // Los demás campos siguen marcados hasta que se corrijan.
+      expect(screen.getByLabelText("Correo").classList.contains("is-invalid")).toBe(true);
+    });
+
+    it("el teléfono inválido y el CV rechazado marcan su campo con el mensaje al lado", async () => {
+      await abrirFormulario();
+
+      completarDatos({ telefono: "22 345 6789", cv: archivoDePrueba("foto.png", "image/png") });
+
+      const telefono = screen.getByLabelText("Teléfono");
+      expect(telefono.classList.contains("is-invalid")).toBe(true);
+      expect(telefono.nextElementSibling.textContent).toBe("Ingresa un celular chileno válido: +56 9 1234 5678");
+      const cv = document.querySelector('input[type="file"]');
+      expect(cv.classList.contains("is-invalid")).toBe(true);
+      expect(cv.nextElementSibling.textContent).toBe("Formato de CV no permitido. Usa PDF, DOC o DOCX.");
+    });
+
+    it("el CV de más de 5 MB marca el campo y el nombre del archivo elegido sigue visible", async () => {
+      await abrirFormulario();
+
+      completarDatos({ cv: archivoDePrueba("cv-pesado.pdf", "application/pdf", CINCO_MB + 1) });
+
+      const cv = document.querySelector('input[type="file"]');
+      expect(cv.classList.contains("is-invalid")).toBe(true);
+      expect(cv.nextElementSibling.textContent).toBe("El CV supera el tamaño máximo de 5 MB.");
+      expect(screen.getByText("cv-pesado.pdf")).toBeTruthy();
+    });
+  });
+
+  describe("envío", () => {
+    it("mientras envía, el botón queda deshabilitado con un indicador de carga", async () => {
+      vi.spyOn(api, "post").mockReturnValue(new Promise(() => {}));
+      await abrirFormulario();
+      completarDatos();
+
+      fireEvent.click(botonEnviar());
+
+      const boton = await screen.findByRole("button", { name: "Enviando..." });
+      expect(boton.disabled).toBe(true);
+      expect(boton.querySelector(".spinner-border")).not.toBeNull();
+    });
+
+    it("tras enviar muestra el mensaje de éxito como alerta, con el nombre de pila", async () => {
+      vi.spyOn(api, "post").mockResolvedValue({ data: { mensaje: "Postulación recibida" } });
+      await abrirFormulario();
+      completarDatos();
+
+      fireEvent.click(botonEnviar());
+
+      const alerta = await screen.findByRole("alert");
+      expect(alerta.classList.contains("alert-success")).toBe(true);
+      expect(alerta.textContent).toContain("Gracias, Camila.");
+    });
+
+    it("el error del servidor se muestra como alerta de error", async () => {
+      vi.spyOn(api, "post").mockRejectedValue(errorAxios(500, "Falla del servidor"));
+      await abrirFormulario();
+      completarDatos();
+
+      fireEvent.click(botonEnviar());
+
+      const alerta = await screen.findByRole("alert");
+      expect(alerta.classList.contains("alert-danger")).toBe(true);
+      expect(alerta.textContent).toBe("Falla del servidor");
+    });
+  });
 });

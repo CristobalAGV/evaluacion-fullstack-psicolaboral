@@ -20,16 +20,8 @@ function App() {
       <Route element={<PublicLayout />}>
         <Route path="/login" element={<Login />} />
         <Route path="/registro" element={<Registro />} />
+        <Route path="/postular" element={<Postular />} />
       </Route>
-      {/* Provisional: el formulario de postulación sigue con Tailwind hasta que se migre. */}
-      <Route
-        path="/postular"
-        element={
-          <div className="min-vh-100 bg-body-tertiary p-3 p-md-4">
-            <Postular />
-          </div>
-        }
-      />
       {/* Zona privada: sin sesión se redirige a /login; cada ruta con roles lo vuelve a exigir. */}
       <Route
         element={

@@ -2,11 +2,9 @@ import { useEffect, useState } from "react";
 import { listarFamilias } from "../services/familiaService";
 import { listarUsuarios } from "../services/usuarioService";
 import { crearSolicitud, actualizarSolicitud } from "../services/solicitudService";
-import SelectorCv from "./SelectorCv";
+import { useValidacionFormulario } from "../hooks/useValidacionFormulario";
+import CampoArchivo from "./CampoArchivo";
 import ArchivoDescargable from "./ArchivoDescargable";
-
-const campoClases =
-  "rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
 const TELEFONO_REGEX = /^\+?56\s?9\s?\d{4}\s?\d{4}$/;
 const MENSAJE_TELEFONO = "Ingresa un celular chileno válido: +56 9 1234 5678";
@@ -29,6 +27,7 @@ export default function SolicitudFormulario({ solicitud, alGuardar, alCancelar }
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
   const [cargandoDatos, setCargandoDatos] = useState(true);
+  const { mensajes, validar, limpiar } = useValidacionFormulario();
 
   useEffect(() => {
     Promise.all([listarFamilias(), listarUsuarios("evaluador")])
@@ -47,6 +46,7 @@ export default function SolicitudFormulario({ solicitud, alGuardar, alCancelar }
     e.preventDefault();
     setError("");
 
+    if (!validar(e.currentTarget)) return;
     if (!TELEFONO_REGEX.test(candidatoTelefono.trim())) {
       setError(MENSAJE_TELEFONO);
       return;
@@ -75,151 +75,211 @@ export default function SolicitudFormulario({ solicitud, alGuardar, alCancelar }
     }
   }
 
-  if (cargandoDatos) return <p className="text-sm text-slate-500">Cargando datos del formulario...</p>;
+  if (cargandoDatos) {
+    return (
+      <div className="d-flex align-items-center gap-2 text-secondary" role="status">
+        <div className="spinner-border spinner-border-sm" aria-hidden="true" />
+        <span>Cargando datos del formulario...</span>
+      </div>
+    );
+  }
 
   const sinDatosBase = familias.length === 0 || evaluadores.length === 0;
   const telefonoInvalido =
     candidatoTelefono.trim() !== "" && !TELEFONO_REGEX.test(candidatoTelefono.trim());
+  const errorTelefono = telefonoInvalido ? MENSAJE_TELEFONO : mensajes.telefono;
+
+  // Cada campo borra su mensaje de error al volver a escribir en él.
+  const alCambiar = (setter) => (e) => {
+    setter(e.target.value);
+    limpiar(e.target.name);
+  };
+  const claseCampo = (campo, base = "form-control") => `${base}${mensajes[campo] ? " is-invalid" : ""}`;
+  const retroalimentacion = (campo) => mensajes[campo] && <div className="invalid-feedback">{mensajes[campo]}</div>;
 
   return (
-    <div className="max-w-lg">
-      <h2 className="text-xl font-semibold text-slate-900 mb-4">
-        {esEdicion ? "Editar solicitud" : "Nueva solicitud"}
-      </h2>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1 text-sm text-slate-700 sm:col-span-2">
-            Nombre del candidato
+    <div>
+      <h2 className="h4 mb-3">{esEdicion ? "Editar solicitud" : "Nueva solicitud"}</h2>
+      <form onSubmit={handleSubmit} noValidate>
+        <div className="row g-3">
+          <div className="col-12">
+            <label htmlFor="solicitud-nombre" className="form-label">
+              Nombre del candidato
+            </label>
             <input
+              id="solicitud-nombre"
+              name="nombre"
               type="text"
               value={candidatoNombre}
-              onChange={(e) => setCandidatoNombre(e.target.value)}
+              onChange={alCambiar(setCandidatoNombre)}
               required
-              className={campoClases}
+              className={claseCampo("nombre")}
             />
-          </label>
-          <label className="flex flex-col gap-1 text-sm text-slate-700">
-            Correo del candidato
+            {retroalimentacion("nombre")}
+          </div>
+          <div className="col-12 col-md-6">
+            <label htmlFor="solicitud-correo" className="form-label">
+              Correo del candidato
+            </label>
             <input
+              id="solicitud-correo"
+              name="correo"
               type="email"
               value={candidatoCorreo}
-              onChange={(e) => setCandidatoCorreo(e.target.value)}
+              onChange={alCambiar(setCandidatoCorreo)}
               required
-              className={campoClases}
+              className={claseCampo("correo")}
             />
-          </label>
-          <label className="flex flex-col gap-1 text-sm text-slate-700">
-            Teléfono del candidato
+            {retroalimentacion("correo")}
+          </div>
+          <div className="col-12 col-md-6">
+            <label htmlFor="solicitud-telefono" className="form-label">
+              Teléfono del candidato
+            </label>
             <input
+              id="solicitud-telefono"
+              name="telefono"
               type="tel"
               value={candidatoTelefono}
-              onChange={(e) => setCandidatoTelefono(e.target.value)}
+              onChange={alCambiar(setCandidatoTelefono)}
               required
               placeholder="+56 9 1234 5678"
-              aria-invalid={telefonoInvalido}
-              className={`${campoClases} ${
-                telefonoInvalido ? "border-red-500 focus:ring-red-500" : ""
-              }`}
+              aria-invalid={Boolean(errorTelefono)}
+              className={`form-control${errorTelefono ? " is-invalid" : ""}`}
             />
-            {telefonoInvalido && <span className="text-xs text-red-600">{MENSAJE_TELEFONO}</span>}
-          </label>
-        </div>
+            {errorTelefono && <div className="invalid-feedback">{errorTelefono}</div>}
+          </div>
 
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Familia de cargo
-          <select
-            value={familiaDeCargo}
-            onChange={(e) => setFamiliaDeCargo(e.target.value)}
-            required
-            className={campoClases}
-          >
-            {familias.map((familia) => (
-              <option key={familia._id} value={familia._id}>
-                {familia.nombre}
+          <div className="col-12 col-md-6">
+            <label htmlFor="solicitud-familia" className="form-label">
+              Familia de cargo
+            </label>
+            <select
+              id="solicitud-familia"
+              name="familia"
+              value={familiaDeCargo}
+              onChange={alCambiar(setFamiliaDeCargo)}
+              required
+              className={claseCampo("familia", "form-select")}
+            >
+              {familias.map((familia) => (
+                <option key={familia._id} value={familia._id}>
+                  {familia.nombre}
+                </option>
+              ))}
+            </select>
+            {retroalimentacion("familia")}
+          </div>
+          <div className="col-12 col-md-6">
+            <label htmlFor="solicitud-cargo" className="form-label">
+              Cargo
+            </label>
+            <input
+              id="solicitud-cargo"
+              name="cargo"
+              type="text"
+              value={cargo}
+              onChange={alCambiar(setCargo)}
+              required
+              className={claseCampo("cargo")}
+            />
+            {retroalimentacion("cargo")}
+          </div>
+
+          <div className="col-12">
+            <label htmlFor="solicitud-responsable" className="form-label">
+              Profesional responsable (evaluador)
+            </label>
+            <select
+              id="solicitud-responsable"
+              name="responsable"
+              value={profesionalResponsable}
+              onChange={alCambiar(setProfesionalResponsable)}
+              required
+              className={claseCampo("responsable", "form-select")}
+            >
+              <option value="" disabled>
+                Selecciona un evaluador
               </option>
-            ))}
-          </select>
-        </label>
+              {evaluadores.map((evaluador) => (
+                <option key={evaluador._id} value={evaluador._id}>
+                  {evaluador.nombre}
+                </option>
+              ))}
+            </select>
+            {retroalimentacion("responsable")}
+          </div>
 
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Cargo
-          <input type="text" value={cargo} onChange={(e) => setCargo(e.target.value)} required className={campoClases} />
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Profesional responsable (evaluador)
-          <select
-            value={profesionalResponsable}
-            onChange={(e) => setProfesionalResponsable(e.target.value)}
-            required
-            className={campoClases}
-          >
-            <option value="" disabled>
-              Selecciona un evaluador
-            </option>
-            {evaluadores.map((evaluador) => (
-              <option key={evaluador._id} value={evaluador._id}>
-                {evaluador.nombre}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Observaciones
-          <textarea
-            value={observaciones}
-            onChange={(e) => setObservaciones(e.target.value)}
-            rows={3}
-            className={campoClases}
-          />
-        </label>
-
-        <SelectorCv
-          etiqueta={esEdicion ? "Reemplazar CV (opcional)" : "CV del candidato (opcional)"}
-          archivo={cv}
-          onChange={setCv}
-        />
-        {esEdicion && (
-          <div className="-mt-2">
-            <ArchivoDescargable
-              etiqueta="CV actual"
-              archivo={solicitud.candidato?.cvArchivoId}
-              rutaAntigua={solicitud.candidato?.cvUrl || solicitud.cvUrl}
+          <div className="col-12">
+            <label htmlFor="solicitud-observaciones" className="form-label">
+              Observaciones
+            </label>
+            <textarea
+              id="solicitud-observaciones"
+              value={observaciones}
+              onChange={(e) => setObservaciones(e.target.value)}
+              rows={3}
+              className="form-control"
             />
           </div>
-        )}
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="col-12">
+            <CampoArchivo
+              nombre="cv"
+              etiqueta={esEdicion ? "Reemplazar CV (opcional)" : "CV del candidato (opcional)"}
+              archivo={cv}
+              onChange={setCv}
+            />
+          </div>
+          {esEdicion && (
+            <div className="col-12">
+              <ArchivoDescargable
+                etiqueta="CV actual"
+                archivo={solicitud.candidato?.cvArchivoId}
+                rutaAntigua={solicitud.candidato?.cvUrl || solicitud.cvUrl}
+              />
+            </div>
+          )}
 
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={cargando || sinDatosBase || telefonoInvalido}
-            className="flex-1 rounded-md bg-indigo-600 text-white font-medium py-2 text-sm hover:bg-indigo-500 disabled:opacity-50"
-          >
-            {cargando ? "Guardando..." : esEdicion ? "Guardar cambios" : "Crear solicitud"}
-          </button>
-          {alCancelar && (
+          {error && (
+            <div className="col-12">
+              <div className="alert alert-danger mb-0" role="alert">
+                {error}
+              </div>
+            </div>
+          )}
+
+          <div className="col-12 d-flex gap-2">
             <button
-              type="button"
-              onClick={alCancelar}
-              disabled={cargando}
-              className="rounded-md border border-indigo-600 text-indigo-600 font-medium px-4 py-2 text-sm hover:bg-indigo-50"
+              type="submit"
+              disabled={cargando || sinDatosBase || telefonoInvalido}
+              className="btn btn-primary flex-fill"
             >
-              Cancelar
+              {cargando && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
+              {cargando ? "Guardando..." : esEdicion ? "Guardar cambios" : "Crear solicitud"}
             </button>
+            {alCancelar && (
+              <button type="button" onClick={alCancelar} disabled={cargando} className="btn btn-outline-secondary">
+                Cancelar
+              </button>
+            )}
+          </div>
+
+          {familias.length === 0 && (
+            <div className="col-12">
+              <div className="alert alert-danger mb-0" role="alert">
+                No hay familias de cargo cargadas. Ejecuta el seed del backend.
+              </div>
+            </div>
+          )}
+          {evaluadores.length === 0 && (
+            <div className="col-12">
+              <div className="alert alert-danger mb-0" role="alert">
+                No hay usuarios con rol "evaluador" registrados todavía. Registra uno primero.
+              </div>
+            </div>
           )}
         </div>
-
-        {familias.length === 0 && (
-          <p className="text-sm text-red-600">No hay familias de cargo cargadas. Ejecuta el seed del backend.</p>
-        )}
-        {evaluadores.length === 0 && (
-          <p className="text-sm text-red-600">
-            No hay usuarios con rol "evaluador" registrados todavía. Registra uno primero.
-          </p>
-        )}
       </form>
     </div>
   );

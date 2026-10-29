@@ -292,14 +292,26 @@ describe("Layouts", () => {
       expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeTruthy();
     });
 
-    it("la postulación pública se muestra sin el marco de la zona privada", async () => {
+    it("la postulación pública usa el marco público, sin el menú lateral de la zona privada", async () => {
       simularGet({ "/postulaciones/familias": [] });
 
       renderizarApp("/postular");
 
       expect(screen.queryByRole("complementary", { name: "Menú lateral" })).toBeNull();
-      expect(screen.queryByRole("contentinfo")).toBeNull();
+      expect(screen.getByRole("contentinfo")).toBeTruthy();
       expect(await screen.findByLabelText("Nombre completo")).toBeTruthy();
+    });
+
+    it("en /postular el Navbar público muestra solo la marca, sin Iniciar sesión ni Registrarse", async () => {
+      simularGet({ "/postulaciones/familias": [] });
+
+      renderizarApp("/postular");
+
+      await screen.findByLabelText("Nombre completo");
+      const navbar = barraSuperior();
+      expect(within(navbar).getByText("Evaluación Psicolaboral")).toBeTruthy();
+      expect(within(navbar).queryByRole("link", { name: "Iniciar sesión" })).toBeNull();
+      expect(within(navbar).queryByRole("link", { name: "Registrarse" })).toBeNull();
     });
   });
 });
