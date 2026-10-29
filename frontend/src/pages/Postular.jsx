@@ -82,19 +82,20 @@ export default function Postular() {
         <div className="col-12 col-md-9 col-lg-7 col-xl-6">
           <div className="card shadow-sm">
             <div className="card-body p-4 text-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-                width="48"
-                height="48"
-                className="text-success mb-3"
-                aria-hidden="true"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-              </svg>
+              <div className="d-flex justify-content-center mb-3 text-success">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  width="48"
+                  height="48"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+              </div>
               <h2 className="h4 mb-3">Postulación recibida</h2>
               <div className="alert alert-success mb-0" role="alert">
                 Gracias, {nombre.trim().split(" ")[0]}. Recibimos tus datos y tu CV. El equipo de selección revisará

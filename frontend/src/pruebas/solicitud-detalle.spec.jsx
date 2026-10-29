@@ -62,7 +62,7 @@ async function abrirDetalle(usuario, { solicitud = crearSolicitud(), evaluacione
   return get;
 }
 
-const fila = (etiqueta) => screen.getByText(etiqueta, { exact: true }).closest("div.rounded-md.border");
+const fila = (etiqueta) => screen.getByText(etiqueta, { exact: true }).closest("div.border.rounded");
 const subirInformeVisible = () => screen.queryByText(/^(Subir|Reemplazar) informe de entrevista$/) !== null;
 
 describe("SolicitudDetalle", () => {

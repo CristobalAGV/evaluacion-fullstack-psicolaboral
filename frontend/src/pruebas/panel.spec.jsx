@@ -33,7 +33,8 @@ describe("Panel (Kanban)", () => {
     await screen.findByText("Panel de solicitudes");
   }
   const tarjeta = (nombre) => screen.getByRole("link", { name: nombre }).closest("div.shadow-sm");
-  const columna = (titulo) => screen.getByRole("heading", { name: titulo }).parentElement;
+  // El título de cada columna lleva su cantidad: "Pendiente (2)".
+  const columna = (titulo) => screen.getByRole("heading", { name: new RegExp(`^${titulo} \\(`) }).parentElement;
 
   it("muestra las tres columnas y reparte las solicitudes por estado", async () => {
     await abrirPanel(USUARIOS.analista);

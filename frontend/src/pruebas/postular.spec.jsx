@@ -223,6 +223,21 @@ describe("Postular (formulario público)", () => {
       expect(alerta.textContent).toContain("Gracias, Camila.");
     });
 
+    it("en la pantalla de éxito el ícono, el título y el mensaje quedan centrados", async () => {
+      vi.spyOn(api, "post").mockResolvedValue({ data: { mensaje: "Postulación recibida" } });
+      await abrirFormulario();
+      completarDatos();
+
+      fireEvent.click(botonEnviar());
+
+      const titulo = await screen.findByRole("heading", { name: "Postulación recibida" });
+      const cuerpo = titulo.parentElement;
+      expect(cuerpo.classList.contains("text-center")).toBe(true);
+      const contenedorIcono = cuerpo.querySelector("svg").parentElement;
+      expect(contenedorIcono.classList.contains("d-flex")).toBe(true);
+      expect(contenedorIcono.classList.contains("justify-content-center")).toBe(true);
+    });
+
     it("el error del servidor se muestra como alerta de error", async () => {
       vi.spyOn(api, "post").mockRejectedValue(errorAxios(500, "Falla del servidor"));
       await abrirFormulario();

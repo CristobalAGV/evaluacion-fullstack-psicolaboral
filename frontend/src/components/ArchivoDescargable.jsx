@@ -24,30 +24,33 @@ export default function ArchivoDescargable({ etiqueta, archivo, rutaAntigua }) {
   }
 
   return (
-    <div className="flex flex-col gap-1 rounded-md border border-slate-200 px-3 py-2">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <span className="text-sm text-slate-700">{etiqueta}</span>
-          {nombre && <p className="truncate text-xs text-slate-400">{nombre}</p>}
+    <div className="border rounded px-3 py-2">
+      <div className="d-flex align-items-center justify-content-between gap-3">
+        <div className="overflow-hidden">
+          <span className="small">{etiqueta}</span>
+          {nombre && <p className="small text-secondary text-truncate mb-0">{nombre}</p>}
         </div>
         {archivoId ? (
           <button
             type="button"
             onClick={handleDescargar}
             disabled={descargando}
-            className="shrink-0 text-sm font-medium text-indigo-600 hover:underline disabled:opacity-50"
+            className="btn btn-outline-primary btn-sm flex-shrink-0"
           >
             {descargando ? "Descargando..." : "Descargar"}
           </button>
         ) : rutaAntigua ? (
-          <span className="shrink-0 text-sm text-amber-700" title="Se guardó en el disco del servidor y ya no existe">
+          <span
+            className="small text-warning-emphasis flex-shrink-0"
+            title="Se guardó en el disco del servidor y ya no existe"
+          >
             Archivo no disponible
           </span>
         ) : (
-          <span className="shrink-0 text-sm text-slate-400">Sin archivo</span>
+          <span className="small text-secondary flex-shrink-0">Sin archivo</span>
         )}
       </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="small text-danger mt-1 mb-0">{error}</p>}
     </div>
   );
 }
