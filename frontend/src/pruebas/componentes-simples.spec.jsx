@@ -16,10 +16,10 @@ describe("EtiquetaPostulacionPublica", () => {
     const deAnalista = { candidato: { origen: "analista" } };
 
     // Act + Assert
-    expect(esPostulacionPublica(publica)).toBeTrue();
-    expect(esPostulacionPublica(deAnalista)).toBeFalse();
-    expect(esPostulacionPublica({})).toBeFalse();
-    expect(esPostulacionPublica(undefined)).toBeFalse();
+    expect(esPostulacionPublica(publica)).toBe(true);
+    expect(esPostulacionPublica(deAnalista)).toBe(false);
+    expect(esPostulacionPublica({})).toBe(false);
+    expect(esPostulacionPublica(undefined)).toBe(false);
   });
 });
 
@@ -34,7 +34,7 @@ describe("SelectorCv", () => {
 
   it("entrega el archivo elegido al componente padre (spy como callback)", () => {
     // Arrange
-    const alCambiar = jasmine.createSpy("onChange");
+    const alCambiar = vi.fn();
     render(<SelectorCv etiqueta="CV" archivo={null} onChange={alCambiar} />);
     const cv = archivoDePrueba("mi-cv.pdf", "application/pdf");
 
@@ -42,7 +42,7 @@ describe("SelectorCv", () => {
     elegirArchivo(document.querySelector('input[type="file"]'), cv);
 
     // Assert
-    expect(alCambiar).toHaveBeenCalledOnceWith(cv);
+    expect(alCambiar).toHaveBeenCalledExactlyOnceWith(cv);
   });
 
   it("con archivo, muestra su nombre y la opción de cambiarlo", () => {

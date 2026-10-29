@@ -35,7 +35,7 @@ const botonBorrador = () => screen.queryByRole("button", { name: /^(Generar borr
 describe("InformePsicolaboral", () => {
   describe("render y permisos", () => {
     it("mientras carga muestra un mensaje", () => {
-      spyOn(api, "get").and.returnValue(new Promise(() => {}));
+      vi.spyOn(api, "get").mockReturnValue(new Promise(() => {}));
       render(<InformePsicolaboral solicitudId="s1" puedeEditar tieneCv tieneInforme />);
 
       expect(screen.getByText("Cargando informe...")).toBeTruthy();
@@ -47,11 +47,11 @@ describe("InformePsicolaboral", () => {
       expect(screen.getByText(/Borrador generado por inteligencia artificial/)).toBeTruthy();
       expect(campoApuntes()).toBeTruthy();
       expect(screen.getByLabelText(/Instrucciones adicionales para la IA/)).toBeTruthy();
-      expect(botonBorrador().disabled).toBeTrue();
+      expect(botonBorrador().disabled).toBe(true);
 
       fireEvent.change(campoApuntes(), { target: { value: "Candidata puntual" } });
 
-      expect(botonBorrador().disabled).toBeFalse();
+      expect(botonBorrador().disabled).toBe(false);
     });
 
     it("incluye la tarjeta de evaluación con nota en la misma sección", async () => {
@@ -105,7 +105,7 @@ describe("InformePsicolaboral", () => {
     it("muestra el estado de carga y luego el borrador por secciones", async () => {
       // Arrange
       let responder;
-      const post = spyOn(api, "post").and.returnValue(new Promise((r) => (responder = r)));
+      const post = vi.spyOn(api, "post").mockReturnValue(new Promise((r) => (responder = r)));
       await abrir();
       fireEvent.change(campoApuntes(), { target: { value: "Relata manejo de reclamos" } });
       fireEvent.change(screen.getByLabelText(/Instrucciones adicionales/), { target: { value: "Breve" } });
@@ -116,7 +116,7 @@ describe("InformePsicolaboral", () => {
       // Assert: cargando
       expect(await screen.findByRole("button", { name: "Generando borrador..." })).toBeTruthy();
       expect(screen.getByText(/Redactando el borrador/)).toBeTruthy();
-      expect(post).toHaveBeenCalledOnceWith("/solicitudes/s1/informe/generar", {
+      expect(post).toHaveBeenCalledExactlyOnceWith("/solicitudes/s1/informe/generar", {
         apuntes: "Relata manejo de reclamos",
         instrucciones: "Breve",
       });
@@ -131,7 +131,7 @@ describe("InformePsicolaboral", () => {
     });
 
     it("ante cuota agotada (429) muestra el mensaje amable y conserva los apuntes", async () => {
-      spyOn(api, "post").and.rejectWith(errorAxios(429, "Se agoto la cuota"));
+      vi.spyOn(api, "post").mockRejectedValue(errorAxios(429, "Se agoto la cuota"));
       await abrir();
       fireEvent.change(campoApuntes(), { target: { value: "Apuntes importantes" } });
 
@@ -142,7 +142,7 @@ describe("InformePsicolaboral", () => {
     });
 
     it("ante otros errores muestra el mensaje del servidor", async () => {
-      spyOn(api, "post").and.rejectWith(errorAxios(503, "El servicio de IA no esta configurado."));
+      vi.spyOn(api, "post").mockRejectedValue(errorAxios(503, "El servicio de IA no esta configurado."));
       await abrir();
       fireEvent.change(campoApuntes(), { target: { value: "Apuntes" } });
 
@@ -152,21 +152,21 @@ describe("InformePsicolaboral", () => {
     });
 
     it("envía los apuntes escritos a la evaluación con nota", async () => {
-      const post = spyOn(api, "post").and.returnValue(new Promise(() => {}));
+      const post = vi.spyOn(api, "post").mockReturnValue(new Promise(() => {}));
       await abrir();
       fireEvent.change(campoApuntes(), { target: { value: "Apuntes compartidos" } });
       await screen.findByRole("button", { name: "Generar evaluación con IA" });
 
       fireEvent.click(screen.getByRole("button", { name: "Generar evaluación con IA" }));
 
-      expect(post).toHaveBeenCalledOnceWith("/solicitudes/s1/informe/evaluacion/generar", { apuntes: "Apuntes compartidos" });
+      expect(post).toHaveBeenCalledExactlyOnceWith("/solicitudes/s1/informe/evaluacion/generar", { apuntes: "Apuntes compartidos" });
     });
   });
 
   describe("confirmar y guardar", () => {
     it("guarda las secciones editadas por el evaluador", async () => {
       // Arrange
-      const put = spyOn(api, "put").and.resolveTo({
+      const put = vi.spyOn(api, "put").mockResolvedValue({
         data: { ...INFORME_GUARDADO, secciones: [{ titulo: "Fortalezas", contenido: "Editado" }] },
       });
       await abrir({ informe: INFORME_GUARDADO });
@@ -177,7 +177,7 @@ describe("InformePsicolaboral", () => {
 
       // Assert
       expect(await screen.findByText("Informe guardado.")).toBeTruthy();
-      const [ruta, cuerpo] = put.calls.mostRecent().args;
+      const [ruta, cuerpo] = put.mock.lastCall;
       expect(ruta).toBe("/solicitudes/s1/informe");
       expect(cuerpo.secciones[0]).toEqual({ titulo: "Fortalezas", contenido: "Editado" });
       expect(cuerpo.apuntes).toBe("Apuntes guardados");
@@ -185,7 +185,7 @@ describe("InformePsicolaboral", () => {
     });
 
     it("si el guardado falla, muestra el error", async () => {
-      spyOn(api, "put").and.rejectWith(errorAxios(403, "Solo el evaluador responsable de la solicitud (o un admin) puede generar o editar su informe."));
+      vi.spyOn(api, "put").mockRejectedValue(errorAxios(403, "Solo el evaluador responsable de la solicitud (o un admin) puede generar o editar su informe."));
       await abrir({ informe: INFORME_GUARDADO });
 
       fireEvent.click(screen.getByRole("button", { name: "Guardar informe" }));

@@ -14,22 +14,21 @@ formatea fechas) o un componente (por ejemplo, el botón de descargar un CV).
 
 ## 2. El entorno de pruebas
 
-Usamos tres herramientas que trabajan juntas:
+Usamos estas herramientas, que trabajan juntas:
 
-- **Jasmine:** el lenguaje para escribir las pruebas (`describe`, `it`, `expect`).
-- **Karma:** el "motor" que abre un navegador y corre las pruebas ahí.
-- **ChromeHeadless:** Google Chrome sin ventana. Es un navegador real, pero invisible, así que
-  las pruebas corren rápido y sin abrir nada en pantalla.
-
-Además, **esbuild** traduce nuestro código React (JSX) a algo que el navegador entiende, y
-**Testing Library** permite buscar elementos como lo haría una persona: "el botón que dice
-Ingresar", "el campo Correo".
+- **Vitest:** escribe y corre las pruebas (`describe`, `it`, `expect`). Está integrado con Vite,
+  la herramienta con la que ya se construye la app, así que entiende nuestro código React (JSX)
+  sin configuración extra.
+- **jsdom:** un navegador simulado dentro de Node. No abre ninguna ventana, así que las pruebas
+  corren rápido.
+- **Testing Library:** permite buscar elementos como lo haría una persona: "el botón que dice
+  Ingresar", "el campo Correo".
 
 Para correrlas, dentro de `frontend/`:
 
 ```bash
-npm test                 # corre todas las pruebas
-npm run test:cobertura   # corre las pruebas y mide la cobertura
+npm test                 # corre todas las pruebas (vitest run)
+npm run test:cobertura   # corre las pruebas y mide la cobertura (vitest run --coverage)
 ```
 
 ## 3. Cómo se escribe una prueba
@@ -45,7 +44,7 @@ Ejemplo real del proyecto (login con contraseña incorrecta):
 ```js
 it("muestra el mensaje del servidor cuando las credenciales son inválidas", async () => {
   // Preparar: el "servidor" responde 401
-  spyOn(api, "post").and.rejectWith(errorAxios(401, "Credenciales inválidas"));
+  vi.spyOn(api, "post").mockRejectedValue(errorAxios(401, "Credenciales inválidas"));
   renderizar(<Login />, { ruta: "/login", rutaDelElemento: "/login" });
 
   // Actuar: la persona escribe y aprieta "Ingresar"
@@ -66,10 +65,10 @@ it("muestra el mensaje del servidor cuando las credenciales son inválidas", asy
 En una prueba unitaria **no queremos depender del servidor real** (puede estar apagado, ser
 lento o cambiar los datos). Por eso lo **simulamos**. A esa versión falsa se le llama **mock**.
 
-En Jasmine los mocks se hacen con **spies** ("espías"):
+En Vitest los mocks se hacen con **spies** ("espías"):
 
 ```js
-const post = spyOn(api, "post").and.resolveTo({ data: { mensaje: "Postulación recibida" } });
+const post = vi.spyOn(api, "post").mockResolvedValue({ data: { mensaje: "Postulación recibida" } });
 ```
 
 Esto hace dos cosas:
@@ -109,13 +108,13 @@ no que se haya comprobado todo. Por eso lo importante es que las pruebas tengan 
 **En la terminal**, al final de `npm test`:
 
 ```
-Executed 118 of 118 SUCCESS
-TOTAL: 118 SUCCESS
+ Test Files  15 passed (15)
+      Tests  163 passed (163)
 ```
 
-- `SUCCESS`: todas pasaron.
-- Si algo falla, aparece `FAILED` con el nombre de la prueba y el motivo, por ejemplo
-  `Expected spy click to have been called once. It was called 0 times.`
+- `passed`: todas pasaron.
+- Si algo falla, aparece `FAIL` con el nombre de la prueba y el motivo, por ejemplo
+  `expected "spy" to be called 1 times, but got 0 times`.
 
 **La tabla de cobertura** (con `npm run test:cobertura`):
 
@@ -128,7 +127,7 @@ Postular.jsx    |   89.47 |    88.23 |   92.85 |   90.74 | 51-52,56-57,188
 - **Uncovered Line #s** son las líneas que ninguna prueba ejecutó: es la lista de "qué falta
   probar".
 
-**El reporte visual:** abre `frontend/coverage/html/index.html` en el navegador. Cada archivo
+**El reporte visual:** abre `frontend/coverage/index.html` en el navegador. Cada archivo
 se ve con colores: **verde** = ejecutado por las pruebas, **rojo** = no ejecutado,
 **amarillo** = condición probada solo en uno de sus caminos.
 
@@ -157,12 +156,12 @@ Cuando algo cambia el estado de un componente **fuera de un clic o de un evento*
 cuando responde una promesa), React pide envolverlo en `act(...)`. Si no, muestra una
 advertencia en la consola. Lo usamos en la prueba del 401.
 
-### Una trampa de Jasmine con `waitFor`
+### `waitFor` y `esperarQue`
 
-En Jasmine, un `expect` que falla **no detiene** la prueba en ese momento: solo anota la
-falla. `waitFor` (de Testing Library) espera hasta que su función *no lance un error*; como
-el `expect` de Jasmine no lanza, `waitFor` terminaba de inmediato. Por eso creamos
-`esperarQue(condición)`, que sí lanza un error mientras la condición no se cumpla.
+`waitFor` (de Testing Library) espera hasta que su función *no lance un error*. En Vitest un
+`expect` que falla sí lanza, así que sirve directo dentro de `waitFor`. Aun así mantenemos
+`esperarQue(condición)` (en `ayudantes.jsx`): lanza un error con una descripción clara mientras
+la condición no se cumpla.
 
 ### Pruebas de mutación: ¿las pruebas detectan errores?
 
@@ -173,19 +172,24 @@ propósito** en la app y corrimos las pruebas:
 - El registro ofrece el rol admin → falla "el selector de rol NO ofrece admin".
 - Cualquier usuario puede subir el informe → falla "evaluador ajeno: solo puede mirar".
 
+Al migrar a Vitest se repitió con tres errores nuevos (CV de ~95 MB aceptado en `Postular`, el
+interceptor de `api.js` mirando el 403 en vez del 401, y `hoyLocal()` con el mes corrido) y
+Vitest los detectó todos.
+
 Cada error fue detectado por la prueba que lo cuida. Después se dejó el código como estaba.
 
-### Lo que el navegador no deja simular
+### Lo que no se puede simular
 
 La regla "contraseña de al menos 6 caracteres" (`minlength`) el navegador la aplica **solo a
 lo que la persona escribe con el teclado**, no a un valor puesto por un script. Por eso esa
 prueba verifica que la regla esté declarada en el campo, en vez de fingir algo que el
-navegador no hace. Es mejor decirlo que forzar una prueba engañosa.
+navegador no hace. (Tampoco existe `DataTransfer` en jsdom, así que el ayudante `elegirArchivo` entrega el archivo de otra forma.) Es mejor decirlo que forzar una prueba engañosa.
 
 ## 8. Resultados del proyecto en una frase
 
-**118 pruebas, todas aprobadas**, estables en 8 corridas seguidas en orden aleatorio. La
-cobertura subió de **44 % a 95,86 % de líneas** (y de 33 % a **88,19 % de ramas**). Cubre login
+**163 pruebas, todas aprobadas**, en orden aleatorio. La cobertura es de
+**96,85 % de líneas y 88,88 % de ramas** (subió desde 44 % de líneas y 33 % de ramas en la
+primera ronda). Cubre login
 y registro, rutas protegidas por rol, interceptores de sesión, el formulario público, el
 detalle de solicitud con sus permisos por rol, evaluaciones, informe Word, descarga segura de
 archivos, el Kanban completo y todos los servicios.

@@ -15,7 +15,7 @@ describe("Postular (formulario público)", () => {
   let get;
 
   beforeEach(() => {
-    get = spyOn(api, "get").and.resolveTo({ data: FAMILIAS });
+    get = vi.spyOn(api, "get").mockResolvedValue({ data: FAMILIAS });
   });
 
   async function abrirFormulario() {
@@ -49,7 +49,7 @@ describe("Postular (formulario público)", () => {
       completarDatos({ telefono: "22 345 6789" });
 
       expect(screen.getByText("Ingresa un celular chileno válido: +56 9 1234 5678")).toBeTruthy();
-      expect(botonEnviar().disabled).toBeTrue();
+      expect(botonEnviar().disabled).toBe(true);
     });
 
     it("acepta +56 9 con y sin espacios", async () => {
@@ -57,7 +57,7 @@ describe("Postular (formulario público)", () => {
 
       for (const telefono of ["+56 9 1234 5678", "+56912345678", "56 9 1234 5678"]) {
         completarDatos({ telefono });
-        expect(screen.queryByText("Ingresa un celular chileno válido: +56 9 1234 5678")).withContext(telefono).toBeNull();
+        expect(screen.queryByText("Ingresa un celular chileno válido: +56 9 1234 5678"), telefono).toBeNull();
       }
     });
   });
@@ -69,7 +69,7 @@ describe("Postular (formulario público)", () => {
       completarDatos({ cv: archivoDePrueba("cv-pesado.pdf", "application/pdf", CINCO_MB + 1) });
 
       expect(screen.getByText("El CV supera el tamaño máximo de 5 MB.")).toBeTruthy();
-      expect(botonEnviar().disabled).toBeTrue();
+      expect(botonEnviar().disabled).toBe(true);
     });
 
     it("rechaza un tipo de archivo no permitido", async () => {
@@ -78,13 +78,13 @@ describe("Postular (formulario público)", () => {
       completarDatos({ cv: archivoDePrueba("foto.png", "image/png") });
 
       expect(screen.getByText("Formato de CV no permitido. Usa PDF, DOC o DOCX.")).toBeTruthy();
-      expect(botonEnviar().disabled).toBeTrue();
+      expect(botonEnviar().disabled).toBe(true);
     });
   });
 
   it('envía los datos como FormData y muestra "Postulación recibida"', async () => {
     // Arrange
-    const post = spyOn(api, "post").and.resolveTo({ data: { mensaje: "Postulación recibida" } });
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: { mensaje: "Postulación recibida" } });
     await abrirFormulario();
     const cv = archivoDePrueba("cv-camila.pdf", "application/pdf");
     completarDatos({ cv });
@@ -95,7 +95,7 @@ describe("Postular (formulario público)", () => {
     // Assert
     expect(await screen.findByRole("heading", { name: "Postulación recibida" })).toBeTruthy();
     expect(post).toHaveBeenCalledTimes(1);
-    const [ruta, datos] = post.calls.mostRecent().args;
+    const [ruta, datos] = post.mock.lastCall;
     expect(ruta).toBe("/postulaciones");
     expect(datos).toBeInstanceOf(FormData);
     expect(datos.get("nombre")).toBe("Camila Muñoz");
@@ -108,7 +108,7 @@ describe("Postular (formulario público)", () => {
   });
 
   it("muestra el mensaje del servidor si rechaza la postulación (correo repetido)", async () => {
-    spyOn(api, "post").and.rejectWith(errorAxios(409, "Ya recibimos una postulación con este correo."));
+    vi.spyOn(api, "post").mockRejectedValue(errorAxios(409, "Ya recibimos una postulación con este correo."));
     await abrirFormulario();
     completarDatos();
 
@@ -119,7 +119,7 @@ describe("Postular (formulario público)", () => {
   });
 
   it("avisa si no pudo cargar las áreas de interés", async () => {
-    get.and.rejectWith(errorAxios(500, "Error"));
+    get.mockRejectedValue(errorAxios(500, "Error"));
 
     renderizar(<Postular />, { ruta: "/postular", rutaDelElemento: "/postular" });
 

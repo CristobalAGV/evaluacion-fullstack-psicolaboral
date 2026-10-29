@@ -53,7 +53,7 @@ describe("CampoPassword", () => {
     // El campo es controlado con value="" fijo: React lo restablece tras el evento, así que el
     // valor se lee dentro del callback, en el momento en que el padre lo recibe.
     const recibidos = [];
-    const alCambiar = jasmine.createSpy("onChange").and.callFake((e) => recibidos.push(e.target.value));
+    const alCambiar = vi.fn((e) => recibidos.push(e.target.value));
     render(<CampoPassword value="" onChange={alCambiar} />);
     const campo = screen.getByLabelText("Contraseña");
 
@@ -66,7 +66,7 @@ describe("CampoPassword", () => {
   });
 
   it("el botón no envía el formulario que lo contiene", () => {
-    const alEnviar = jasmine.createSpy("onSubmit").and.callFake((e) => e.preventDefault());
+    const alEnviar = vi.fn((e) => e.preventDefault());
     render(
       <form onSubmit={alEnviar}>
         <CampoPassword value="" onChange={() => {}} required={false} />
@@ -95,13 +95,13 @@ describe("CampoPassword", () => {
 
     expect(campo.getAttribute("autocomplete")).toBe("new-password");
     expect(campo.minLength).toBe(8);
-    expect(campo.required).toBeFalse();
+    expect(campo.required).toBe(false);
   });
 
   it("por defecto es obligatorio", () => {
     render(<CampoPassword value="" onChange={() => {}} />);
 
-    expect(screen.getByLabelText("Contraseña").required).toBeTrue();
+    expect(screen.getByLabelText("Contraseña").required).toBe(true);
   });
 
   it("dos campos en la misma pantalla tienen ids distintos y cada etiqueta apunta al suyo", () => {
@@ -142,7 +142,7 @@ describe("CampoPassword dentro de Login", () => {
 
   it("permite ver lo escrito y aun así inicia sesión con esa contraseña", async () => {
     // Arrange
-    const post = spyOn(api, "post").and.resolveTo({ data: { token: "jwt-falso", usuario: USUARIOS.analista } });
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: { token: "jwt-falso", usuario: USUARIOS.analista } });
     abrirLogin();
     fireEvent.change(screen.getByLabelText("Correo"), { target: { value: "ana@ejemplo.cl" } });
     fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "secreto123" } });
@@ -155,7 +155,7 @@ describe("CampoPassword dentro de Login", () => {
 
     // Assert
     await screen.findByText("Pantalla de inicio");
-    expect(post).toHaveBeenCalledOnceWith("/auth/login", { correo: "ana@ejemplo.cl", password: "secreto123" });
+    expect(post).toHaveBeenCalledExactlyOnceWith("/auth/login", { correo: "ana@ejemplo.cl", password: "secreto123" });
   });
 });
 
@@ -181,12 +181,12 @@ describe("CampoPassword dentro de Registro", () => {
 
     expect(campo.type).toBe("text");
     expect(campo.minLength).toBe(6);
-    expect(campo.required).toBeTrue();
+    expect(campo.required).toBe(true);
   });
 
   it("con la contraseña visible, registra al usuario con lo escrito", async () => {
     // Arrange
-    const post = spyOn(api, "post").and.resolveTo({ data: { token: "jwt-nuevo", usuario: USUARIOS.analista } });
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: { token: "jwt-nuevo", usuario: USUARIOS.analista } });
     abrirRegistro();
     fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: "Ana Nueva" } });
     fireEvent.change(screen.getByLabelText("Correo"), { target: { value: "ana@ejemplo.cl" } });
@@ -199,7 +199,7 @@ describe("CampoPassword dentro de Registro", () => {
 
     // Assert
     await screen.findByText("Pantalla de inicio");
-    expect(post).toHaveBeenCalledOnceWith("/auth/registro", {
+    expect(post).toHaveBeenCalledExactlyOnceWith("/auth/registro", {
       nombre: "Ana Nueva",
       correo: "ana@ejemplo.cl",
       password: "secreto123",

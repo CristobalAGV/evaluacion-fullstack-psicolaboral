@@ -162,7 +162,7 @@ describe("SolicitudDetalle", () => {
       // La solicitud de prueba tiene CV pero no informe de entrevista
       await abrirSeccionIa(USUARIOS.evaluador);
 
-      expect(botonesIa().evaluacion.disabled).toBeTrue();
+      expect(botonesIa().evaluacion.disabled).toBe(true);
       expect(screen.getByText(/debe tener cargados el CV y el informe de entrevista/)).toBeTruthy();
     });
 
@@ -172,7 +172,7 @@ describe("SolicitudDetalle", () => {
 
       await abrirSeccionIa(USUARIOS.evaluador, { solicitud });
 
-      expect(botonesIa().evaluacion.disabled).toBeFalse();
+      expect(botonesIa().evaluacion.disabled).toBe(false);
     });
   });
 
@@ -181,7 +181,7 @@ describe("SolicitudDetalle", () => {
       await abrirDetalle(USUARIOS.analista);
 
       expect(screen.getByRole("button", { name: "Cambiar" })).toBeTruthy();
-      expect(subirInformeVisible()).toBeTrue();
+      expect(subirInformeVisible()).toBe(true);
       expect(screen.queryByRole("button", { name: "+ Nueva evaluación" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Editar" })).toBeNull();
     });
@@ -191,7 +191,7 @@ describe("SolicitudDetalle", () => {
 
       expect(screen.getByRole("button", { name: "+ Nueva evaluación" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "Editar" })).toBeTruthy();
-      expect(subirInformeVisible()).toBeTrue();
+      expect(subirInformeVisible()).toBe(true);
       expect(screen.queryByRole("button", { name: "Cambiar" })).toBeNull();
     });
 
@@ -200,7 +200,7 @@ describe("SolicitudDetalle", () => {
 
       expect(screen.queryByRole("button", { name: "+ Nueva evaluación" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Editar" })).toBeNull();
-      expect(subirInformeVisible()).toBeFalse();
+      expect(subirInformeVisible()).toBe(false);
       expect(screen.queryByRole("button", { name: "Cambiar" })).toBeNull();
       // Pero sí puede descargar el CV
       expect(within(fila("CV")).getByRole("button", { name: "Descargar" })).toBeTruthy();
@@ -211,7 +211,7 @@ describe("SolicitudDetalle", () => {
 
       expect(screen.getByRole("button", { name: "Cambiar" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "+ Nueva evaluación" })).toBeTruthy();
-      expect(subirInformeVisible()).toBeTrue();
+      expect(subirInformeVisible()).toBe(true);
     });
   });
 
@@ -220,7 +220,7 @@ describe("SolicitudDetalle", () => {
       // Arrange
       await abrirDetalle(USUARIOS.evaluador);
       const nueva = { _id: "e2", fechaEvaluacion: "2026-10-06T00:00:00.000Z", estado: "En proceso", resultado: "Segunda entrevista" };
-      const post = spyOn(api, "post").and.resolveTo({ data: nueva });
+      const post = vi.spyOn(api, "post").mockResolvedValue({ data: nueva });
       fireEvent.click(screen.getByRole("button", { name: "+ Nueva evaluación" }));
 
       // Act
@@ -231,7 +231,7 @@ describe("SolicitudDetalle", () => {
 
       // Assert
       expect(await screen.findByText("Segunda entrevista")).toBeTruthy();
-      expect(post).toHaveBeenCalledOnceWith("/solicitudes/s1/evaluaciones", {
+      expect(post).toHaveBeenCalledExactlyOnceWith("/solicitudes/s1/evaluaciones", {
         fechaEvaluacion: "2026-10-06",
         resultado: "Segunda entrevista",
         estado: "En proceso",
@@ -242,7 +242,7 @@ describe("SolicitudDetalle", () => {
 
     it("si el servidor rechaza la evaluación, muestra el error y mantiene el formulario", async () => {
       await abrirDetalle(USUARIOS.evaluador);
-      spyOn(api, "post").and.rejectWith(errorAxios(403, "Solo el evaluador responsable puede gestionar sus evaluaciones"));
+      vi.spyOn(api, "post").mockRejectedValue(errorAxios(403, "Solo el evaluador responsable puede gestionar sus evaluaciones"));
       fireEvent.click(screen.getByRole("button", { name: "+ Nueva evaluación" }));
 
       fireEvent.click(screen.getByRole("button", { name: "Crear evaluación" }));
@@ -253,7 +253,7 @@ describe("SolicitudDetalle", () => {
 
     it("cancelar la nueva evaluación cierra el formulario sin llamar a la API", async () => {
       await abrirDetalle(USUARIOS.evaluador);
-      const post = spyOn(api, "post");
+      const post = vi.spyOn(api, "post").mockImplementation(() => undefined);
       fireEvent.click(screen.getByRole("button", { name: "+ Nueva evaluación" }));
 
       fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
@@ -264,7 +264,7 @@ describe("SolicitudDetalle", () => {
 
     it("el responsable edita una evaluación existente", async () => {
       await abrirDetalle(USUARIOS.evaluador);
-      const put = spyOn(api, "put").and.resolveTo({ data: { ...EVALUACIONES[0], resultado: "Entrevista revisada" } });
+      const put = vi.spyOn(api, "put").mockResolvedValue({ data: { ...EVALUACIONES[0], resultado: "Entrevista revisada" } });
       fireEvent.click(screen.getByRole("button", { name: "Editar" }));
 
       expect(screen.getByLabelText("Fecha de evaluación").value).toBe("2026-10-05");
@@ -272,7 +272,7 @@ describe("SolicitudDetalle", () => {
       fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
       expect(await screen.findByText("Entrevista revisada")).toBeTruthy();
-      expect(put).toHaveBeenCalledOnceWith("/evaluaciones/e1", {
+      expect(put).toHaveBeenCalledExactlyOnceWith("/evaluaciones/e1", {
         fechaEvaluacion: "2026-10-05",
         resultado: "Entrevista revisada",
         estado: "Pendiente",
@@ -289,7 +289,7 @@ describe("SolicitudDetalle", () => {
       elegirArchivo(inputInforme(), archivoDePrueba("informe.pdf", "application/pdf"));
 
       expect(screen.getByText("El informe debe ser un archivo Word (DOC o DOCX).")).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Guardar informe" }).disabled).toBeTrue();
+      expect(screen.getByRole("button", { name: "Guardar informe" }).disabled).toBe(true);
     });
 
     it("rechaza un Word de más de 5 MB", async () => {
@@ -303,7 +303,7 @@ describe("SolicitudDetalle", () => {
     it("sube el Word con PUT y lo muestra como informe actual", async () => {
       // Arrange
       await abrirDetalle(USUARIOS.evaluador);
-      const put = spyOn(api, "put").and.resolveTo({
+      const put = vi.spyOn(api, "put").mockResolvedValue({
         data: { informeArchivo: { _id: "a-inf", nombreOriginal: "Informe Lucía.docx" } },
       });
       elegirArchivo(inputInforme(), archivoDePrueba("Informe Lucía.docx", WORD));
@@ -315,14 +315,14 @@ describe("SolicitudDetalle", () => {
       expect(await within(fila("Informe de entrevista")).findByText("Informe Lucía.docx")).toBeTruthy();
       expect(within(fila("Informe de entrevista")).getByRole("button", { name: "Descargar" })).toBeTruthy();
       expect(screen.getByText("Reemplazar informe de entrevista")).toBeTruthy();
-      const [ruta, formData] = put.calls.mostRecent().args;
+      const [ruta, formData] = put.mock.lastCall;
       expect(ruta).toBe("/solicitudes/s1/informe-entrevista");
       expect(formData.get("informe").name).toBe("Informe Lucía.docx");
     });
 
     it("muestra el error del servidor si rechaza el informe", async () => {
       await abrirDetalle(USUARIOS.evaluador);
-      spyOn(api, "put").and.rejectWith(errorAxios(400, "El contenido del archivo no corresponde a un Word (DOC o DOCX) válido."));
+      vi.spyOn(api, "put").mockRejectedValue(errorAxios(400, "El contenido del archivo no corresponde a un Word (DOC o DOCX) válido."));
       elegirArchivo(inputInforme(), archivoDePrueba("falso.docx", WORD));
 
       fireEvent.click(screen.getByRole("button", { name: "Guardar informe" }));
@@ -336,7 +336,7 @@ describe("SolicitudDetalle", () => {
       // Arrange
       const solicitud = crearSolicitud({ analistaId: { nombre: "Ana Analista" }, candidato: { ...crearSolicitud().candidato, origen: "analista" } });
       await abrirDetalle(USUARIOS.analista, { solicitud });
-      const put = spyOn(api, "put").and.resolveTo({
+      const put = vi.spyOn(api, "put").mockResolvedValue({
         data: { ...solicitud, analistaId: "id-sin-poblar", profesionalResponsable: { _id: "u-otto", nombre: "Otto Evaluador" } },
       });
       fireEvent.click(screen.getByRole("button", { name: "Cambiar" }));
@@ -350,7 +350,7 @@ describe("SolicitudDetalle", () => {
       await esperarQue(() => screen.queryByRole("heading", { name: "Editar solicitud" }) === null, "que se cierre el modal");
       expect(screen.getByText("Otto Evaluador")).toBeTruthy();
       expect(screen.getByText("Ana Analista")).toBeTruthy();
-      expect(put.calls.mostRecent().args[0]).toBe("/solicitudes/s1");
+      expect(put.mock.lastCall[0]).toBe("/solicitudes/s1");
     });
 
     it("cancelar en el modal lo cierra sin cambios", async () => {

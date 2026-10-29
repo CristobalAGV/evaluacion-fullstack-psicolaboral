@@ -21,12 +21,12 @@ describe("utils/fechas", () => {
   });
 
   describe("hoyLocal", () => {
-    afterEach(() => jasmine.clock().uninstall());
+    afterEach(() => vi.useRealTimers());
 
     it("usa la fecha del reloj local, aunque en UTC ya sea el día siguiente", () => {
       // Arrange: 5 de octubre a las 23:30 hora local (en Chile, en UTC ya es 6 de octubre)
-      jasmine.clock().install();
-      jasmine.clock().mockDate(new Date(2026, 9, 5, 23, 30));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2026, 9, 5, 23, 30));
 
       // Act
       const hoy = hoyLocal();
@@ -36,8 +36,8 @@ describe("utils/fechas", () => {
     });
 
     it("rellena con cero el mes y el día (formato AAAA-MM-DD)", () => {
-      jasmine.clock().install();
-      jasmine.clock().mockDate(new Date(2026, 0, 7, 10, 0));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2026, 0, 7, 10, 0));
 
       expect(hoyLocal()).toBe("2026-01-07");
     });

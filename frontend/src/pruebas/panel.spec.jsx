@@ -28,7 +28,7 @@ describe("Panel (Kanban)", () => {
 
   async function abrirPanel(usuario, solicitudes = SOLICITUDES) {
     iniciarSesionSimulada(usuario);
-    spyOn(api, "get").and.resolveTo({ data: solicitudes });
+    vi.spyOn(api, "get").mockResolvedValue({ data: solicitudes });
     renderizar(<Panel />, { ruta: "/panel", rutaDelElemento: "/panel" });
     await screen.findByText("Panel de solicitudes");
   }
@@ -57,7 +57,7 @@ describe("Panel (Kanban)", () => {
   it('con evaluador permite "Mover a En proceso" y llama a la API con el nuevo estado', async () => {
     // Arrange
     await abrirPanel(USUARIOS.analista);
-    const patch = spyOn(api, "patch").and.resolveTo({
+    const patch = vi.spyOn(api, "patch").mockResolvedValue({
       data: { ...SOLICITUDES[1], estado: "En proceso" },
     });
 
@@ -66,7 +66,7 @@ describe("Panel (Kanban)", () => {
 
     // Assert
     expect(await within(columna("En proceso")).findByText("Con Evaluador")).toBeTruthy();
-    expect(patch).toHaveBeenCalledOnceWith("/solicitudes/s2/estado", { estado: "En proceso" });
+    expect(patch).toHaveBeenCalledExactlyOnceWith("/solicitudes/s2/estado", { estado: "En proceso" });
   });
 
   it('"Eliminar" solo aparece para el admin', async () => {
@@ -94,7 +94,7 @@ describe("Panel (Kanban)", () => {
 
   it("si el backend rechaza el cambio de estado, muestra el error y la tarjeta no se mueve", async () => {
     await abrirPanel(USUARIOS.analista);
-    spyOn(api, "patch").and.rejectWith(errorAxios(400, 'Asigna un evaluador a esta solicitud antes de moverla a "En proceso".'));
+    vi.spyOn(api, "patch").mockRejectedValue(errorAxios(400, 'Asigna un evaluador a esta solicitud antes de moverla a "En proceso".'));
 
     fireEvent.click(within(tarjeta("Con Evaluador")).getByRole("button", { name: "Mover a En proceso" }));
 
@@ -104,7 +104,7 @@ describe("Panel (Kanban)", () => {
 
   it("muestra el error si no se pueden cargar las solicitudes", async () => {
     iniciarSesionSimulada(USUARIOS.analista);
-    spyOn(api, "get").and.rejectWith(errorAxios(500, "Error al listar solicitudes"));
+    vi.spyOn(api, "get").mockRejectedValue(errorAxios(500, "Error al listar solicitudes"));
 
     renderizar(<Panel />, { ruta: "/panel", rutaDelElemento: "/panel" });
 
@@ -114,7 +114,7 @@ describe("Panel (Kanban)", () => {
 
   it('muestra "Cargando panel..." mientras espera la respuesta', () => {
     iniciarSesionSimulada(USUARIOS.analista);
-    spyOn(api, "get").and.returnValue(new Promise(() => {}));
+    vi.spyOn(api, "get").mockReturnValue(new Promise(() => {}));
 
     renderizar(<Panel />, { ruta: "/panel", rutaDelElemento: "/panel" });
 
@@ -125,24 +125,24 @@ describe("Panel (Kanban)", () => {
     it("pide confirmación, llama a DELETE y quita la tarjeta", async () => {
       // Arrange
       await abrirPanel(USUARIOS.admin);
-      const confirmar = spyOn(window, "confirm").and.returnValue(true);
-      const borrar = spyOn(api, "delete").and.resolveTo({ data: { mensaje: "Solicitud eliminada" } });
+      const confirmar = vi.spyOn(window, "confirm").mockReturnValue(true);
+      const borrar = vi.spyOn(api, "delete").mockResolvedValue({ data: { mensaje: "Solicitud eliminada" } });
 
       // Act
       fireEvent.click(within(tarjeta("Con Evaluador")).getByRole("button", { name: "Eliminar" }));
 
       // Assert
       await esperarQue(() => screen.queryByText("Con Evaluador") === null, "que desaparezca la tarjeta");
-      expect(confirmar).toHaveBeenCalledOnceWith(
+      expect(confirmar).toHaveBeenCalledExactlyOnceWith(
         "¿Eliminar la solicitud de Con Evaluador (Ejecutivo de ventas)? Esta acción no se puede deshacer."
       );
-      expect(borrar).toHaveBeenCalledOnceWith("/solicitudes/s2");
+      expect(borrar).toHaveBeenCalledExactlyOnceWith("/solicitudes/s2");
     });
 
     it("si no confirma, no borra nada", async () => {
       await abrirPanel(USUARIOS.admin);
-      spyOn(window, "confirm").and.returnValue(false);
-      const borrar = spyOn(api, "delete");
+      vi.spyOn(window, "confirm").mockReturnValue(false);
+      const borrar = vi.spyOn(api, "delete").mockImplementation(() => undefined);
 
       fireEvent.click(within(tarjeta("Con Evaluador")).getByRole("button", { name: "Eliminar" }));
 
@@ -152,8 +152,8 @@ describe("Panel (Kanban)", () => {
 
     it("si el backend falla, muestra el error y conserva la tarjeta", async () => {
       await abrirPanel(USUARIOS.admin);
-      spyOn(window, "confirm").and.returnValue(true);
-      spyOn(api, "delete").and.rejectWith(errorAxios(500, "Error al eliminar la solicitud"));
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      vi.spyOn(api, "delete").mockRejectedValue(errorAxios(500, "Error al eliminar la solicitud"));
 
       fireEvent.click(within(tarjeta("Con Evaluador")).getByRole("button", { name: "Eliminar" }));
 
@@ -174,7 +174,7 @@ describe("Panel (Kanban)", () => {
       renderizar(<Panel />, { ruta: "/panel", rutaDelElemento: "/panel" });
       await screen.findByText("Panel de solicitudes");
       const asignada = { ...SOLICITUDES[0], profesionalResponsable: EVALUADORA };
-      spyOn(api, "put").and.resolveTo({ data: asignada });
+      vi.spyOn(api, "put").mockResolvedValue({ data: asignada });
       fireEvent.click(within(tarjeta("Sin Evaluador")).getByRole("button", { name: "Asignar evaluador" }));
       await screen.findByRole("heading", { name: "Editar solicitud" });
 

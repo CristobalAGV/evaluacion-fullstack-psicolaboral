@@ -6,7 +6,6 @@ del repositorio: solo necesita una API del backend a la cual conectarse.
 ## Requisitos
 
 - Node.js 20 o superior (probado con Node 24) y npm.
-- Google Chrome instalado (para las pruebas).
 
 ## Instalar
 
@@ -32,14 +31,13 @@ npm run preview    # sirve la versión de producción
 
 ## Probar
 
-Pruebas unitarias con Jasmine + Karma en Chrome sin interfaz (ChromeHeadless):
+Pruebas unitarias con Vitest (entorno jsdom):
 
 ```bash
 npm test                 # una sola ejecución
-npm run test:cobertura   # además genera el reporte en coverage/ (abrir coverage/html/index.html)
+npm run test:cobertura   # además genera el reporte en coverage/ (abrir coverage/index.html)
 ```
 
-Las pruebas están en `src/pruebas/` y la configuración en `karma.conf.cjs`. Si Chrome no está
-en la ruta habitual, indica su ubicación con la variable de entorno `CHROME_BIN`.
+Las pruebas están en `src/pruebas/` y la configuración en la sección `test` de `vite.config.js`.
 
 Más detalle: `docs/cobertura-testing.md` y `docs/guia-testing.md` en la raíz del repositorio.

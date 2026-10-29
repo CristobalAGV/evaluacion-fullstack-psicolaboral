@@ -44,15 +44,15 @@ describe("SolicitudFormulario (nueva solicitud)", () => {
     completarCandidato({ telefono: "123" });
 
     expect(screen.getByText(MENSAJE_TELEFONO)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Crear solicitud" }).disabled).toBeTrue();
+    expect(screen.getByRole("button", { name: "Crear solicitud" }).disabled).toBe(true);
   });
 
   it("envía los datos con FormData (incluido el CV) y avisa al padre con el resultado", async () => {
     // Arrange
     simularGet(DATOS_BASE);
     const creada = { _id: "s-nueva" };
-    const post = spyOn(api, "post").and.resolveTo({ data: creada });
-    const alGuardar = jasmine.createSpy("alGuardar");
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: creada });
+    const alGuardar = vi.fn();
     render(<SolicitudFormulario alGuardar={alGuardar} />);
     await screen.findByRole("heading", { name: "Nueva solicitud" });
     completarCandidato();
@@ -65,9 +65,9 @@ describe("SolicitudFormulario (nueva solicitud)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Crear solicitud" }));
 
     // Assert
-    await esperarQue(() => alGuardar.calls.count() > 0, "que se avise al padre");
-    expect(alGuardar).toHaveBeenCalledOnceWith(creada);
-    const [ruta, formData] = post.calls.mostRecent().args;
+    await esperarQue(() => alGuardar.mock.calls.length > 0, "que se avise al padre");
+    expect(alGuardar).toHaveBeenCalledExactlyOnceWith(creada);
+    const [ruta, formData] = post.mock.lastCall;
     expect(ruta).toBe("/solicitudes");
     expect(formData.get("candidatoNombre")).toBe("Diego Pérez");
     expect(formData.get("candidatoCorreo")).toBe("diego@ejemplo.cl");
@@ -79,8 +79,8 @@ describe("SolicitudFormulario (nueva solicitud)", () => {
 
   it("muestra el error del servidor y no avisa al padre", async () => {
     simularGet(DATOS_BASE);
-    spyOn(api, "post").and.rejectWith(errorAxios(400, "Datos del candidato inválidos"));
-    const alGuardar = jasmine.createSpy("alGuardar");
+    vi.spyOn(api, "post").mockRejectedValue(errorAxios(400, "Datos del candidato inválidos"));
+    const alGuardar = vi.fn();
     render(<SolicitudFormulario alGuardar={alGuardar} />);
     await screen.findByRole("heading", { name: "Nueva solicitud" });
     completarCandidato();
@@ -98,7 +98,7 @@ describe("SolicitudFormulario (nueva solicitud)", () => {
 
     expect(await screen.findByText("No hay familias de cargo cargadas. Ejecuta el seed del backend.")).toBeTruthy();
     expect(screen.getByText(/No hay usuarios con rol "evaluador"/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Crear solicitud" }).disabled).toBeTrue();
+    expect(screen.getByRole("button", { name: "Crear solicitud" }).disabled).toBe(true);
   });
 
   it("si no puede cargar los datos base, lo informa", async () => {
@@ -134,33 +134,33 @@ describe("SolicitudFormulario (edición)", () => {
     expect(screen.getByLabelText("Nombre del candidato").value).toBe("Lucía Peña");
     expect(screen.getByLabelText("Cargo").value).toBe("Vendedor");
     expect(screen.getByLabelText("Profesional responsable (evaluador)").value).toBe("");
-    expect(screen.getByRole("option", { name: "Selecciona un evaluador" }).disabled).toBeTrue();
+    expect(screen.getByRole("option", { name: "Selecciona un evaluador" }).disabled).toBe(true);
     expect(screen.getByText("CV actual")).toBeTruthy();
     expect(screen.getByText("CV Lucía.pdf")).toBeTruthy();
   });
 
   it("al guardar hace PUT /solicitudes/:id con el evaluador asignado", async () => {
     simularGet(DATOS_BASE);
-    const put = spyOn(api, "put").and.resolveTo({ data: { ...SOLICITUD, profesionalResponsable: EVALUADORES[0] } });
-    const alGuardar = jasmine.createSpy("alGuardar");
+    const put = vi.spyOn(api, "put").mockResolvedValue({ data: { ...SOLICITUD, profesionalResponsable: EVALUADORES[0] } });
+    const alGuardar = vi.fn();
     render(<SolicitudFormulario solicitud={SOLICITUD} alGuardar={alGuardar} alCancelar={() => {}} />);
     await screen.findByRole("heading", { name: "Editar solicitud" });
 
     fireEvent.change(screen.getByLabelText("Profesional responsable (evaluador)"), { target: { value: "u-eva" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
-    await esperarQue(() => alGuardar.calls.count() > 0, "que se avise al padre");
-    const [ruta, formData] = put.calls.mostRecent().args;
+    await esperarQue(() => alGuardar.mock.calls.length > 0, "que se avise al padre");
+    const [ruta, formData] = put.mock.lastCall;
     expect(ruta).toBe("/solicitudes/s1");
     expect(formData.get("profesionalResponsable")).toBe("u-eva");
-    expect(formData.has("cv")).toBeFalse();
+    expect(formData.has("cv")).toBe(false);
     expect(alGuardar).toHaveBeenCalledTimes(1);
   });
 
   it("Cancelar avisa al padre sin guardar", async () => {
     simularGet(DATOS_BASE);
-    const put = spyOn(api, "put");
-    const alCancelar = jasmine.createSpy("alCancelar");
+    const put = vi.spyOn(api, "put").mockImplementation(() => undefined);
+    const alCancelar = vi.fn();
     render(<SolicitudFormulario solicitud={SOLICITUD} alGuardar={() => {}} alCancelar={alCancelar} />);
     await screen.findByRole("heading", { name: "Editar solicitud" });
 
@@ -174,7 +174,7 @@ describe("SolicitudFormulario (edición)", () => {
 describe("NuevaSolicitud", () => {
   it("al crear la solicitud lleva al panel", async () => {
     simularGet(DATOS_BASE);
-    spyOn(api, "post").and.resolveTo({ data: { _id: "s-nueva" } });
+    vi.spyOn(api, "post").mockResolvedValue({ data: { _id: "s-nueva" } });
     renderizar(<NuevaSolicitud />, {
       ruta: "/solicitudes/nueva",
       rutaDelElemento: "/solicitudes/nueva",

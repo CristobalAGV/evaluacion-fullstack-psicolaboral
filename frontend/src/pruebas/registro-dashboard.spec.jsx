@@ -49,34 +49,34 @@ describe("Registro", () => {
     const password = screen.getByLabelText("Contraseña");
 
     expect(password.type).toBe("password");
-    expect(password.required).toBeTrue();
+    expect(password.required).toBe(true);
     expect(password.minLength).toBe(6);
   });
 
   it("no envía si faltan campos obligatorios", () => {
-    const post = spyOn(api, "post");
+    const post = vi.spyOn(api, "post").mockImplementation(() => undefined);
     abrirRegistro();
 
     fireEvent.click(screen.getByRole("button", { name: "Registrarme" }));
 
-    expect(screen.getByLabelText("Nombre").validity.valueMissing).toBeTrue();
+    expect(screen.getByLabelText("Nombre").validity.valueMissing).toBe(true);
     expect(post).not.toHaveBeenCalled();
   });
 
   it("no envía con el correo mal escrito", () => {
-    const post = spyOn(api, "post");
+    const post = vi.spyOn(api, "post").mockImplementation(() => undefined);
     abrirRegistro();
     completar({ correo: "esto-no-es-un-correo" });
 
     fireEvent.click(screen.getByRole("button", { name: "Registrarme" }));
 
-    expect(screen.getByLabelText("Correo").validity.typeMismatch).toBeTrue();
+    expect(screen.getByLabelText("Correo").validity.typeMismatch).toBe(true);
     expect(post).not.toHaveBeenCalled();
   });
 
   it("envía los datos al servicio, guarda la sesión y lleva al inicio", async () => {
     // Arrange
-    const post = spyOn(api, "post").and.resolveTo({
+    const post = vi.spyOn(api, "post").mockResolvedValue({
       data: { token: "jwt-nuevo", usuario: { ...USUARIOS.evaluador, nombre: "Eva Nueva" } },
     });
     abrirRegistro();
@@ -87,7 +87,7 @@ describe("Registro", () => {
 
     // Assert
     expect(await screen.findByText("Pantalla de inicio")).toBeTruthy();
-    expect(post).toHaveBeenCalledOnceWith("/auth/registro", {
+    expect(post).toHaveBeenCalledExactlyOnceWith("/auth/registro", {
       nombre: "Eva Nueva",
       correo: "eva@ejemplo.cl",
       password: "secreto123",
@@ -97,7 +97,7 @@ describe("Registro", () => {
   });
 
   it("muestra el error del servidor (correo ya registrado) y no inicia sesión", async () => {
-    spyOn(api, "post").and.rejectWith(errorAxios(409, "Ya existe un usuario con ese correo"));
+    vi.spyOn(api, "post").mockRejectedValue(errorAxios(409, "Ya existe un usuario con ese correo"));
     abrirRegistro();
     completar();
 
@@ -108,7 +108,7 @@ describe("Registro", () => {
   });
 
   it("si el servidor no envía mensaje, muestra uno genérico", async () => {
-    spyOn(api, "post").and.rejectWith(new Error("Network Error"));
+    vi.spyOn(api, "post").mockRejectedValue(new Error("Network Error"));
     abrirRegistro();
     completar();
 
@@ -121,7 +121,7 @@ describe("Registro", () => {
 describe("Dashboard", () => {
   it("muestra las cuatro tarjetas con los totales del backend", async () => {
     // Arrange
-    const get = spyOn(api, "get").and.resolveTo({
+    const get = vi.spyOn(api, "get").mockResolvedValue({
       data: { totalCandidatos: 12, solicitudesPendientes: 5, solicitudesEnProceso: 4, solicitudesFinalizadas: 3 },
     });
 
@@ -130,7 +130,7 @@ describe("Dashboard", () => {
 
     // Assert
     expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeTruthy();
-    expect(get).toHaveBeenCalledOnceWith("/dashboard");
+    expect(get).toHaveBeenCalledExactlyOnceWith("/dashboard");
     const valorDe = (titulo) => screen.getByText(titulo).nextElementSibling.textContent;
     expect(valorDe("Total candidatos")).toBe("12");
     expect(valorDe("Solicitudes pendientes")).toBe("5");
@@ -139,7 +139,7 @@ describe("Dashboard", () => {
   });
 
   it("muestra ceros cuando todavía no hay datos", async () => {
-    spyOn(api, "get").and.resolveTo({
+    vi.spyOn(api, "get").mockResolvedValue({
       data: { totalCandidatos: 0, solicitudesPendientes: 0, solicitudesEnProceso: 0, solicitudesFinalizadas: 0 },
     });
 
@@ -150,7 +150,7 @@ describe("Dashboard", () => {
   });
 
   it('muestra "Cargando..." mientras espera la respuesta', () => {
-    spyOn(api, "get").and.returnValue(new Promise(() => {}));
+    vi.spyOn(api, "get").mockReturnValue(new Promise(() => {}));
 
     renderizar(<Dashboard />);
 
@@ -158,7 +158,7 @@ describe("Dashboard", () => {
   });
 
   it("muestra el error y ninguna tarjeta si el backend falla", async () => {
-    spyOn(api, "get").and.rejectWith(errorAxios(500, "Error al calcular el dashboard"));
+    vi.spyOn(api, "get").mockRejectedValue(errorAxios(500, "Error al calcular el dashboard"));
 
     renderizar(<Dashboard />);
 
@@ -167,7 +167,7 @@ describe("Dashboard", () => {
   });
 
   it("si el error no trae mensaje, muestra uno genérico", async () => {
-    spyOn(api, "get").and.rejectWith(new Error("Network Error"));
+    vi.spyOn(api, "get").mockRejectedValue(new Error("Network Error"));
 
     renderizar(<Dashboard />);
 

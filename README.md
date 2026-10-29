@@ -125,7 +125,7 @@ Situación al 5 de octubre de 2026, organizada por hitos de entrega.
 - **Crear administradores.** Como el registro ya no permite `admin`, un
   administrador nuevo se crea directamente en la base de datos.
 - **Pruebas automatizadas del backend.** El frontend ya tiene pruebas
-  unitarias con Jasmine y Karma (ver *Pruebas*); el backend se ha verificado
+  unitarias con Vitest (ver *Pruebas*); el backend se ha verificado
   con pruebas manuales y scripts de API que no forman parte del repositorio.
 - Los modelos `Entrevista` e `Informe` siguen sin exponerse en la API (ver
   la nota de alcance en *Modelo de datos*).
@@ -273,7 +273,7 @@ de lo escrito.
 **Pruebas en esta rama**
 
 - **Frontend: 163 pruebas** (las 118 de `main` más 45 propias), con
-  **96,85 % de líneas y 88,66 % de ramas**. Las propias cubren el campo de
+  **96,85 % de líneas y 88,88 % de ramas**. Las propias cubren el campo de
   contraseña, `InformePsicolaboral.jsx`, la tarjeta `EvaluacionIa.jsx` (render,
   botones solo para el evaluador responsable y el admin, estado de carga,
   error 429, borrador, confirmar y guardar, aviso visible) y los botones de IA
@@ -304,8 +304,8 @@ de lo escrito.
 - **Tailwind CSS v4** (integrado con el plugin `@tailwindcss/vite`)
 - React Router para la navegación entre vistas
 - Axios como cliente HTTP, con interceptores para el token y el manejo de sesión
-- **Jasmine + Karma** (ChromeHeadless) para las pruebas unitarias, con cobertura de
-  `karma-coverage`
+- **Vitest + jsdom** para las pruebas unitarias, con cobertura v8
+  (`@vitest/coverage-v8`)
 
 **Backend**
 
@@ -754,18 +754,18 @@ Kanban del analista con la etiqueta "Postulación pública".
 | `npm run build` | Compila la versión de producción en `dist/`. |
 | `npm run preview` | Sirve localmente lo que generó `build`, para revisarlo antes de desplegar. |
 | `npm run lint` | Revisa el código con oxlint. |
-| `npm test` | Corre las pruebas unitarias una vez en ChromeHeadless. |
+| `npm test` | Corre las pruebas unitarias una vez con Vitest. |
 | `npm run test:cobertura` | Corre las pruebas y genera el reporte de cobertura en `frontend/coverage/`. |
 
 ## Pruebas
 
-El frontend tiene **118 pruebas unitarias** con **Jasmine** y **Karma**, que
-corren en Chrome sin interfaz (ChromeHeadless), con una cobertura de **95,86 %
-de líneas y 88,19 % de ramas**. Usan spies de Jasmine como mocks del backend
-(axios), de la sesión y de las APIs de descarga del navegador, y un adapter
-falso de axios para probar los interceptores.
+El frontend tiene **163 pruebas unitarias** con **Vitest** y **jsdom**, con una
+cobertura de **96,85 % de líneas y 88,88 % de ramas**. Usan spies de Vitest
+(`vi.spyOn`, `vi.fn`) como mocks del backend (axios), de la sesión y de las APIs
+de descarga del navegador, y un adapter falso de axios para probar los
+interceptores.
 
-Requisito: Google Chrome instalado. Desde `frontend/`:
+Desde `frontend/`:
 
 ```bash
 npm install
@@ -773,9 +773,9 @@ npm test                 # una sola ejecución
 npm run test:cobertura   # además genera el reporte de cobertura
 ```
 
-El reporte navegable queda en `frontend/coverage/html/index.html`.
+El reporte navegable queda en `frontend/coverage/index.html`.
 
-- Pruebas: `frontend/src/pruebas/` · Configuración: `frontend/karma.conf.cjs`.
+- Pruebas: `frontend/src/pruebas/` · Configuración: `frontend/vite.config.js` (sección `test`).
 - Detalle por componente, mocks, cobertura por archivo y lo que falta cubrir:
   [`docs/cobertura-testing.md`](docs/cobertura-testing.md).
 - Explicación sencilla de los conceptos (para presentar):
@@ -804,8 +804,7 @@ frontend/
     services/     Cliente axios y llamadas a la API
     context/      AuthContext: sesión, token y manejo de expiración
     utils/        Utilidades (fechas de calendario)
-    pruebas/      Pruebas unitarias (Jasmine + Karma)
-  karma.conf.cjs  Configuración de Karma
+    pruebas/      Pruebas unitarias (Vitest)
 
 docs/             Capturas, guía de git y documentación de pruebas
 ```

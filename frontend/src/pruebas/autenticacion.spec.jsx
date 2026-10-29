@@ -20,7 +20,7 @@ describe("Login", () => {
   it("llama al servicio de login con el correo y la contraseña ingresados", async () => {
     // Arrange: el backend (axios) responde con un usuario y su token
     const respuesta = { data: { token: "jwt-falso", usuario: USUARIOS.analista } };
-    const post = spyOn(api, "post").and.resolveTo(respuesta);
+    const post = vi.spyOn(api, "post").mockResolvedValue(respuesta);
     renderizar(<Login />, {
       ruta: "/login",
       rutaDelElemento: "/login",
@@ -32,13 +32,13 @@ describe("Login", () => {
 
     // Assert
     await screen.findByText("Pantalla de inicio");
-    expect(post).toHaveBeenCalledOnceWith("/auth/login", { correo: "ana@ejemplo.cl", password: "secreto123" });
+    expect(post).toHaveBeenCalledExactlyOnceWith("/auth/login", { correo: "ana@ejemplo.cl", password: "secreto123" });
     expect(localStorage.getItem("token")).toBe("jwt-falso");
   });
 
   it("muestra el mensaje del servidor cuando las credenciales son inválidas", async () => {
     // Arrange: el backend responde 401
-    spyOn(api, "post").and.rejectWith(errorAxios(401, "Credenciales inválidas"));
+    vi.spyOn(api, "post").mockRejectedValue(errorAxios(401, "Credenciales inválidas"));
     renderizar(<Login />, { ruta: "/login", rutaDelElemento: "/login" });
 
     // Act

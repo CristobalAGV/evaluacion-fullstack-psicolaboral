@@ -67,7 +67,7 @@ describe("EvaluacionIa", () => {
       expect(screen.getByText("Superó metas de venta dos años seguidos.")).toBeTruthy();
       // La competencia sin evidencia no muestra un 0 (se leería como desempeño malo)
       expect(screen.getByText("Sin evidencia")).toBeTruthy();
-      expect(screen.getByRole("progressbar", { name: "Manejo del rechazo" }).hasAttribute("aria-valuenow")).toBeFalse();
+      expect(screen.getByRole("progressbar", { name: "Manejo del rechazo" }).hasAttribute("aria-valuenow")).toBe(false);
       expect(within(screen.getByText("Fortalezas").parentElement).getByText("Experiencia en ventas en terreno")).toBeTruthy();
       expect(within(screen.getByText("Áreas de mejora").parentElement).getByText("Uso de herramientas CRM")).toBeTruthy();
       expect(screen.getByText("Profundizar en cómo maneja clientes que rechazan la oferta")).toBeTruthy();
@@ -91,18 +91,18 @@ describe("EvaluacionIa", () => {
     it("con permiso de edición muestra el botón habilitado", async () => {
       await abrir();
 
-      expect(botonGenerar().disabled).toBeFalse();
+      expect(botonGenerar().disabled).toBe(false);
     });
 
     it("si falta el CV o el informe de entrevista, el botón queda deshabilitado con una explicación", async () => {
       await abrir({ tieneInforme: false });
 
-      expect(botonGenerar().disabled).toBeTrue();
+      expect(botonGenerar().disabled).toBe(true);
       expect(screen.getByText(/debe tener cargados el CV y el informe de entrevista/)).toBeTruthy();
     });
 
     it("si no se puede cargar la evaluación guardada, muestra el error", async () => {
-      spyOn(api, "get").and.rejectWith(errorAxios(500, "Error al obtener la evaluación"));
+      vi.spyOn(api, "get").mockRejectedValue(errorAxios(500, "Error al obtener la evaluación"));
       render(<EvaluacionIa solicitudId="s1" puedeEditar tieneCv tieneInforme />);
 
       expect(await screen.findByText("Error al obtener la evaluación")).toBeTruthy();
@@ -113,8 +113,8 @@ describe("EvaluacionIa", () => {
     it("muestra el estado de carga y luego el borrador sin guardarlo", async () => {
       // Arrange: la respuesta de la IA queda pendiente hasta que la prueba la libere
       let responder;
-      const post = spyOn(api, "post").and.returnValue(new Promise((r) => (responder = r)));
-      const put = spyOn(api, "put");
+      const post = vi.spyOn(api, "post").mockReturnValue(new Promise((r) => (responder = r)));
+      const put = vi.spyOn(api, "put").mockImplementation(() => undefined);
       await abrir({ apuntes: "Buena disposición" });
 
       // Act
@@ -122,8 +122,8 @@ describe("EvaluacionIa", () => {
 
       // Assert: cargando
       expect(await screen.findByText("Generando… puede tardar hasta 1 minuto.")).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Generando..." }).disabled).toBeTrue();
-      expect(post).toHaveBeenCalledOnceWith(RUTA_GENERAR, { apuntes: "Buena disposición" });
+      expect(screen.getByRole("button", { name: "Generando..." }).disabled).toBe(true);
+      expect(post).toHaveBeenCalledExactlyOnceWith(RUTA_GENERAR, { apuntes: "Buena disposición" });
 
       // Act: llega el borrador
       responder({ data: { ...crearEvaluacion(), avisos: ["El CV es largo: la IA solo analizó los primeros 15.000."] } });
@@ -138,17 +138,17 @@ describe("EvaluacionIa", () => {
     });
 
     it("ante cuota agotada (429) muestra un mensaje amable", async () => {
-      spyOn(api, "post").and.rejectWith(errorAxios(429, "Se agoto la cuota gratuita"));
+      vi.spyOn(api, "post").mockRejectedValue(errorAxios(429, "Se agoto la cuota gratuita"));
       await abrir();
 
       fireEvent.click(botonGenerar());
 
       expect(await screen.findByText(MENSAJE_CUOTA_AGOTADA)).toBeTruthy();
-      expect(botonGenerar().disabled).toBeFalse();
+      expect(botonGenerar().disabled).toBe(false);
     });
 
     it("ante otros errores muestra el mensaje del servidor", async () => {
-      spyOn(api, "post").and.rejectWith(errorAxios(422, "No se pudo leer el contenido del archivo (el CV)."));
+      vi.spyOn(api, "post").mockRejectedValue(errorAxios(422, "No se pudo leer el contenido del archivo (el CV)."));
       await abrir();
 
       fireEvent.click(botonGenerar());
@@ -157,7 +157,7 @@ describe("EvaluacionIa", () => {
     });
 
     it("si el error no trae mensaje, muestra uno genérico", async () => {
-      spyOn(api, "post").and.rejectWith(new Error("Network Error"));
+      vi.spyOn(api, "post").mockRejectedValue(new Error("Network Error"));
       await abrir();
 
       fireEvent.click(botonGenerar());
@@ -166,7 +166,7 @@ describe("EvaluacionIa", () => {
     });
 
     it("descartar el borrador vuelve a la evaluación guardada", async () => {
-      spyOn(api, "post").and.resolveTo({ data: crearEvaluacion({ puntajeGlobal: 90 }) });
+      vi.spyOn(api, "post").mockResolvedValue({ data: crearEvaluacion({ puntajeGlobal: 90 }) });
       await abrir({ guardada: GUARDADA });
       fireEvent.click(botonGenerar());
       await screen.findByLabelText("Nota global: 90 de 100");
@@ -182,8 +182,8 @@ describe("EvaluacionIa", () => {
     it("guarda el borrador en la solicitud solo al confirmar", async () => {
       // Arrange
       const borrador = { ...crearEvaluacion(), avisos: [] };
-      spyOn(api, "post").and.resolveTo({ data: borrador });
-      const put = spyOn(api, "put").and.resolveTo({
+      vi.spyOn(api, "post").mockResolvedValue({ data: borrador });
+      const put = vi.spyOn(api, "put").mockResolvedValue({
         data: { ...crearEvaluacion(), generadoPor: { nombre: "Eva Evaluadora" }, generadoEn: "2026-10-09T12:00:00.000Z" },
       });
       await abrir();
@@ -195,7 +195,7 @@ describe("EvaluacionIa", () => {
 
       // Assert
       expect(await screen.findByText("Evaluación guardada en la solicitud.")).toBeTruthy();
-      const [ruta, cuerpo] = put.calls.mostRecent().args;
+      const [ruta, cuerpo] = put.mock.lastCall;
       expect(ruta).toBe("/solicitudes/s1/informe/evaluacion");
       expect(cuerpo).toEqual({
         puntajeGlobal: 72,
@@ -212,8 +212,8 @@ describe("EvaluacionIa", () => {
     });
 
     it("si el servidor rechaza el guardado, mantiene el borrador y muestra el error", async () => {
-      spyOn(api, "post").and.resolveTo({ data: crearEvaluacion() });
-      spyOn(api, "put").and.rejectWith(errorAxios(400, "La evaluación no es válida: El puntaje global debe ser un entero entre 0 y 100."));
+      vi.spyOn(api, "post").mockResolvedValue({ data: crearEvaluacion() });
+      vi.spyOn(api, "put").mockRejectedValue(errorAxios(400, "La evaluación no es válida: El puntaje global debe ser un entero entre 0 y 100."));
       await abrir();
       fireEvent.click(botonGenerar());
       await screen.findByText(/Borrador sin guardar/);
@@ -225,8 +225,8 @@ describe("EvaluacionIa", () => {
     });
 
     it("si el guardado falla sin mensaje, muestra uno genérico", async () => {
-      spyOn(api, "post").and.resolveTo({ data: crearEvaluacion() });
-      spyOn(api, "put").and.rejectWith(new Error("Network Error"));
+      vi.spyOn(api, "post").mockResolvedValue({ data: crearEvaluacion() });
+      vi.spyOn(api, "put").mockRejectedValue(new Error("Network Error"));
       await abrir();
       fireEvent.click(botonGenerar());
       await screen.findByText(/Borrador sin guardar/);

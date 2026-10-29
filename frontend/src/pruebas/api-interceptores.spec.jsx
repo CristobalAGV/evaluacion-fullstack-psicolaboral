@@ -57,37 +57,37 @@ describe("Interceptores de api.js", () => {
 
   describe("al recibir un error", () => {
     it("ante un 401 en una ruta privada avisa al manejador de sesión expirada y propaga el error", async () => {
-      const manejador = jasmine.createSpy("manejarNoAutorizado");
+      const manejador = vi.fn();
       registrarManejadorNoAutorizado(manejador);
 
-      await expectAsync(api.get("/solicitudes", { adapter: adapterConError(401) })).toBeRejected();
+      await expect(api.get("/solicitudes", { adapter: adapterConError(401) })).rejects.toBeDefined();
 
       expect(manejador).toHaveBeenCalledTimes(1);
     });
 
     it("un 401 en el login (credenciales incorrectas) NO se trata como sesión expirada", async () => {
-      const manejador = jasmine.createSpy("manejarNoAutorizado");
+      const manejador = vi.fn();
       registrarManejadorNoAutorizado(manejador);
 
-      await expectAsync(api.post("/auth/login", {}, { adapter: adapterConError(401) })).toBeRejected();
+      await expect(api.post("/auth/login", {}, { adapter: adapterConError(401) })).rejects.toBeDefined();
 
       expect(manejador).not.toHaveBeenCalled();
     });
 
     it("un 401 en una ruta pública (/postulaciones) tampoco cierra la sesión", async () => {
-      const manejador = jasmine.createSpy("manejarNoAutorizado");
+      const manejador = vi.fn();
       registrarManejadorNoAutorizado(manejador);
 
-      await expectAsync(api.post("/postulaciones", {}, { adapter: adapterConError(401) })).toBeRejected();
+      await expect(api.post("/postulaciones", {}, { adapter: adapterConError(401) })).rejects.toBeDefined();
 
       expect(manejador).not.toHaveBeenCalled();
     });
 
     it("otros errores (500) no cierran la sesión", async () => {
-      const manejador = jasmine.createSpy("manejarNoAutorizado");
+      const manejador = vi.fn();
       registrarManejadorNoAutorizado(manejador);
 
-      await expectAsync(api.get("/dashboard", { adapter: adapterConError(500) })).toBeRejected();
+      await expect(api.get("/dashboard", { adapter: adapterConError(500) })).rejects.toBeDefined();
 
       expect(manejador).not.toHaveBeenCalled();
     });
@@ -112,7 +112,7 @@ describe("Interceptores de api.js", () => {
       // Act: el backend responde 401 (token vencido). Va dentro de act() porque el manejador
       // actualiza el estado de AuthProvider desde la promesa de axios, fuera de un evento de React.
       await act(async () => {
-        await expectAsync(api.get("/solicitudes", { adapter: adapterConError(401) })).toBeRejected();
+        await expect(api.get("/solicitudes", { adapter: adapterConError(401) })).rejects.toBeDefined();
       });
 
       // Assert

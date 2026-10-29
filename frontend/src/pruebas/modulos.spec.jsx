@@ -35,7 +35,7 @@ describe("Módulos de la aplicación", () => {
     ];
 
     for (const componente of componentes) {
-      expect(typeof componente).withContext(componente?.name).toBe("function");
+      expect(typeof componente, componente?.name).toBe("function");
     }
     expect(typeof useAuth).toBe("function");
   });

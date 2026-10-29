@@ -22,14 +22,14 @@ describe("ArchivoDescargable", () => {
   it("al descargar pide el archivo a la API (con sesión) y dispara la descarga con su nombre", async () => {
     // Arrange
     const contenido = new Blob(["%PDF-1.4"], { type: "application/pdf" });
-    const get = spyOn(api, "get").and.resolveTo({
+    const get = vi.spyOn(api, "get").mockResolvedValue({
       data: contenido,
       headers: { "content-disposition": "attachment; filename=\"CV Lucia.pdf\"; filename*=UTF-8''CV%20Luc%C3%ADa.pdf" },
     });
-    const crearUrl = spyOn(URL, "createObjectURL").and.returnValue("blob:prueba");
-    spyOn(URL, "revokeObjectURL");
+    const crearUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:prueba");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
     let nombreDescargado = null;
-    const clic = spyOn(HTMLAnchorElement.prototype, "click").and.callFake(function () {
+    const clic = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function () {
       nombreDescargado = this.download;
     });
     render(<ArchivoDescargable etiqueta="CV" archivo={{ _id: "abc123", nombreOriginal: "CV Lucía.pdf" }} />);
@@ -38,9 +38,9 @@ describe("ArchivoDescargable", () => {
     fireEvent.click(screen.getByRole("button", { name: "Descargar" }));
 
     // Assert
-    await esperarQue(() => clic.calls.count() === 1, "que se haga clic en el enlace de descarga");
-    expect(get).toHaveBeenCalledOnceWith("/archivos/abc123", { responseType: "blob" });
-    expect(crearUrl).toHaveBeenCalledOnceWith(contenido);
+    await esperarQue(() => clic.mock.calls.length === 1, "que se haga clic en el enlace de descarga");
+    expect(get).toHaveBeenCalledExactlyOnceWith("/archivos/abc123", { responseType: "blob" });
+    expect(crearUrl).toHaveBeenCalledExactlyOnceWith(contenido);
     expect(nombreDescargado).toBe("CV Lucía.pdf");
     expect(screen.getByText("CV Lucía.pdf")).toBeTruthy();
   });
@@ -49,7 +49,7 @@ describe("ArchivoDescargable", () => {
     // Arrange: con responseType "blob" el error JSON también llega como Blob
     const error = new Error("404");
     error.response = { status: 404, data: new Blob([JSON.stringify({ mensaje: "Archivo no encontrado" })]) };
-    spyOn(api, "get").and.rejectWith(error);
+    vi.spyOn(api, "get").mockRejectedValue(error);
     render(<ArchivoDescargable etiqueta="CV" archivo="id-solo" />);
 
     // Act
