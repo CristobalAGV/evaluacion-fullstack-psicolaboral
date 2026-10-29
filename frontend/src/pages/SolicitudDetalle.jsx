@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { obtenerSolicitud, subirInformeEntrevista } from "../services/solicitudService";
 import { listarEvaluaciones, crearEvaluacion, actualizarEvaluacion } from "../services/evaluacionService";
@@ -7,15 +7,21 @@ import SolicitudFormulario from "../components/SolicitudFormulario";
 import EtiquetaPostulacionPublica, { esPostulacionPublica } from "../components/EtiquetaPostulacionPublica";
 import SelectorCv from "../components/SelectorCv";
 import ArchivoDescargable from "../components/ArchivoDescargable";
+import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 import { formatearFechaCalendario, hoyLocal } from "../utils/fechas";
 
 const ESTADOS_EVALUACION = ["Pendiente", "En proceso", "Finalizada"];
-const campoClases =
-  "rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
+// Mismos colores que las columnas del panel y el dashboard.
+const COLOR_ESTADO = { Pendiente: "warning", "En proceso": "primary", Finalizada: "success" };
+
+function InsigniaEstado({ estado }) {
+  return <span className={`badge text-bg-${COLOR_ESTADO[estado] || "secondary"}`}>{estado}</span>;
+}
 
 function EvaluacionFormulario({ evaluacion, solicitudId, onGuardado, onCancelar }) {
   const esEdicion = Boolean(evaluacion);
+  const prefijoId = useId();
   const [fechaEvaluacion, setFechaEvaluacion] = useState(
     evaluacion?.fechaEvaluacion ? evaluacion.fechaEvaluacion.slice(0, 10) : hoyLocal()
   );
@@ -42,54 +48,65 @@ function EvaluacionFormulario({ evaluacion, solicitudId, onGuardado, onCancelar 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 bg-slate-50 border border-slate-200 rounded-md p-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Fecha de evaluación
+    <form onSubmit={handleSubmit} className="border rounded bg-body-tertiary p-3">
+      <div className="row g-3">
+        <div className="col-12 col-sm-6">
+          <label htmlFor={`${prefijoId}-fecha`} className="form-label">
+            Fecha de evaluación
+          </label>
           <input
+            id={`${prefijoId}-fecha`}
             type="date"
             value={fechaEvaluacion}
             onChange={(e) => setFechaEvaluacion(e.target.value)}
-            className={campoClases}
+            className="form-control"
           />
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Estado
-          <select value={estado} onChange={(e) => setEstado(e.target.value)} className={campoClases}>
+        </div>
+        <div className="col-12 col-sm-6">
+          <label htmlFor={`${prefijoId}-estado`} className="form-label">
+            Estado
+          </label>
+          <select
+            id={`${prefijoId}-estado`}
+            value={estado}
+            onChange={(e) => setEstado(e.target.value)}
+            className="form-select"
+          >
             {ESTADOS_EVALUACION.map((valor) => (
               <option key={valor} value={valor}>
                 {valor}
               </option>
             ))}
           </select>
-        </label>
-      </div>
-      <label className="flex flex-col gap-1 text-sm text-slate-700">
-        Resultado / observaciones
-        <textarea
-          value={resultado}
-          onChange={(e) => setResultado(e.target.value)}
-          rows={3}
-          className={campoClases}
-        />
-      </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={guardando}
-          className="rounded-md bg-indigo-600 text-white text-sm font-medium px-4 py-2 hover:bg-indigo-500 disabled:opacity-50"
-        >
-          {guardando ? "Guardando..." : esEdicion ? "Guardar cambios" : "Crear evaluación"}
-        </button>
-        <button
-          type="button"
-          onClick={onCancelar}
-          disabled={guardando}
-          className="rounded-md border border-slate-300 text-slate-600 text-sm px-4 py-2 hover:bg-slate-100"
-        >
-          Cancelar
-        </button>
+        </div>
+        <div className="col-12">
+          <label htmlFor={`${prefijoId}-resultado`} className="form-label">
+            Resultado / observaciones
+          </label>
+          <textarea
+            id={`${prefijoId}-resultado`}
+            value={resultado}
+            onChange={(e) => setResultado(e.target.value)}
+            rows={3}
+            className="form-control"
+          />
+        </div>
+        {error && (
+          <div className="col-12">
+            <div className="alert alert-danger mb-0" role="alert">
+              {error}
+            </div>
+          </div>
+        )}
+        <div className="col-12 d-flex gap-2">
+          <button type="submit" disabled={guardando} className="btn btn-primary">
+            {guardando && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
+            {guardando ? "Guardando..." : esEdicion ? "Guardar cambios" : "Crear evaluación"}
+          </button>
+          <button type="button" onClick={onCancelar} disabled={guardando} className="btn btn-outline-secondary">
+            Cancelar
+          </button>
+        </div>
       </div>
     </form>
   );
@@ -131,7 +148,7 @@ function SubirInforme({ solicitudId, tieneInforme, onSubido }) {
   const errorArchivo = validar(archivo);
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+    <form onSubmit={handleSubmit} className="d-flex flex-column gap-2">
       <SelectorCv
         etiqueta={tieneInforme ? "Reemplazar informe de entrevista" : "Subir informe de entrevista"}
         archivo={archivo}
@@ -140,13 +157,18 @@ function SubirInforme({ solicitudId, tieneInforme, onSubido }) {
         textoSeleccionar="Haz clic para seleccionar el informe"
         formatos="Word (DOC o DOCX) · máx. 5MB"
       />
-      {(errorArchivo || error) && <p className="text-sm text-red-600">{errorArchivo || error}</p>}
+      {(errorArchivo || error) && (
+        <div className="alert alert-danger py-2 mb-0" role="alert">
+          {errorArchivo || error}
+        </div>
+      )}
       {archivo && (
         <button
           type="submit"
           disabled={subiendo || Boolean(errorArchivo)}
-          className="self-start rounded-md bg-indigo-600 text-white text-sm font-medium px-4 py-2 hover:bg-indigo-500 disabled:opacity-50"
+          className="btn btn-primary align-self-start"
         >
+          {subiendo && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
           {subiendo ? "Subiendo..." : "Guardar informe"}
         </button>
       )}
@@ -205,8 +227,21 @@ export default function SolicitudDetalle() {
     setEvaluacionEnEdicion(null);
   }
 
-  if (cargando) return <p className="text-sm text-slate-500">Cargando solicitud...</p>;
-  if (error) return <p className="text-sm text-red-600">{error}</p>;
+  if (cargando) {
+    return (
+      <div className="d-flex align-items-center gap-2 text-secondary" role="status">
+        <div className="spinner-border spinner-border-sm" aria-hidden="true" />
+        <span>Cargando solicitud...</span>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="alert alert-danger" role="alert">
+        {error}
+      </div>
+    );
+  }
   if (!solicitud) return null;
 
   // Mismas reglas que aplica el backend: el analista y el admin gestionan la solicitud; las
@@ -218,197 +253,198 @@ export default function SolicitudDetalle() {
   const puedeSubirInforme = puedeGestionarSolicitud || esResponsable;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <Link to="/panel" className="text-sm text-indigo-600 hover:underline">
+    <div>
+      <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div className="d-flex flex-wrap align-items-center gap-2">
+          <h1 className="h3 mb-0">{solicitud.candidato?.nombre}</h1>
+          {esPostulacionPublica(solicitud) && <EtiquetaPostulacionPublica />}
+          <InsigniaEstado estado={solicitud.estado} />
+        </div>
+        <Link to="/panel" className="btn btn-outline-secondary btn-sm">
           ← Volver al panel
         </Link>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-semibold text-slate-900">{solicitud.candidato?.nombre}</h2>
-            {esPostulacionPublica(solicitud) && <EtiquetaPostulacionPublica />}
-          </div>
-          <span className="rounded-full bg-slate-100 text-slate-700 text-xs font-medium px-3 py-1">
-            {solicitud.estado}
-          </span>
+      <div className="row g-3">
+        {/* En móvil va primero (datos y archivos); en escritorio queda a la derecha. */}
+        <div className="col-12 col-lg-4 order-lg-2 d-flex flex-column gap-3">
+          <section className="card shadow-sm">
+            <div className="card-header">
+              <h2 className="h6 fw-semibold mb-0">Datos de la solicitud</h2>
+            </div>
+            <dl className="list-group list-group-flush mb-0">
+              <div className="list-group-item">
+                <dt className="small text-secondary fw-normal">Correo del candidato</dt>
+                <dd className="mb-0 text-break">{solicitud.candidato?.correo}</dd>
+              </div>
+              <div className="list-group-item">
+                <dt className="small text-secondary fw-normal">Teléfono del candidato</dt>
+                <dd className="mb-0">{solicitud.candidato?.telefono}</dd>
+              </div>
+              <div className="list-group-item">
+                <dt className="small text-secondary fw-normal">Cargo</dt>
+                <dd className="mb-0">{solicitud.cargo}</dd>
+              </div>
+              <div className="list-group-item">
+                <dt className="small text-secondary fw-normal">Familia de cargo</dt>
+                <dd className="mb-0">{solicitud.familiaDeCargo?.nombre}</dd>
+              </div>
+              <div className="list-group-item">
+                <dt className="small text-secondary fw-normal">Profesional responsable</dt>
+                <dd className="mb-0">
+                  {solicitud.profesionalResponsable?.nombre || (
+                    <span className="badge text-bg-warning">Sin evaluador asignado</span>
+                  )}{" "}
+                  {puedeGestionarSolicitud && (
+                    <button
+                      type="button"
+                      onClick={() => setEditandoSolicitud(true)}
+                      className="btn btn-link btn-sm p-0 align-baseline"
+                    >
+                      {solicitud.profesionalResponsable ? "Cambiar" : "Asignar"}
+                    </button>
+                  )}
+                </dd>
+              </div>
+              <div className="list-group-item">
+                <dt className="small text-secondary fw-normal">Analista que la creó</dt>
+                <dd className="mb-0">
+                  {solicitud.analistaId?.nombre ||
+                    (esPostulacionPublica(solicitud) ? "Enviada por el candidato desde /postular" : "-")}
+                </dd>
+              </div>
+              <div className="list-group-item">
+                <dt className="small text-secondary fw-normal">Observaciones</dt>
+                <dd className="mb-0" style={{ whiteSpace: "pre-wrap" }}>
+                  {solicitud.observaciones || "-"}
+                </dd>
+              </div>
+            </dl>
+          </section>
+
+          <section className="card shadow-sm">
+            <div className="card-header">
+              <h2 className="h6 fw-semibold mb-0">Archivos del candidato</h2>
+            </div>
+            <div className="card-body d-flex flex-column gap-3">
+              <ArchivoDescargable
+                etiqueta="CV"
+                archivo={solicitud.candidato?.cvArchivoId}
+                rutaAntigua={solicitud.candidato?.cvUrl || solicitud.cvUrl}
+              />
+              <ArchivoDescargable
+                etiqueta="Informe de entrevista"
+                archivo={solicitud.candidato?.informeArchivoId}
+                rutaAntigua={solicitud.candidato?.informeEntrevistaUrl}
+              />
+              {puedeSubirInforme && (
+                <SubirInforme
+                  solicitudId={id}
+                  tieneInforme={Boolean(solicitud.candidato?.informeArchivoId)}
+                  onSubido={(informeArchivo) =>
+                    setSolicitud((anterior) => ({
+                      ...anterior,
+                      candidato: { ...anterior.candidato, informeArchivoId: informeArchivo, informeEntrevistaUrl: "" },
+                    }))
+                  }
+                />
+              )}
+            </div>
+          </section>
         </div>
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-          <div>
-            <dt className="text-slate-500">Correo del candidato</dt>
-            <dd className="text-slate-900">{solicitud.candidato?.correo}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Teléfono del candidato</dt>
-            <dd className="text-slate-900">{solicitud.candidato?.telefono}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Cargo</dt>
-            <dd className="text-slate-900">{solicitud.cargo}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Familia de cargo</dt>
-            <dd className="text-slate-900">{solicitud.familiaDeCargo?.nombre}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Profesional responsable</dt>
-            <dd className="text-slate-900">
-              {solicitud.profesionalResponsable?.nombre || (
-                <span className="text-amber-700">Sin evaluador asignado</span>
-              )}{" "}
-              {puedeGestionarSolicitud && (
+
+        <div className="col-12 col-lg-8 order-lg-1 d-flex flex-column gap-3">
+          <section className="card shadow-sm">
+            <div className="card-header">
+              <h2 className="h6 fw-semibold mb-0">Informe psicolaboral</h2>
+            </div>
+            <div className="card-body">
+              <InformePsicolaboral
+                solicitudId={id}
+                puedeEditar={puedeGestionarEvaluaciones}
+                tieneCv={Boolean(solicitud.candidato?.cvArchivoId)}
+                tieneInforme={Boolean(solicitud.candidato?.informeArchivoId)}
+              />
+            </div>
+          </section>
+
+          <section className="card shadow-sm">
+            <div className="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <h2 className="h6 fw-semibold mb-0">Evaluaciones del evaluador</h2>
+              {puedeGestionarEvaluaciones && !mostrarFormularioNueva && (
                 <button
                   type="button"
-                  onClick={() => setEditandoSolicitud(true)}
-                  className="text-xs text-indigo-600 hover:underline"
+                  onClick={() => setMostrarFormularioNueva(true)}
+                  className="btn btn-primary btn-sm"
                 >
-                  {solicitud.profesionalResponsable ? "Cambiar" : "Asignar"}
+                  + Nueva evaluación
                 </button>
               )}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Analista que la creó</dt>
-            <dd className="text-slate-900">
-              {solicitud.analistaId?.nombre ||
-                (esPostulacionPublica(solicitud) ? "Enviada por el candidato desde /postular" : "-")}
-            </dd>
-          </div>
-          <div className="sm:col-span-2">
-            <dt className="text-slate-500">Observaciones</dt>
-            <dd className="text-slate-900 whitespace-pre-wrap">{solicitud.observaciones || "-"}</dd>
-          </div>
-        </dl>
-      </div>
+            </div>
+            <div className="card-body d-flex flex-column gap-3">
+              {mostrarFormularioNueva && (
+                <EvaluacionFormulario
+                  solicitudId={id}
+                  onGuardado={manejarEvaluacionCreada}
+                  onCancelar={() => setMostrarFormularioNueva(false)}
+                />
+              )}
 
-      <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-slate-900 mb-4">Archivos del candidato</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <ArchivoDescargable
-            etiqueta="CV"
-            archivo={solicitud.candidato?.cvArchivoId}
-            rutaAntigua={solicitud.candidato?.cvUrl || solicitud.cvUrl}
-          />
-          <ArchivoDescargable
-            etiqueta="Informe de entrevista"
-            archivo={solicitud.candidato?.informeArchivoId}
-            rutaAntigua={solicitud.candidato?.informeEntrevistaUrl}
-          />
+              {evaluaciones.length === 0 && !mostrarFormularioNueva && (
+                <p className="text-secondary mb-0">Todavía no hay evaluaciones registradas.</p>
+              )}
+              {evaluaciones.map((evaluacion) =>
+                evaluacionEnEdicion?._id === evaluacion._id ? (
+                  <EvaluacionFormulario
+                    key={evaluacion._id}
+                    evaluacion={evaluacion}
+                    solicitudId={id}
+                    onGuardado={manejarEvaluacionEditada}
+                    onCancelar={() => setEvaluacionEnEdicion(null)}
+                  />
+                ) : (
+                  <div key={evaluacion._id} className="card">
+                    <div className="card-body py-3">
+                      <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <span className="fw-medium">{formatearFechaCalendario(evaluacion.fechaEvaluacion)}</span>
+                        <div className="d-flex align-items-center gap-2">
+                          <InsigniaEstado estado={evaluacion.estado} />
+                          {puedeGestionarEvaluaciones && (
+                            <button
+                              type="button"
+                              onClick={() => setEvaluacionEnEdicion(evaluacion)}
+                              className="btn btn-outline-primary btn-sm"
+                            >
+                              Editar
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-secondary mt-2 mb-0" style={{ whiteSpace: "pre-wrap" }}>
+                        {evaluacion.resultado || "-"}
+                      </p>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          </section>
         </div>
-        {puedeSubirInforme && (
-          <div className="mt-4">
-            <SubirInforme
-              solicitudId={id}
-              tieneInforme={Boolean(solicitud.candidato?.informeArchivoId)}
-              onSubido={(informeArchivo) =>
-                setSolicitud((anterior) => ({
-                  ...anterior,
-                  candidato: { ...anterior.candidato, informeArchivoId: informeArchivo, informeEntrevistaUrl: "" },
-                }))
-              }
-            />
-          </div>
-        )}
       </div>
 
       {editandoSolicitud && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-10"
-          onClick={() => setEditandoSolicitud(false)}
-        >
-          <div
-            className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <SolicitudFormulario
-              solicitud={solicitud}
-              alGuardar={(actualizada) => {
-                // La respuesta del PUT no trae analistaId populado; se conserva el que ya teníamos.
-                setSolicitud((anterior) => ({ ...anterior, ...actualizada, analistaId: anterior.analistaId }));
-                setEditandoSolicitud(false);
-              }}
-              alCancelar={() => setEditandoSolicitud(false)}
-            />
-          </div>
-        </div>
+        <Modal etiqueta="Editar solicitud" tamano="modal-lg" onCerrar={() => setEditandoSolicitud(false)}>
+          <SolicitudFormulario
+            solicitud={solicitud}
+            alGuardar={(actualizada) => {
+              // La respuesta del PUT no trae analistaId populado; se conserva el que ya teníamos.
+              setSolicitud((anterior) => ({ ...anterior, ...actualizada, analistaId: anterior.analistaId }));
+              setEditandoSolicitud(false);
+            }}
+            alCancelar={() => setEditandoSolicitud(false)}
+          />
+        </Modal>
       )}
-
-      <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
-        <h3 className="mb-4 text-lg font-semibold text-slate-900">Informe psicolaboral</h3>
-        <InformePsicolaboral
-          solicitudId={id}
-          puedeEditar={puedeGestionarEvaluaciones}
-          tieneCv={Boolean(solicitud.candidato?.cvArchivoId)}
-          tieneInforme={Boolean(solicitud.candidato?.informeArchivoId)}
-        />
-      </div>
-
-      <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-slate-900">Evaluaciones del evaluador</h3>
-          {puedeGestionarEvaluaciones && !mostrarFormularioNueva && (
-            <button
-              type="button"
-              onClick={() => setMostrarFormularioNueva(true)}
-              className="rounded-md bg-indigo-600 text-white text-sm font-medium px-3 py-1.5 hover:bg-indigo-500"
-            >
-              + Nueva evaluación
-            </button>
-          )}
-        </div>
-
-        {mostrarFormularioNueva && (
-          <div className="mb-4">
-            <EvaluacionFormulario
-              solicitudId={id}
-              onGuardado={manejarEvaluacionCreada}
-              onCancelar={() => setMostrarFormularioNueva(false)}
-            />
-          </div>
-        )}
-
-        <div className="flex flex-col gap-3">
-          {evaluaciones.length === 0 && !mostrarFormularioNueva && (
-            <p className="text-sm text-slate-400">Todavía no hay evaluaciones registradas.</p>
-          )}
-          {evaluaciones.map((evaluacion) =>
-            evaluacionEnEdicion?._id === evaluacion._id ? (
-              <EvaluacionFormulario
-                key={evaluacion._id}
-                evaluacion={evaluacion}
-                solicitudId={id}
-                onGuardado={manejarEvaluacionEditada}
-                onCancelar={() => setEvaluacionEnEdicion(null)}
-              />
-            ) : (
-              <div key={evaluacion._id} className="border border-slate-200 rounded-md p-4 flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-900">
-                    {formatearFechaCalendario(evaluacion.fechaEvaluacion)}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-slate-100 text-slate-700 text-xs font-medium px-2 py-0.5">
-                      {evaluacion.estado}
-                    </span>
-                    {puedeGestionarEvaluaciones && (
-                      <button
-                        type="button"
-                        onClick={() => setEvaluacionEnEdicion(evaluacion)}
-                        className="text-xs text-indigo-600 hover:underline"
-                      >
-                        Editar
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <p className="text-sm text-slate-600 whitespace-pre-wrap">{evaluacion.resultado || "-"}</p>
-              </div>
-            )
-          )}
-        </div>
-      </div>
     </div>
   );
 }
