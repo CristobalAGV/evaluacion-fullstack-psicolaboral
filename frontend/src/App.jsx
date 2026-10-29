@@ -1,4 +1,5 @@
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, Outlet } from 'react-router-dom'
+import AppLayout from './layouts/AppLayout'
 import Navbar from './components/Navbar'
 import RutaProtegida from './components/RutaProtegida'
 import Login from './pages/Login'
@@ -8,57 +9,53 @@ import Panel from './pages/Panel'
 import NuevaSolicitud from './pages/NuevaSolicitud'
 import SolicitudDetalle from './pages/SolicitudDetalle'
 import Postular from './pages/Postular'
+import NotFoundPage from './pages/NotFoundPage'
 
-// Páginas públicas que no deben mostrar la barra de navegación del equipo.
-const RUTAS_SIN_NAVBAR = ['/postular']
-
-function App() {
-  const { pathname } = useLocation()
-  const mostrarNavbar = !RUTAS_SIN_NAVBAR.includes(pathname)
-
+// Marco provisional de las páginas públicas (todavía con Tailwind): barra de navegación y
+// contenedor centrado, como antes del layout. La postulación pública va sin barra del equipo.
+function MarcoPublico({ conNavbar = true }) {
   return (
     <div className="min-h-screen bg-slate-50">
-      {mostrarNavbar && <Navbar />}
+      {conNavbar && <Navbar />}
       <main className="max-w-6xl mx-auto px-4 py-8">
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/registro" element={<Registro />} />
-          <Route path="/postular" element={<Postular />} />
-          <Route
-            path="/"
-            element={
-              <RutaProtegida>
-                <Dashboard />
-              </RutaProtegida>
-            }
-          />
-          <Route
-            path="/panel"
-            element={
-              <RutaProtegida>
-                <Panel />
-              </RutaProtegida>
-            }
-          />
-          <Route
-            path="/solicitudes/nueva"
-            element={
-              <RutaProtegida roles={['analista', 'admin']}>
-                <NuevaSolicitud />
-              </RutaProtegida>
-            }
-          />
-          <Route
-            path="/solicitudes/:id"
-            element={
-              <RutaProtegida>
-                <SolicitudDetalle />
-              </RutaProtegida>
-            }
-          />
-        </Routes>
+        <Outlet />
       </main>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route element={<MarcoPublico />}>
+        <Route path="/login" element={<Login />} />
+        <Route path="/registro" element={<Registro />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+      <Route element={<MarcoPublico conNavbar={false} />}>
+        <Route path="/postular" element={<Postular />} />
+      </Route>
+      {/* Zona privada: sin sesión se redirige a /login; cada ruta con roles lo vuelve a exigir. */}
+      <Route
+        element={
+          <RutaProtegida>
+            <AppLayout />
+          </RutaProtegida>
+        }
+      >
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/panel" element={<Panel />} />
+        <Route
+          path="/solicitudes/nueva"
+          element={
+            <RutaProtegida roles={['analista', 'admin']}>
+              <NuevaSolicitud />
+            </RutaProtegida>
+          }
+        />
+        <Route path="/solicitudes/:id" element={<SolicitudDetalle />} />
+      </Route>
+    </Routes>
   )
 }
 

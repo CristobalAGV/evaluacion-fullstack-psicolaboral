@@ -1,0 +1,31 @@
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* El cuerpo ocupa el alto que dejan el Navbar y el Footer, sin depender de sus alturas. */
+.layout-body {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  flex: 1;
+}
+
+.layout-main {
+  padding: 32px;
+}
+
+/* 767.98px = justo antes del punto "md" de Bootstrap, donde el Navbar muestra su botón de menú. */
+@media (max-width: 767.98px) {
+  .layout-body {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .layout-main {
+    padding: 16px;
+  }
+}

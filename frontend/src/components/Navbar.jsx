@@ -1,12 +1,13 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-
-const enlaceClases =
-  "px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900";
+import { enlacesPara } from "../layouts/enlaces";
 
 export default function Navbar() {
   const { usuario, cerrarSesion } = useAuth();
   const navigate = useNavigate();
+  // El menú desplegable (móvil) se abre y cierra con estado de React, sin el JS de Bootstrap.
+  const [abierto, setAbierto] = useState(false);
 
   function handleLogout() {
     cerrarSesion();
@@ -14,47 +15,56 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="bg-white border-b border-slate-200">
-      <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
-        <Link to="/" className="text-slate-900 font-semibold">
+    <nav className="navbar navbar-expand-md bg-white border-bottom">
+      <div className="container-fluid">
+        <Link to="/" className="navbar-brand fw-semibold">
           Evaluación Psicolaboral
         </Link>
-        <div className="flex items-center gap-1">
+        <button
+          type="button"
+          className="navbar-toggler"
+          aria-controls="menu-navbar"
+          aria-expanded={abierto}
+          aria-label="Abrir menú"
+          onClick={() => setAbierto(!abierto)}
+        >
+          <span className="navbar-toggler-icon" />
+        </button>
+        <div id="menu-navbar" className={`navbar-collapse collapse${abierto ? " show" : ""}`}>
           {usuario ? (
             <>
-              <Link to="/" className={enlaceClases}>
-                Inicio
-              </Link>
-              <Link to="/panel" className={enlaceClases}>
-                Panel
-              </Link>
-              {usuario.rol !== "evaluador" && (
-                <Link to="/solicitudes/nueva" className={enlaceClases}>
-                  Nueva solicitud
-                </Link>
-              )}
-              <span className="px-3 py-2 text-sm text-slate-500">
-                {usuario.nombre} <span className="text-slate-400">({usuario.rol})</span>
-              </span>
-              <button
-                onClick={handleLogout}
-                className="px-3 py-2 rounded-md text-sm font-medium text-white bg-slate-800 hover:bg-slate-700"
-              >
-                Cerrar sesión
-              </button>
+              {/* En escritorio estos enlaces están en el Sidebar; aquí solo se ven en móvil. */}
+              <ul className="navbar-nav me-auto d-md-none">
+                {enlacesPara(usuario.rol).map((enlace) => (
+                  <li key={enlace.a} className="nav-item">
+                    <NavLink to={enlace.a} end className="nav-link" onClick={() => setAbierto(false)}>
+                      {enlace.texto}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+              <div className="ms-md-auto d-flex flex-column flex-md-row align-items-md-center gap-2 py-2 py-md-0">
+                <span className="navbar-text">
+                  {usuario.nombre} <span className="text-body-tertiary">({usuario.rol})</span>
+                </span>
+                <button type="button" onClick={handleLogout} className="btn btn-dark btn-sm">
+                  Cerrar sesión
+                </button>
+              </div>
             </>
           ) : (
-            <>
-              <Link to="/login" className={enlaceClases}>
-                Iniciar sesión
-              </Link>
-              <Link
-                to="/registro"
-                className="px-3 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500"
-              >
-                Registrarse
-              </Link>
-            </>
+            <ul className="navbar-nav ms-md-auto align-items-md-center gap-md-2">
+              <li className="nav-item">
+                <Link to="/login" className="nav-link" onClick={() => setAbierto(false)}>
+                  Iniciar sesión
+                </Link>
+              </li>
+              <li className="nav-item">
+                <Link to="/registro" className="btn btn-primary btn-sm" onClick={() => setAbierto(false)}>
+                  Registrarse
+                </Link>
+              </li>
+            </ul>
           )}
         </div>
       </div>
