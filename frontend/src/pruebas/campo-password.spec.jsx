@@ -195,10 +195,10 @@ describe("CampoPassword dentro de Registro", () => {
     // Act
     fireEvent.click(screen.getByRole("button", { name: "Mostrar contraseña" }));
     expect(post).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Registrarme" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear usuario" }));
 
     // Assert
-    await screen.findByText("Pantalla de inicio");
+    await screen.findByText("Usuario creado correctamente");
     expect(post).toHaveBeenCalledExactlyOnceWith("/auth/registro", {
       nombre: "Ana Nueva",
       correo: "ana@ejemplo.cl",

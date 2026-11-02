@@ -5,6 +5,7 @@ import FamiliaDeCargo from "../models/FamiliaDeCargo.js";
 import Archivo from "../models/Archivo.js";
 import { prepararCarpetaSolicitud } from "../utils/carpetas.js";
 import { validarArchivo, guardarArchivo, EXTENSIONES_CV } from "../utils/validarArchivo.js";
+import { MAX_MENSAJE_ADICIONAL, MENSAJE_MENSAJE_LARGO, limpiarMensajeAdicional } from "../utils/datosSolicitud.js";
 
 const CORREO_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TELEFONO_REGEX = /^\+?56\s?9\s?\d{4}\s?\d{4}$/;
@@ -47,6 +48,7 @@ export async function crearPostulacion(req, res) {
   const telefono = limpiarTexto(req.body?.telefono, 20);
   const cargo = limpiarTexto(req.body?.cargo, 100);
   const familiaDeCargo = limpiarTexto(req.body?.familiaDeCargo, 24);
+  const mensajeAdicional = limpiarMensajeAdicional(req.body?.mensajeAdicional);
 
   if (nombre.length < 3) {
     return res.status(400).json({ mensaje: "Ingresa tu nombre completo" });
@@ -62,6 +64,9 @@ export async function crearPostulacion(req, res) {
   }
   if (!mongoose.isValidObjectId(familiaDeCargo)) {
     return res.status(400).json({ mensaje: "Selecciona un área de interés" });
+  }
+  if (mensajeAdicional.length > MAX_MENSAJE_ADICIONAL) {
+    return res.status(400).json({ mensaje: MENSAJE_MENSAJE_LARGO });
   }
 
   const errorCv = validarCv(req.file);
@@ -97,6 +102,7 @@ export async function crearPostulacion(req, res) {
       candidato: candidato._id,
       familiaDeCargo: familia._id,
       cargo,
+      mensajeAdicional,
       estado: "Pendiente",
     });
 

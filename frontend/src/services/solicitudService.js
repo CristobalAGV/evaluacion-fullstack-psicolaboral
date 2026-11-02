@@ -18,6 +18,7 @@ function construirFormData({
   cargo,
   observaciones,
   profesionalResponsable,
+  fechaEvaluacion,
   cv,
 }) {
   const formData = new FormData();
@@ -28,6 +29,8 @@ function construirFormData({
   formData.append("cargo", cargo);
   formData.append("observaciones", observaciones || "");
   formData.append("profesionalResponsable", profesionalResponsable);
+  // "" quita la fecha; si el dato no viene (undefined) no se envía y el backend no la toca.
+  if (fechaEvaluacion !== undefined) formData.append("fechaEvaluacion", fechaEvaluacion ?? "");
   if (cv) formData.append("cv", cv);
   return formData;
 }
@@ -42,8 +45,10 @@ export async function actualizarSolicitud(id, datos) {
   return data;
 }
 
-export async function actualizarEstadoSolicitud(id, estado) {
-  const { data } = await api.patch(`/solicitudes/${id}/estado`, { estado });
+// resultado (opcional): "Aprobada", "Rechazada" o null para quitarlo; solo aplica con "Finalizada".
+export async function actualizarEstadoSolicitud(id, estado, resultado) {
+  const cuerpo = resultado === undefined ? { estado } : { estado, resultado };
+  const { data } = await api.patch(`/solicitudes/${id}/estado`, cuerpo);
   return data;
 }
 

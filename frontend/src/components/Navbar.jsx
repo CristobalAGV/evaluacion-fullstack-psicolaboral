@@ -29,7 +29,7 @@ export default function Navbar() {
           className="navbar-toggler"
           aria-controls="menu-navbar"
           aria-expanded={abierto}
-          aria-label="Abrir menú"
+          aria-label={abierto ? "Cerrar menú" : "Abrir menú"}
           onClick={() => setAbierto(!abierto)}
         >
           <span className="navbar-toggler-icon" />

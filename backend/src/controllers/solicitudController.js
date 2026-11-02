@@ -8,6 +8,7 @@ import Evaluacion from "../models/Evaluacion.js";
 import Archivo from "../models/Archivo.js";
 import Informe from "../models/Informe.js";
 import { esEvaluadorResponsable } from "../middleware/auth.js";
+import { RESULTADOS, interpretarFechaEvaluacion } from "../utils/datosSolicitud.js";
 import { validarArchivo, guardarArchivo, EXTENSIONES_CV, EXTENSIONES_WORD } from "../utils/validarArchivo.js";
 import {
   CANDIDATOS_DIR,
@@ -74,6 +75,11 @@ export async function crearSolicitud(req, res) {
       return res.status(400).json({ mensaje: errorCv });
     }
 
+    const fechaEvaluacion = interpretarFechaEvaluacion(req.body.fechaEvaluacion);
+    if (fechaEvaluacion.error) {
+      return res.status(400).json({ mensaje: fechaEvaluacion.error });
+    }
+
     if (!mongoose.isValidObjectId(familiaDeCargo)) {
       return res.status(400).json({ mensaje: "familiaDeCargo inválida" });
     }
@@ -119,6 +125,7 @@ export async function crearSolicitud(req, res) {
         cargo,
         observaciones: observaciones || "",
         profesionalResponsable,
+        fechaEvaluacion: fechaEvaluacion.fecha ?? null,
         analistaId: req.usuario.id,
       });
     } catch (errorGuardar) {
@@ -208,6 +215,11 @@ export async function actualizarSolicitud(req, res) {
       return res.status(400).json({ mensaje: errorCv });
     }
 
+    const fechaEvaluacion = interpretarFechaEvaluacion(req.body.fechaEvaluacion);
+    if (fechaEvaluacion.error) {
+      return res.status(400).json({ mensaje: fechaEvaluacion.error });
+    }
+
     if (!mongoose.isValidObjectId(familiaDeCargo)) {
       return res.status(400).json({ mensaje: "familiaDeCargo inválida" });
     }
@@ -270,6 +282,8 @@ export async function actualizarSolicitud(req, res) {
     solicitud.cargo = cargo;
     solicitud.observaciones = observaciones || "";
     solicitud.profesionalResponsable = profesionalResponsable;
+    // Si la petición no trae la fecha (clientes anteriores), la guardada no se toca.
+    if (!fechaEvaluacion.omitida) solicitud.fechaEvaluacion = fechaEvaluacion.fecha;
 
     await solicitud.save();
     const solicitudActualizada = await solicitud.populate([
@@ -316,10 +330,19 @@ export async function eliminarSolicitud(req, res) {
 export async function actualizarEstadoSolicitud(req, res) {
   try {
     const { id } = req.params;
-    const { estado } = req.body;
+    const { estado, resultado } = req.body;
 
     if (!ESTADOS_VALIDOS.includes(estado)) {
       return res.status(400).json({ mensaje: `estado debe ser uno de: ${ESTADOS_VALIDOS.join(", ")}` });
+    }
+
+    // El resultado final (Aprobada o Rechazada) va aparte del estado y solo existe con "Finalizada".
+    // Si no viene, no se toca; con null se quita.
+    if (resultado !== undefined && resultado !== null && !RESULTADOS.includes(resultado)) {
+      return res.status(400).json({ mensaje: `resultado debe ser uno de: ${RESULTADOS.join(", ")}` });
+    }
+    if (resultado && estado !== "Finalizada") {
+      return res.status(400).json({ mensaje: "El resultado solo se puede registrar en solicitudes finalizadas." });
     }
 
     const solicitud = await Solicitud.findById(id);
@@ -334,6 +357,9 @@ export async function actualizarEstadoSolicitud(req, res) {
     }
 
     solicitud.estado = estado;
+    // Al salir de "Finalizada" el resultado deja de aplicarse.
+    if (estado !== "Finalizada") solicitud.resultado = null;
+    else if (resultado !== undefined) solicitud.resultado = resultado;
     await solicitud.save();
     await solicitud.populate([
       "candidato",

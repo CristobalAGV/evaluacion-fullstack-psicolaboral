@@ -1,3 +1,4 @@
+vi.mock("../config/funcionalidades", () => ({ IA_HABILITADA: true }));
 // SolicitudDetalle: marcado de Bootstrap (encabezado, columnas, secciones por rol, estados de carga y
 // error, modal). El backend se reemplaza con spies sobre la instancia de axios.
 import { screen, fireEvent, within } from "@testing-library/react";

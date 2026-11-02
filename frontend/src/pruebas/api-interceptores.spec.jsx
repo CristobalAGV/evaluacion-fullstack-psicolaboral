@@ -56,6 +56,14 @@ describe("Interceptores de api.js", () => {
   });
 
   describe("al recibir un error", () => {
+    it.each([401, 403])("registro con %s conserva el manejo correcto de sesión", async (estado) => {
+      iniciarSesionSimulada(USUARIOS.admin);
+      const manejador = vi.fn();
+      registrarManejadorNoAutorizado(manejador);
+      await expect(api.post("/auth/registro", {}, { adapter: adapterConError(estado) })).rejects.toBeDefined();
+      expect(manejador).toHaveBeenCalledTimes(estado === 401 ? 1 : 0);
+      expect(localStorage.getItem("token")).toBe("token-de-prueba");
+    });
     it("ante un 401 en una ruta privada avisa al manejador de sesión expirada y propaga el error", async () => {
       const manejador = vi.fn();
       registrarManejadorNoAutorizado(manejador);

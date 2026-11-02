@@ -102,12 +102,14 @@ describe("Layouts", () => {
       fireEvent.click(boton);
 
       expect(boton.getAttribute("aria-expanded")).toBe("true");
+      expect(boton.getAttribute("aria-label")).toBe("Cerrar menú");
       expect(menu.classList.contains("show")).toBe(true);
       expect(nombresDeEnlaces(menu)).toEqual(nombresDeEnlaces(menuLateral()));
 
       fireEvent.click(within(menu).getByRole("link", { name: "Panel" }));
 
       expect(screen.getByText("Contenido del panel")).toBeTruthy();
+      expect(boton.getAttribute("aria-label")).toBe("Abrir menú");
       expect(menu.classList.contains("show")).toBe(false);
     });
 
@@ -132,10 +134,10 @@ describe("Layouts", () => {
       expect(screen.queryByRole("complementary")).toBeNull();
     });
 
-    it("en el login ofrece solo Registrarse", () => {
+    it("en el login no ofrece autorregistro", () => {
       renderizarPublico("/login");
 
-      expect(within(barraSuperior()).getByRole("link", { name: "Registrarse" }).getAttribute("href")).toBe("/registro");
+      expect(within(barraSuperior()).queryByRole("link", { name: "Registrarse" })).toBeNull();
       expect(within(barraSuperior()).queryByRole("link", { name: "Iniciar sesión" })).toBeNull();
     });
 
@@ -146,22 +148,22 @@ describe("Layouts", () => {
       expect(within(barraSuperior()).queryByRole("link", { name: "Registrarse" })).toBeNull();
     });
 
-    it("en otras páginas públicas ofrece los dos enlaces", () => {
+    it("en otras páginas públicas ofrece iniciar sesión", () => {
       renderizarPublico("/otra");
 
       expect(within(barraSuperior()).getByRole("link", { name: "Iniciar sesión" })).toBeTruthy();
-      expect(within(barraSuperior()).getByRole("link", { name: "Registrarse" })).toBeTruthy();
+      expect(within(barraSuperior()).queryByRole("link", { name: "Registrarse" })).toBeNull();
     });
 
-    it("mantiene el marco al pasar del login al registro", () => {
-      renderizarPublico("/login");
+    it("mantiene el marco al navegar al login", () => {
+      renderizarPublico("/otra");
       const navbar = barraSuperior();
 
-      fireEvent.click(within(navbar).getByRole("link", { name: "Registrarse" }));
+      fireEvent.click(within(navbar).getByRole("link", { name: "Iniciar sesión" }));
 
-      expect(screen.getByText("Contenido del registro")).toBeTruthy();
+      expect(screen.getByText("Contenido del login")).toBeTruthy();
       expect(barraSuperior()).toBe(navbar);
-      expect(within(navbar).getByRole("link", { name: "Iniciar sesión" })).toBeTruthy();
+      expect(within(navbar).queryByRole("link", { name: "Iniciar sesión" })).toBeNull();
     });
   });
 
@@ -192,7 +194,7 @@ describe("Layouts", () => {
     it.each([
       ["analista", ["Inicio", "Panel", "Nueva solicitud"]],
       ["evaluador", ["Inicio", "Panel"]],
-      ["admin", ["Inicio", "Panel", "Nueva solicitud"]],
+      ["admin", ["Crear usuario", "Inicio", "Panel", "Nueva solicitud"]],
     ])("para el rol %s muestra solo los enlaces permitidos", (rol, esperados) => {
       iniciarSesionSimulada(USUARIOS[rol]);
 
@@ -229,7 +231,7 @@ describe("Layouts", () => {
       expect(screen.getByRole("link", { name: "Volver al inicio" }).getAttribute("href")).toBe("/");
       // Sin sesión se ve dentro del marco público: sin menú lateral.
       expect(screen.queryByRole("complementary")).toBeNull();
-      expect(screen.getByRole("link", { name: "Registrarse" })).toBeTruthy();
+      expect(screen.queryByRole("link", { name: "Registrarse" })).toBeNull();
     });
 
     it("una ruta inexistente con sesión muestra el 404 dentro del marco privado", () => {

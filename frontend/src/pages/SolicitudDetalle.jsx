@@ -1,15 +1,17 @@
+import { IA_HABILITADA } from "../config/funcionalidades";
 import { useEffect, useId, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { obtenerSolicitud, subirInformeEntrevista } from "../services/solicitudService";
+import { obtenerSolicitud, subirInformeEntrevista, actualizarEstadoSolicitud } from "../services/solicitudService";
 import { listarEvaluaciones, crearEvaluacion, actualizarEvaluacion } from "../services/evaluacionService";
 import InformePsicolaboral from "../components/InformePsicolaboral";
 import SolicitudFormulario from "../components/SolicitudFormulario";
 import EtiquetaPostulacionPublica, { esPostulacionPublica } from "../components/EtiquetaPostulacionPublica";
+import InsigniaResultado from "../components/InsigniaResultado";
 import SelectorCv from "../components/SelectorCv";
 import ArchivoDescargable from "../components/ArchivoDescargable";
 import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
-import { formatearFechaCalendario, hoyLocal } from "../utils/fechas";
+import { formatearFechaCalendario, formatearFechaHora, hoyLocal } from "../utils/fechas";
 
 const ESTADOS_EVALUACION = ["Pendiente", "En proceso", "Finalizada"];
 // Mismos colores que las columnas del panel y el dashboard.
@@ -186,6 +188,8 @@ export default function SolicitudDetalle() {
   const [mostrarFormularioNueva, setMostrarFormularioNueva] = useState(false);
   const [evaluacionEnEdicion, setEvaluacionEnEdicion] = useState(null);
   const [editandoSolicitud, setEditandoSolicitud] = useState(false);
+  const [guardandoResultado, setGuardandoResultado] = useState(false);
+  const [errorResultado, setErrorResultado] = useState("");
 
   useEffect(() => {
     // Si el efecto se repite (cambio de id o doble montaje de StrictMode), la respuesta de la
@@ -214,6 +218,22 @@ export default function SolicitudDetalle() {
       setError(err.response?.data?.mensaje || "Error al cargar la solicitud");
     } finally {
       if (esVigente()) setCargando(false);
+    }
+  }
+
+  // Registra (o quita, con null) el resultado final. Reutiliza el endpoint del estado: la solicitud
+  // sigue "Finalizada" y solo cambia el resultado. Se actualizan solo esos dos datos porque la
+  // respuesta no trae los archivos del candidato ni al analista poblados.
+  async function registrarResultado(resultado) {
+    setErrorResultado("");
+    setGuardandoResultado(true);
+    try {
+      const actualizada = await actualizarEstadoSolicitud(id, "Finalizada", resultado);
+      setSolicitud((anterior) => ({ ...anterior, estado: actualizada.estado, resultado: actualizada.resultado ?? null }));
+    } catch (err) {
+      setErrorResultado(err.response?.data?.mensaje || "No se pudo registrar el resultado");
+    } finally {
+      setGuardandoResultado(false);
     }
   }
 
@@ -259,6 +279,7 @@ export default function SolicitudDetalle() {
           <h1 className="h3 mb-0">{solicitud.candidato?.nombre}</h1>
           {esPostulacionPublica(solicitud) && <EtiquetaPostulacionPublica />}
           <InsigniaEstado estado={solicitud.estado} />
+          {solicitud.estado === "Finalizada" && <InsigniaResultado resultado={solicitud.resultado} />}
         </div>
         <Link to="/panel" className="btn btn-outline-secondary btn-sm">
           ← Volver al panel
@@ -290,6 +311,25 @@ export default function SolicitudDetalle() {
                 <dd className="mb-0">{solicitud.familiaDeCargo?.nombre}</dd>
               </div>
               <div className="list-group-item">
+                <dt className="small text-secondary fw-normal">Fecha y hora de evaluación</dt>
+                <dd className="mb-0">
+                  {solicitud.fechaEvaluacion ? (
+                    formatearFechaHora(solicitud.fechaEvaluacion)
+                  ) : (
+                    <span className="text-secondary">Sin programar</span>
+                  )}{" "}
+                  {puedeGestionarSolicitud && (
+                    <button
+                      type="button"
+                      onClick={() => setEditandoSolicitud(true)}
+                      className="btn btn-link btn-sm p-0 align-baseline"
+                    >
+                      {solicitud.fechaEvaluacion ? "Cambiar fecha" : "Programar fecha"}
+                    </button>
+                  )}
+                </dd>
+              </div>
+              <div className="list-group-item">
                 <dt className="small text-secondary fw-normal">Profesional responsable</dt>
                 <dd className="mb-0">
                   {solicitud.profesionalResponsable?.nombre || (
@@ -314,6 +354,67 @@ export default function SolicitudDetalle() {
                     : `Creada por ${solicitud.analistaId?.nombre || "el equipo"}`}
                 </dd>
               </div>
+              {solicitud.estado === "Finalizada" && (
+                <div className="list-group-item">
+                  <dt className="small text-secondary fw-normal">Resultado final</dt>
+                  <dd className="mb-0 d-flex flex-column gap-2">
+                    <div>
+                      {solicitud.resultado ? (
+                        <InsigniaResultado resultado={solicitud.resultado} />
+                      ) : (
+                        <span className="text-secondary">Sin definir</span>
+                      )}
+                    </div>
+                    {puedeGestionarSolicitud && (
+                      <div className="d-flex flex-wrap gap-1" role="group" aria-label="Registrar resultado final">
+                        {solicitud.resultado !== "Aprobada" && (
+                          <button
+                            type="button"
+                            disabled={guardandoResultado}
+                            onClick={() => registrarResultado("Aprobada")}
+                            className="btn btn-sm btn-outline-secondary"
+                          >
+                            Marcar aprobada
+                          </button>
+                        )}
+                        {solicitud.resultado !== "Rechazada" && (
+                          <button
+                            type="button"
+                            disabled={guardandoResultado}
+                            onClick={() => registrarResultado("Rechazada")}
+                            className="btn btn-sm btn-outline-secondary"
+                          >
+                            Marcar rechazada
+                          </button>
+                        )}
+                        {solicitud.resultado && (
+                          <button
+                            type="button"
+                            disabled={guardandoResultado}
+                            onClick={() => registrarResultado(null)}
+                            className="btn btn-sm btn-link"
+                          >
+                            Quitar resultado
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {errorResultado && (
+                      <div className="alert alert-danger py-2 mb-0" role="alert">
+                        {errorResultado}
+                      </div>
+                    )}
+                  </dd>
+                </div>
+              )}
+              {solicitud.mensajeAdicional && (
+                <div className="list-group-item">
+                  <dt className="small text-secondary fw-normal">Mensaje adicional del candidato</dt>
+                  <dd className="mb-0 text-break" style={{ whiteSpace: "pre-wrap" }}>
+                    {solicitud.mensajeAdicional}
+                  </dd>
+                </div>
+              )}
               <div className="list-group-item">
                 <dt className="small text-secondary fw-normal">Observaciones</dt>
                 <dd className="mb-0" style={{ whiteSpace: "pre-wrap" }}>
@@ -355,7 +456,7 @@ export default function SolicitudDetalle() {
         </div>
 
         <div className="col-12 col-lg-8 order-lg-1 d-flex flex-column gap-3">
-          <section className="card shadow-sm">
+          {IA_HABILITADA && <section className="card shadow-sm">
             <div className="card-header">
               <h2 className="h6 fw-semibold mb-0">Informe psicolaboral</h2>
             </div>
@@ -367,7 +468,7 @@ export default function SolicitudDetalle() {
                 tieneInforme={Boolean(solicitud.candidato?.informeArchivoId)}
               />
             </div>
-          </section>
+          </section>}
 
           <section className="card shadow-sm">
             <div className="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">

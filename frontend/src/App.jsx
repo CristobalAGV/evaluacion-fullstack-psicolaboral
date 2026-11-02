@@ -19,7 +19,6 @@ function App() {
     <Routes>
       <Route element={<PublicLayout />}>
         <Route path="/login" element={<Login />} />
-        <Route path="/registro" element={<Registro />} />
         <Route path="/postular" element={<Postular />} />
       </Route>
       {/* Zona privada: sin sesión se redirige a /login; cada ruta con roles lo vuelve a exigir. */}
@@ -30,6 +29,7 @@ function App() {
           </RutaProtegida>
         }
       >
+        <Route path="/registro" element={<RutaProtegida roles={['admin']}><Registro /></RutaProtegida>} />
         <Route path="/" element={<Dashboard />} />
         <Route path="/panel" element={<Panel />} />
         <Route

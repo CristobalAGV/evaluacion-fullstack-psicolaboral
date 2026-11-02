@@ -2,6 +2,7 @@
 // desplegable del Navbar (móvil), así los dos muestran siempre lo mismo para cada rol.
 // roles: si se indica, solo esos roles ven el enlace (igual que en las rutas de App.jsx).
 const ENLACES = [
+  { a: "/registro", texto: "Crear usuario", roles: ["admin"] },
   { a: "/", texto: "Inicio" },
   { a: "/panel", texto: "Panel" },
   { a: "/solicitudes/nueva", texto: "Nueva solicitud", roles: ["analista", "admin"] },

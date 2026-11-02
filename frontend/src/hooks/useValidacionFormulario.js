@@ -22,6 +22,8 @@ export function useValidacionFormulario() {
       if (campo.name && campo.willValidate && !campo.validity.valid) nuevos[campo.name] = mensajeDeValidez(campo);
     }
     setMensajes(nuevos);
+    const primero = [...formulario.elements].find((campo) => nuevos[campo.name]);
+    primero?.focus();
     return Object.keys(nuevos).length === 0;
   }
 

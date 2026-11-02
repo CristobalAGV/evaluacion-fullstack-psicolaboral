@@ -27,10 +27,11 @@ export default function CampoArchivo({
         required={required}
         onChange={(e) => onChange(e.target.files[0] || null)}
         aria-invalid={Boolean(error)}
+        aria-describedby={`${id}-ayuda${error ? ` ${id}-error` : ""}`}
         className={`form-control${error ? " is-invalid" : ""}`}
       />
-      {error && <div className="invalid-feedback">{error}</div>}
-      <div className="form-text">{ayuda}</div>
+      {error && <div id={`${id}-error`} className="invalid-feedback">{error}</div>}
+      <div id={`${id}-ayuda`} className="form-text">{ayuda}</div>
       {archivo && (
         <div className="form-text text-body">
           Archivo seleccionado: <span className="fw-medium text-break">{archivo.name}</span>

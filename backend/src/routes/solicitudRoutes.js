@@ -41,6 +41,7 @@ router.put("/:id/informe-entrevista", recibirArchivo("informe", "El informe"), s
 router.get("/:id/evaluaciones", listarEvaluacionesPorSolicitud);
 router.post("/:id/evaluaciones", permitirRoles("evaluador", "admin"), crearEvaluacion);
 
+if (process.env.IA_HABILITADA === "true") {
 // El informe lo puede leer cualquier usuario autenticado (por ejemplo el
 // analista), pero solo evaluador y admin pueden generarlo o editarlo.
 router.get("/:id/informe", obtenerInforme);
@@ -51,5 +52,7 @@ router.put("/:id/informe", permitirRoles("evaluador", "admin"), guardarInforme);
 router.get("/:id/informe/evaluacion", obtenerEvaluacionIa);
 router.post("/:id/informe/evaluacion/generar", permitirRoles("evaluador", "admin"), generarEvaluacionIa);
 router.put("/:id/informe/evaluacion", permitirRoles("evaluador", "admin"), guardarEvaluacionIa);
+
+}
 
 export default router;

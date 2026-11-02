@@ -1,12 +1,16 @@
 # Guía rápida de git para este proyecto
 
 Una **rama** es una copia paralela del proyecto. Sirve para probar cosas
-nuevas sin tocar la versión que funciona. Este repo tiene dos:
+nuevas sin tocar la versión que funciona. Entre las ramas de este repo están:
 
 | Rama | Para qué sirve |
 | ---- | -------------- |
 | `main` | La versión oficial, la que se entrega y se despliega. **No experimentar aquí.** |
 | `feature/integracion-ia` | Espacio para probar la integración de IA, que no es parte del alcance evaluado. |
+
+Para EP2, `main` conserva el código de IA para EP3, deshabilitado mediante
+`VITE_IA_HABILITADA=false` e `IA_HABILITADA=false`; no es necesario cambiar de
+rama para mantenerlo apagado. Solo el valor exacto `"true"` habilita cada flag.
 
 Además hay una **etiqueta** (tag) llamada `v1.0-mvp`. Una etiqueta es una
 foto congelada de un momento del proyecto: marca el MVP terminado, para

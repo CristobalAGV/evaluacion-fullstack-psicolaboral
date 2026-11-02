@@ -3,7 +3,7 @@ import { screen, fireEvent, within } from "@testing-library/react";
 import api from "../services/api";
 import Registro from "../pages/Registro";
 import Dashboard from "../pages/Dashboard";
-import { renderizar, limpiarSesion, errorAxios, USUARIOS } from "./ayudantes";
+import { renderizar, limpiarSesion, iniciarSesionSimulada, errorAxios, USUARIOS } from "./ayudantes";
 
 describe("Registro", () => {
   beforeEach(() => limpiarSesion());
@@ -27,9 +27,9 @@ describe("Registro", () => {
   it("muestra el formulario con analista como rol por defecto", () => {
     abrirRegistro();
 
-    expect(screen.getByRole("heading", { name: "Crear cuenta" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Crear usuario" })).toBeTruthy();
     expect(screen.getByLabelText("Rol").value).toBe("analista");
-    expect(screen.getByRole("link", { name: "Iniciar sesión" }).getAttribute("href")).toBe("/login");
+    expect(screen.queryByRole("link", { name: "Iniciar sesión" })).toBeNull();
   });
 
   it("el selector de rol NO ofrece admin", () => {
@@ -57,7 +57,7 @@ describe("Registro", () => {
     const post = vi.spyOn(api, "post").mockImplementation(() => undefined);
     abrirRegistro();
 
-    fireEvent.click(screen.getByRole("button", { name: "Registrarme" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear usuario" }));
 
     expect(screen.getByLabelText("Nombre").validity.valueMissing).toBe(true);
     expect(post).not.toHaveBeenCalled();
@@ -68,32 +68,34 @@ describe("Registro", () => {
     abrirRegistro();
     completar({ correo: "esto-no-es-un-correo" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Registrarme" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear usuario" }));
 
     expect(screen.getByLabelText("Correo").validity.typeMismatch).toBe(true);
     expect(post).not.toHaveBeenCalled();
   });
 
-  it("envía los datos al servicio, guarda la sesión y lleva al inicio", async () => {
+  it("crea el usuario y conserva la sesión del admin", async () => {
     // Arrange
     const post = vi.spyOn(api, "post").mockResolvedValue({
       data: { token: "jwt-nuevo", usuario: { ...USUARIOS.evaluador, nombre: "Eva Nueva" } },
     });
+    iniciarSesionSimulada(USUARIOS.admin);
     abrirRegistro();
     completar({ rol: "evaluador" });
 
     // Act
-    fireEvent.click(screen.getByRole("button", { name: "Registrarme" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear usuario" }));
 
     // Assert
-    expect(await screen.findByText("Pantalla de inicio")).toBeTruthy();
+    expect(await screen.findByText("Usuario creado correctamente")).toBeTruthy();
     expect(post).toHaveBeenCalledExactlyOnceWith("/auth/registro", {
       nombre: "Eva Nueva",
       correo: "eva@ejemplo.cl",
       password: "secreto123",
       rol: "evaluador",
     });
-    expect(localStorage.getItem("token")).toBe("jwt-nuevo");
+    expect(localStorage.getItem("token")).toBe("token-de-prueba");
+    expect(JSON.parse(localStorage.getItem("usuario"))).toEqual(USUARIOS.admin);
   });
 
   it("muestra el error del servidor (correo ya registrado) y no inicia sesión", async () => {
@@ -101,7 +103,7 @@ describe("Registro", () => {
     abrirRegistro();
     completar();
 
-    fireEvent.click(screen.getByRole("button", { name: "Registrarme" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear usuario" }));
 
     expect(await screen.findByText("Ya existe un usuario con ese correo")).toBeTruthy();
     expect(localStorage.getItem("token")).toBeNull();
@@ -112,7 +114,7 @@ describe("Registro", () => {
     abrirRegistro();
     completar();
 
-    fireEvent.click(screen.getByRole("button", { name: "Registrarme" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear usuario" }));
 
     expect(await screen.findByText("Error al registrar usuario")).toBeTruthy();
   });

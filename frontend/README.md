@@ -19,6 +19,7 @@ Copia `.env.example` como `.env` y ajusta la URL de la API (incluye el sufijo `/
 
 ```
 VITE_API_URL=http://localhost:4000/api
+VITE_IA_HABILITADA=false
 ```
 
 ## Ejecutar
@@ -41,3 +42,23 @@ npm run test:cobertura   # además genera el reporte en coverage/ (abrir coverag
 Las pruebas están en `src/pruebas/` y la configuración en la sección `test` de `vite.config.js`.
 
 Más detalle: `docs/cobertura-testing.md` y `docs/guia-testing.md` en la raíz del repositorio.
+
+## Estado EP2 validado
+
+339 pruebas frontend aprobadas en 22 archivos. Cobertura: **96,66 % statements,
+90,52 % branches, 98,83 % functions y 97,53 % lines**. Build aprobado.
+Lint (`npm.cmd run lint`) devuelve código 0 con dos warnings previos de Fast Refresh
+en AuthContext y EtiquetaPostulacionPublica. Backend: 57/57 pruebas aprobadas.
+
+`/login` y `/postular` son públicos; los candidatos postulan sin cuenta.
+`/registro` es interno y exclusivo de admin; crear usuarios conserva su sesión.
+La IA se conserva para EP3 y queda desactivada por flag (solo `"true"` habilita).
+
+Las solicitudes permiten programar fecha y hora de evaluación (hora local en la
+interfaz, instante ISO/UTC al guardar) y definir Aprobada/Rechazada como resultado
+separado de Pendiente → En proceso → Finalizada. Solo analista/admin gestionan
+estos campos; salir de Finalizada quita el resultado. La postulación pública
+incluye un mensaje opcional de hasta 800 caracteres, visible en el detalle con
+sus saltos de línea.
+
+Resultados del proyecto real: 2 de noviembre de 2026. Ver las guías de `../docs/`.

@@ -13,7 +13,16 @@ export default function Modal({ etiqueta, onCerrar, tamano = "", pie = null, chi
   });
 
   useEffect(() => {
+    const anterior = document.activeElement;
     function alPresionarTecla(e) {
+      if (e.key === "Tab") {
+        const campos = [...dialogoRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]')].filter((campo) => !campo.closest("[hidden], [aria-hidden=true]"));
+        const primero = campos[0];
+        const ultimo = campos.at(-1);
+        if (!primero) { e.preventDefault(); dialogoRef.current.focus(); }
+        else if (e.shiftKey && (document.activeElement === primero || document.activeElement === dialogoRef.current)) { e.preventDefault(); ultimo.focus(); }
+        else if (!e.shiftKey && (document.activeElement === ultimo || document.activeElement === dialogoRef.current)) { e.preventDefault(); primero.focus(); }
+      }
       if (e.key === "Escape") cerrarRef.current();
     }
     document.addEventListener("keydown", alPresionarTecla);
@@ -23,6 +32,7 @@ export default function Modal({ etiqueta, onCerrar, tamano = "", pie = null, chi
     return () => {
       document.removeEventListener("keydown", alPresionarTecla);
       document.body.classList.remove("modal-open");
+      if (anterior?.isConnected) anterior.focus();
     };
   }, []);
 

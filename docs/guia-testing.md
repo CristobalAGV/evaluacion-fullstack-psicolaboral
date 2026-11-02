@@ -108,8 +108,8 @@ no que se haya comprobado todo. Por eso lo importante es que las pruebas tengan 
 **En la terminal**, al final de `npm test`:
 
 ```
- Test Files  20 passed (20)
-      Tests  262 passed (262)
+ Test Files  22 passed (22)
+      Tests  339 passed (339)
 ```
 
 - `passed`: todas pasaron.
@@ -119,8 +119,7 @@ no que se haya comprobado todo. Por eso lo importante es que las pruebas tengan 
 **La tabla de cobertura** (con `npm run test:cobertura`):
 
 ```
-File            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
-Postular.jsx    |   89.47 |    88.23 |   92.85 |   90.74 | 51-52,56-57,188
+El reporte completo por archivo se consulta en coverage/index.html.
 ```
 
 - Cada columna es una de las medidas de la sección 5.
@@ -173,20 +172,10 @@ de IA, y hoy `npm test` no muestra ninguna.
 `esperarQue(condición)` (en `ayudantes.jsx`): lanza un error con una descripción clara mientras
 la condición no se cumpla.
 
-### Pruebas de mutación: ¿las pruebas detectan errores?
+### Alcance de esta verificación
 
-Una cobertura alta no prueba que las pruebas sirvan. Para comprobarlo, **metimos errores a
-propósito** en la app y corrimos las pruebas:
-
-- `api.js` deja de mandar el token → falla "agrega el token…".
-- El registro ofrece el rol admin → falla "el selector de rol NO ofrece admin".
-- Cualquier usuario puede subir el informe → falla "evaluador ajeno: solo puede mirar".
-
-Al migrar a Vitest se repitió con tres errores nuevos (CV de ~95 MB aceptado en `Postular`, el
-interceptor de `api.js` mirando el 403 en vez del 401, y `hoyLocal()` con el mes corrido) y
-Vitest los detectó todos.
-
-Cada error fue detectado por la prueba que lo cuida. Después se dejó el código como estaba.
+En este proyecto real se ejecutaron los comandos documentados al final. No se
+repitieron experimentos de mutación ni scripts de auditorías externas.
 
 ### Lo que no se puede simular
 
@@ -195,13 +184,24 @@ lo que la persona escribe con el teclado**, no a un valor puesto por un script. 
 prueba verifica que la regla esté declarada en el campo, en vez de fingir algo que el
 navegador no hace. (Tampoco existe `DataTransfer` en jsdom, así que el ayudante `elegirArchivo` entrega el archivo de otra forma.) Es mejor decirlo que forzar una prueba engañosa.
 
-## 8. Resultados del proyecto en una frase
+## 8. Resultados del proyecto real
 
-**262 pruebas en 20 archivos, todas aprobadas**, en orden aleatorio. La cobertura es de
-**97,73 % de líneas y 90,28 % de ramas** (subió desde 44 % de líneas y 33 % de ramas en la
-primera ronda). Cubre login
-y registro, rutas protegidas por rol, interceptores de sesión, el formulario público, el
-detalle de solicitud con sus permisos por rol, evaluaciones, informe Word, descarga segura de
-archivos, el Kanban completo y todos los servicios.
+339 pruebas frontend aprobadas en 22 archivos. Cobertura: **96,66 % statements,
+90,52 % branches, 98,83 % functions y 97,53 % lines**.
 
-Lo que falta (y por qué) está en `cobertura-testing.md`, sección 7.
+Comandos ejecutados: `npm.cmd test`, `npm.cmd run test:cobertura`,
+`npm.cmd run build` y `npm.cmd run lint`, todos con código 0. Lint conserva dos
+warnings previos de Fast Refresh (AuthContext y EtiquetaPostulacionPublica).
+Backend: `npm.cmd test`, 57 pruebas
+reproducibles aprobadas con Gemini y persistencia simulados; no se mide su cobertura.
+
+El registro es interno y solo admin crea usuarios, conservando su sesión.
+El candidato postula por `/postular` sin cuenta. La IA permanece en el código
+para EP3, desactivada en EP2 por flags estrictas (solo `"true"` habilita).
+Las pruebas verifican accesibilidad, sesión, permisos y ambos estados de IA.
+También cubren fecha y hora de evaluación de la solicitud, resultado final
+separado del estado, mensaje adicional de hasta 800 caracteres y preservación
+de datos al editar. Backend incluye comprobaciones de verano, invierno y DST
+para America/Santiago y emite avisos previos de deprecación de `validateSync()`.
+
+Ver alcance, limitaciones y tabla real en [cobertura-testing.md](cobertura-testing.md).

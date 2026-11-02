@@ -60,9 +60,6 @@ export default function Login() {
                 Ingresar
               </button>
             </form>
-            <p className="mt-4 mb-2 small text-body-secondary">
-              ¿No tienes cuenta? <Link to="/registro">Regístrate</Link>
-            </p>
             <p className="mb-0 small text-body-secondary">
               ¿Quieres postular a un cargo? <Link to="/postular">Postula aquí</Link>
             </p>

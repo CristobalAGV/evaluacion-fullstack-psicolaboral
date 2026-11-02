@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+
 import { useAuth } from "../context/AuthContext";
 import CampoPassword from "../components/CampoPassword";
 
@@ -10,14 +10,15 @@ export default function Registro() {
   const [rol, setRol] = useState("analista");
   const [error, setError] = useState("");
   const { registrarUsuario } = useAuth();
-  const navigate = useNavigate();
+  const [exito, setExito] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setExito("");
     try {
       await registrarUsuario(nombre, correo, password, rol);
-      navigate("/");
+      setExito("Usuario creado correctamente");
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al registrar usuario");
     }
@@ -28,7 +29,8 @@ export default function Registro() {
       <div className="col-12 col-sm-10 col-md-8 col-lg-5">
         <div className="card shadow-sm">
           <div className="card-body p-4">
-            <h1 className="h4 mb-4">Crear cuenta</h1>
+            <h1 className="h4 mb-4">Crear usuario</h1>
+            {exito && <div className="alert alert-success" role="status">{exito}</div>}
             <form onSubmit={handleSubmit} className="d-grid gap-3">
               <div>
                 <label htmlFor="registro-nombre" className="form-label">
@@ -82,12 +84,9 @@ export default function Registro() {
                 </div>
               )}
               <button type="submit" className="btn btn-primary">
-                Registrarme
+                Crear usuario
               </button>
             </form>
-            <p className="mt-4 mb-0 small text-body-secondary">
-              ¿Ya tienes cuenta? <Link to="/login">Iniciar sesión</Link>
-            </p>
           </div>
         </div>
       </div>

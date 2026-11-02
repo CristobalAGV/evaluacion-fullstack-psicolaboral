@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { RESULTADOS, MAX_MENSAJE_ADICIONAL } from "../utils/datosSolicitud.js";
 
 const puntaje = { type: Number, min: 0, max: 100 };
 
@@ -69,6 +70,25 @@ const solicitudSchema = new mongoose.Schema(
       type: String,
       enum: ["Pendiente", "En proceso", "Finalizada"],
       default: "Pendiente",
+    },
+    // Resultado final del proceso, separado del estado: solo tiene sentido con estado "Finalizada".
+    // Las solicitudes anteriores no lo tienen y quedan en null.
+    resultado: {
+      type: String,
+      enum: RESULTADOS,
+      default: null,
+    },
+    // Fecha y hora (instante en UTC) en que se evaluará al candidato. Opcional.
+    fechaEvaluacion: {
+      type: Date,
+      default: null,
+    },
+    // Texto libre que el candidato puede dejar al postular desde /postular. Opcional.
+    mensajeAdicional: {
+      type: String,
+      trim: true,
+      maxlength: MAX_MENSAJE_ADICIONAL,
+      default: "",
     },
     // Vacío cuando la solicitud la creó el propio candidato desde /postular.
     analistaId: {

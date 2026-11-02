@@ -1,3 +1,4 @@
+vi.mock("../config/funcionalidades", () => ({ IA_HABILITADA: true }));
 // SolicitudDetalle: datos, archivos del candidato, permisos por rol, evaluaciones e informe.
 import { screen, fireEvent, within } from "@testing-library/react";
 import api from "../services/api";

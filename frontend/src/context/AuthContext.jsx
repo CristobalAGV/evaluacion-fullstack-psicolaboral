@@ -36,10 +36,6 @@ export function AuthProvider({ children }) {
 
   async function registrarUsuario(nombre, correo, password, rol) {
     const data = await authService.registrar(nombre, correo, password, rol);
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("usuario", JSON.stringify(data.usuario));
-    setUsuario(data.usuario);
-    setMensajeSesion("");
     return data.usuario;
   }
 
