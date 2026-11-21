@@ -19,12 +19,16 @@ const INFORME_GUARDADO = {
   generadoEn: "2026-10-08T15:00:00.000Z",
 };
 
-async function abrir({ informe = null, puedeEditar = true } = {}) {
+const SIN_INFORME = "Todavía no hay un informe psicolaboral guardado en el sistema.";
+const WORD_DISPONIBLE = "El informe de entrevista Word está disponible en el expediente del postulante.";
+
+async function abrir({ informe = null, puedeEditar = true, tieneInforme = true, estadoSolicitud } = {}) {
   const get = simularGet({
     "/solicitudes/s1/informe": informe,
     "/solicitudes/s1/informe/evaluacion": null,
   });
-  render(<InformePsicolaboral solicitudId="s1" puedeEditar={puedeEditar} tieneCv tieneInforme />);
+  render(<InformePsicolaboral solicitudId="s1" puedeEditar={puedeEditar} tieneCv
+    tieneInforme={tieneInforme} estadoSolicitud={estadoSolicitud} />);
   await esperarQue(() => !screen.queryByText("Cargando informe..."), "que cargue el informe");
   return get;
 }
@@ -63,11 +67,20 @@ describe("InformePsicolaboral", () => {
     });
 
     it("sin permiso y sin informe: no hay botones de IA y explica quién puede generarlo", async () => {
-      await abrir({ puedeEditar: false });
+      await abrir({ puedeEditar: false, tieneInforme: false });
 
+      expect(screen.getByText(SIN_INFORME)).toBeTruthy();
+      expect(screen.queryByText(WORD_DISPONIBLE)).toBeNull();
       expect(screen.getByText(/Solo el evaluador responsable puede generarlo/)).toBeTruthy();
       expect(botonBorrador()).toBeNull();
       expect(screen.queryByRole("button", { name: "Generar evaluación con IA" })).toBeNull();
+    });
+
+    it("con Word y sin informe psicolaboral guardado indica que el Word está en el expediente", async () => {
+      await abrir({ estadoSolicitud: "Finalizada", puedeEditar: false });
+      expect(screen.getByText(SIN_INFORME)).toBeTruthy();
+      expect(screen.getByText(WORD_DISPONIBLE)).toBeTruthy();
+      expect(botonBorrador()).toBeNull();
     });
 
     it("sin permiso y con informe: lo muestra en solo lectura con el aviso y la autoría", async () => {
@@ -75,6 +88,8 @@ describe("InformePsicolaboral", () => {
 
       expect(screen.getByText(/Borrador generado por inteligencia artificial/)).toBeTruthy();
       expect(screen.getByText("Comunicación clara.")).toBeTruthy();
+      expect(screen.queryByText(SIN_INFORME)).toBeNull();
+      expect(screen.queryByText(WORD_DISPONIBLE)).toBeNull();
       expect(screen.getByText(/Última edición: Eva Evaluadora/)).toBeTruthy();
       expect(screen.queryByRole("textbox")).toBeNull();
       expect(screen.queryByRole("button", { name: "Guardar informe" })).toBeNull();
@@ -90,14 +105,15 @@ describe("InformePsicolaboral", () => {
       expect(screen.getByText(/Última edición guardada: Eva Evaluadora/)).toBeTruthy();
     });
 
-    it("si falla la carga del informe, muestra el error", async () => {
-      simularGet({
-        "/solicitudes/s1/informe": errorAxios(500, "Error al obtener el informe"),
-        "/solicitudes/s1/informe/evaluacion": null,
+    it.each([true, false])("si falla la carga, muestra el error y no la ausencia (edición: %s)", async (puedeEditar) => {
+      await abrir({
+        informe: puedeEditar ? errorAxios(500, "Error al obtener el informe") : new Error("Network Error"),
+        puedeEditar, estadoSolicitud: puedeEditar ? "En proceso" : "Finalizada",
       });
-      render(<InformePsicolaboral solicitudId="s1" puedeEditar tieneCv tieneInforme />);
-
-      expect(await screen.findByText("Error al obtener el informe")).toBeTruthy();
+      const mensaje = puedeEditar ? "Error al obtener el informe" : "No se pudo cargar el informe psicolaboral.";
+      expect(screen.getByRole("alert").textContent).toBe(mensaje);
+      expect(screen.queryByText(SIN_INFORME)).toBeNull();
+      expect(screen.queryByText(WORD_DISPONIBLE)).toBeNull();
     });
   });
 

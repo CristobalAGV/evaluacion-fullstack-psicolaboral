@@ -32,6 +32,7 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar, estadoSo
   const [cargando, setCargando] = useState(true);
   const [generando, setGenerando] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [errorCarga, setErrorCarga] = useState("");
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
 
@@ -46,7 +47,7 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar, estadoSo
           setModeloIa(data.modeloIa || "");
         }
       })
-      .catch((err) => setError(err.response?.data?.mensaje || "Error al cargar el informe"))
+      .catch((err) => setErrorCarga(err.response?.data?.mensaje || "No se pudo cargar el informe psicolaboral."))
       .finally(() => setCargando(false));
   }, [solicitudId]);
 
@@ -81,6 +82,7 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar, estadoSo
         estado: informe?.estado === "finalizado" ? "finalizado" : "borrador",
       });
       setInforme(guardado);
+      setErrorCarga("");
       setAviso("Informe guardado.");
     } catch (err) {
       setError(err.response?.data?.mensaje || "No se pudo guardar el informe.");
@@ -104,6 +106,15 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar, estadoSo
 
   const hayContenido = secciones.length > 0;
   const finalizada = estadoSolicitud === "Finalizada";
+  const estadoInforme = errorCarga ? (
+    <p className="alert alert-danger mb-0" role="alert">{errorCarga}</p>
+  ) : !informe && (
+    <div className="text-secondary">
+      <p className="mb-0">Todavía no hay un informe psicolaboral guardado en el sistema.</p>
+      {tieneInforme && <p className="mb-0 mt-1">El informe de entrevista Word está disponible en el expediente del postulante.</p>}
+      {!finalizada && !puedeEditar && <p className="mb-0 mt-1">Solo el evaluador responsable puede generarlo.</p>}
+    </div>
+  );
 
   // Tarjeta de la evaluación con nota: misma sección y mismos permisos que el informe.
   const tarjetaEvaluacion = (
@@ -122,11 +133,8 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar, estadoSo
     const seccionesGuardadas = informe?.secciones ?? [];
     return (
       <div className="d-flex flex-column gap-4">
-        {!seccionesGuardadas.length ? (
-          <p className="text-secondary mb-0">
-            Todavía no hay un informe para esta solicitud.{!finalizada && " Solo el evaluador responsable puede generarlo."}
-          </p>
-        ) : (
+        {estadoInforme}
+        {seccionesGuardadas.length > 0 && (
           <>
             <AvisoIa />
             {seccionesGuardadas.map((seccion) => (
@@ -156,6 +164,7 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar, estadoSo
 
   return (
     <div className="d-flex flex-column gap-4">
+      {estadoInforme}
       <AvisoIa />
 
       <div>
