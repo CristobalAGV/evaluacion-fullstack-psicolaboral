@@ -26,6 +26,7 @@ function simularGemini(...respuestas) {
     llamadas.push({ url: String(url), clave: new Headers(opciones.headers).get("x-goog-api-key"), cuerpo: JSON.parse(opciones.body) });
     const siguiente = respuestas.shift();
     if (!siguiente) throw new Error("La prueba no esperaba otra llamada a Gemini");
+    if (typeof siguiente === "function") return siguiente(opciones);
     return typeof siguiente === "number" ? respuestaError(siguiente) : siguiente;
   };
 }
@@ -78,12 +79,61 @@ describe("servicioIa: reintentos ante 503 y modelo de respaldo", () => {
     assert.equal(llamadas.length, 4);
   });
 
-  test("un 429 NO se reintenta ni usa el respaldo", async () => {
+  test("un 429 pasa directamente al respaldo", async () => {
     process.env.GEMINI_MODEL_RESPALDO = "modelo-respaldo";
-    simularGemini(429);
+    simularGemini(429, respuestaExitosa());
 
+    assert.equal((await generar()).modelo, "modelo-respaldo");
+    assert.deepEqual(llamadas.map(modeloDe), ["modelo-principal", "modelo-respaldo"]);
+  });
+
+  test("sin respaldo el 429 conserva el error de cuota", async () => {
+    simularGemini(429);
     await assert.rejects(generar(), (error) => error.estado === 429 && /cuota/.test(error.message));
     assert.equal(llamadas.length, 1);
+  });
+
+  test("si el último reintento se agota después de dos 503, usa el respaldo", async () => {
+    process.env.GEMINI_MODEL_RESPALDO = "modelo-respaldo";
+    simularGemini(503, 503, () => { throw new DOMException("Tiempo agotado", "AbortError"); }, respuestaExitosa());
+    assert.equal((await generar()).modelo, "modelo-respaldo");
+    assert.deepEqual(llamadas.map(modeloDe), ["modelo-principal", "modelo-principal", "modelo-principal", "modelo-respaldo"]);
+  });
+
+  test("el timeout cubre el cuerpo de Gemini y deja tiempo para el respaldo", async (t) => {
+    process.env.GEMINI_MODEL_RESPALDO = "modelo-respaldo";
+    process.env.GEMINI_ESPERAS_REINTENTO_MS = "";
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    let empezarLectura;
+    const lecturaIniciada = new Promise((resolve) => { empezarLectura = resolve; });
+    simularGemini(({ signal }) => ({
+      ok: true,
+      json: () => new Promise((_, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+        empezarLectura();
+      }),
+    }), respuestaExitosa());
+    const resultado = generar();
+    await lecturaIniciada;
+    t.mock.timers.tick(60_000);
+    assert.equal((await resultado).modelo, "modelo-respaldo");
+  });
+
+  test("un 504 seguido de un respaldo agotado devuelve un error controlado", async () => {
+    process.env.GEMINI_MODEL_RESPALDO = "modelo-respaldo";
+    process.env.GEMINI_ESPERAS_REINTENTO_MS = "999999";
+    simularGemini(504, 504);
+    await assert.rejects(generar(), (error) => error.estado === 504 && /Tus apuntes/.test(error.message));
+    assert.deepEqual(llamadas.map(modeloDe), ["modelo-principal", "modelo-respaldo"]);
+  });
+
+  test("un timeout de conexión de Node también habilita el respaldo", async () => {
+    process.env.GEMINI_MODEL_RESPALDO = "modelo-respaldo";
+    process.env.GEMINI_ESPERAS_REINTENTO_MS = "";
+    simularGemini(() => {
+      throw new TypeError("fetch failed", { cause: { code: "UND_ERR_CONNECT_TIMEOUT" } });
+    }, respuestaExitosa());
+    assert.equal((await generar()).modelo, "modelo-respaldo");
   });
 
   for (const [status, patron] of [
@@ -112,7 +162,7 @@ describe("servicioIa: reintentos ante 503 y modelo de respaldo", () => {
     simularGemini(503, 503, 503, 404);
 
     await assert.rejects(generar(), (error) => error.estado === 503 && MENSAJE_ALTA_DEMANDA.test(error.message));
-    assert.ok(avisos.some((a) => a.includes("modelo-respaldo tambien fallo")));
+    assert.ok(avisos.some((a) => a.includes("Modelo principal y respaldo no disponibles (HTTP 503/502)")));
   });
 
   test("un respaldo igual al principal no genera una llamada extra", async () => {
@@ -197,7 +247,7 @@ describe("esperasDeReintento", () => {
   });
 
   test("ignora valores no válidos", () => {
-    process.env.GEMINI_ESPERAS_REINTENTO_MS = "100,abc,-5,200";
+    process.env.GEMINI_ESPERAS_REINTENTO_MS = "100,abc,-5,200,300";
     assert.deepEqual(esperasDeReintento(), [100, 200]);
   });
 });

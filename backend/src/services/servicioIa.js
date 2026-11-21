@@ -5,8 +5,10 @@ const URL_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 // gemini-2.5-flash quedo retirado para proyectos nuevos y gemini-3.6-flash respondia 503
 // (alta demanda) con frecuencia; gemini-3.8-flash es el que la API recomienda hoy.
 const MODELO_POR_DEFECTO = "gemini-3.8-flash";
-// 90 s: con 45 s una generacion de informe largo alcanzo a pasarse del limite.
-const TIEMPO_LIMITE_MS = 90000;
+const PRESUPUESTO_PRINCIPAL_MS = 90_000;
+const LIMITE_INTENTO_CON_RESPALDO_MS = 60_000;
+const PRESUPUESTO_RESPALDO_MS = 45_000;
+const MAX_REINTENTOS = 2;
 
 // Error con mensaje pensado para mostrarse al usuario final.
 export class ErrorIa extends Error {
@@ -77,17 +79,24 @@ function obtenerClave() {
 const MENSAJE_ALTA_DEMANDA =
   "El servicio de IA esta con alta demanda en este momento. Espera unos minutos y vuelve a intentarlo.";
 
-// Error 503 de Google (modelo saturado). Es el UNICO error que se reintenta: 429 (cuota),
-// 400, 401, 403 y 404 no cambian por insistir y reintentarlos gastaria cuota.
 function errorAltaDemanda() {
-  const error = new ErrorIa(MENSAJE_ALTA_DEMANDA, 503);
-  error.altaDemanda = true;
-  return error;
+  return new ErrorIa(MENSAJE_ALTA_DEMANDA, 503);
 }
 
-// Esperas (ms) antes de cada reintento ante un 503. Por defecto 2 reintentos: a los 2 s y a los
-// 5 s. GEMINI_ESPERAS_REINTENTO_MS permite cambiarlas (por ejemplo "0,0" en las pruebas) o
-// desactivar los reintentos dejandola vacia.
+function errorTiempo() {
+  return new ErrorIa(
+    "La generacion con IA tardo demasiado. Tus apuntes se mantienen en el formulario. Vuelve a intentarlo.",
+    504
+  );
+}
+
+function esTimeout(error) {
+  return ["AbortError", "TimeoutError"].includes(error.name) ||
+    ["ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT"]
+      .includes(error.cause?.code ?? error.code);
+}
+
+// Esperas antes de reintentar por saturación o timeout. Una variable vacía desactiva los reintentos.
 const ESPERAS_POR_DEFECTO_MS = [2000, 5000];
 
 export function esperasDeReintento() {
@@ -98,7 +107,8 @@ export function esperasDeReintento() {
     .map((parte) => parte.trim())
     .filter(Boolean)
     .map(Number)
-    .filter((ms) => Number.isFinite(ms) && ms >= 0);
+    .filter((ms) => Number.isFinite(ms) && ms >= 0)
+    .slice(0, MAX_REINTENTOS);
 }
 
 const esperar = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
@@ -118,20 +128,19 @@ export function nivelDeRazonamiento() {
   const nivel = valor.trim().toLowerCase();
   if (!nivel) return null;
   if (!NIVELES_RAZONAMIENTO.includes(nivel)) {
-    console.warn(`GEMINI_NIVEL_RAZONAMIENTO="${valor}" no es valido (${NIVELES_RAZONAMIENTO.join(", ")}): no se envia.`);
+    console.warn("GEMINI_NIVEL_RAZONAMIENTO no es válido: no se envía.");
     return null;
   }
   return nivel;
 }
 
 // Un solo pedido a un modelo. Devuelve el JSON generado o lanza ErrorIa.
-async function pedirUnaVez({ modelo, apiKey, cuerpo }) {
+async function pedirUnaVez({ modelo, apiKey, cuerpo, limiteMs }) {
   const controlador = new AbortController();
-  const temporizador = setTimeout(() => controlador.abort(), TIEMPO_LIMITE_MS);
+  const temporizador = setTimeout(() => controlador.abort(), limiteMs);
 
-  let respuesta;
   try {
-    respuesta = await fetch(`${URL_BASE}/${encodeURIComponent(modelo)}:generateContent`, {
+    const respuesta = await fetch(`${URL_BASE}/${encodeURIComponent(modelo)}:generateContent`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -140,13 +149,10 @@ async function pedirUnaVez({ modelo, apiKey, cuerpo }) {
       body: cuerpo,
       signal: controlador.signal,
     });
+    return await leerRespuesta(respuesta, modelo, controlador.signal);
   } catch (error) {
-    if (error.name === "AbortError") {
-      throw new ErrorIa(
-        "La generacion con IA tardo demasiado y se cancelo. Tus datos no se perdieron: vuelve a intentarlo.",
-        504
-      );
-    }
+    if (controlador.signal.aborted || esTimeout(error)) throw errorTiempo();
+    if (error instanceof ErrorIa) throw error;
     throw new ErrorIa(
       "No se pudo conectar con el servicio de IA. Revisa tu conexion e intentalo de nuevo.",
       502
@@ -154,9 +160,11 @@ async function pedirUnaVez({ modelo, apiKey, cuerpo }) {
   } finally {
     clearTimeout(temporizador);
   }
+}
 
+async function leerRespuesta(respuesta, modelo, signal) {
   if (!respuesta.ok) {
-    await respuesta.text().catch(() => "");
+    void respuesta.body?.cancel().catch(() => {});
 
     if (respuesta.status === 429) {
       throw new ErrorIa(
@@ -164,10 +172,8 @@ async function pedirUnaVez({ modelo, apiKey, cuerpo }) {
         429
       );
     }
-    if (respuesta.status === 503) {
-      // Google lo usa cuando el modelo esta saturado ("high demand"); suele ser temporal.
-      throw errorAltaDemanda();
-    }
+    if (respuesta.status === 503) throw errorAltaDemanda();
+    if ([408, 504].includes(respuesta.status)) throw errorTiempo();
     if (respuesta.status === 401) {
       throw new ErrorIa(
         "El servidor no pudo autenticarse con el servicio de IA. Revisa la clave configurada.",
@@ -194,7 +200,11 @@ async function pedirUnaVez({ modelo, apiKey, cuerpo }) {
     );
   }
 
-  const datos = await respuesta.json().catch(() => null);
+  const datos = await respuesta.json().catch((error) => {
+    if (esTimeout(error)) throw error;
+    return null;
+  });
+  signal.throwIfAborted();
 
   // Los filtros de seguridad de Gemini pueden bloquear el pedido o la respuesta.
   if (datos?.promptFeedback?.blockReason || datos?.candidates?.[0]?.finishReason === "SAFETY") {
@@ -220,12 +230,12 @@ async function pedirUnaVez({ modelo, apiKey, cuerpo }) {
   }
 }
 
-// Pide al modelo principal; ante un 503 reintenta con esperas y, si sigue saturado, prueba una
-// vez el modelo de respaldo (GEMINI_MODEL_RESPALDO, opcional). Devuelve el modelo que respondio.
+// El principal comparte un presupuesto entre intentos y esperas. El respaldo tiene su propio límite.
 async function llamarGemini({ instruccionSistema, entrada, esquema, temperatura }) {
   const apiKey = obtenerClave();
   const principal = process.env.GEMINI_MODEL || MODELO_POR_DEFECTO;
   const respaldo = (process.env.GEMINI_MODEL_RESPALDO || "").trim();
+  const tieneRespaldo = Boolean(respaldo && respaldo !== principal);
   const nivel = nivelDeRazonamiento();
   // El mismo cuerpo (incluido thinkingLevel) se usa con el modelo principal y con el respaldo:
   // ambos son Gemini 3 y aceptan el mismo parametro.
@@ -241,29 +251,45 @@ async function llamarGemini({ instruccionSistema, entrada, esquema, temperatura 
   });
 
   const esperas = esperasDeReintento();
-  for (let intento = 0; ; intento++) {
+  const vencePrincipal = performance.now() + PRESUPUESTO_PRINCIPAL_MS;
+  const limiteIntento = tieneRespaldo ? LIMITE_INTENTO_CON_RESPALDO_MS : PRESUPUESTO_PRINCIPAL_MS;
+  let errorPrincipal;
+  for (let intento = 0; ; intento += 1) {
+    const restante = Math.floor(vencePrincipal - performance.now());
+    if (restante <= 0) break;
     try {
-      return { contenido: await pedirUnaVez({ modelo: principal, apiKey, cuerpo }), modelo: principal };
+      const contenido = await pedirUnaVez({ modelo: principal, apiKey, cuerpo, limiteMs: Math.min(restante, limiteIntento) });
+      return { contenido, modelo: principal };
     } catch (error) {
-      if (!error.altaDemanda) throw error;
-      if (intento >= esperas.length) break;
-      console.warn(`Gemini (${principal}) con alta demanda: reintento ${intento + 1} de ${esperas.length} en ${esperas[intento]} ms.`);
-      await esperar(esperas[intento]);
+      if (![429, 503, 504].includes(error.estado)) throw error;
+      errorPrincipal = error;
+      const espera = esperas[intento];
+      // Un 429 normalmente indica cuota. Pasar al respaldo evita gastar intentos en el mismo modelo.
+      if (error.estado === 429 || espera === undefined || espera >= vencePrincipal - performance.now()) break;
+      console.warn(`Gemini principal ${principal}: reintento ${intento + 1} de ${esperas.length} en ${espera} ms (HTTP ${error.estado}).`);
+      await esperar(espera);
     }
   }
 
-  if (respaldo && respaldo !== principal) {
-    console.warn(`Gemini (${principal}) sigue con alta demanda: se prueba el modelo de respaldo ${respaldo}.`);
+  errorPrincipal ??= errorTiempo();
+  const causa = { 429: "cuota agotada", 503: "saturado", 504: "tiempo de espera agotado" }[errorPrincipal.estado];
+  console.warn(`Gemini principal ${principal}: ${causa}.`);
+  if (tieneRespaldo) {
+    console.warn(`Intentando modelo de respaldo ${respaldo}.`);
     try {
-      return { contenido: await pedirUnaVez({ modelo: respaldo, apiKey, cuerpo }), modelo: respaldo };
+      const contenido = await pedirUnaVez({ modelo: respaldo, apiKey, cuerpo, limiteMs: PRESUPUESTO_RESPALDO_MS });
+      console.info(`Gemini respaldo ${respaldo} respondió correctamente.`);
+      return { contenido, modelo: respaldo };
     } catch (error) {
-      // Al usuario se le explica la causa de fondo (el modelo principal saturado); el detalle
-      // del respaldo queda en el log del servidor.
-      console.warn(`El modelo de respaldo ${respaldo} tambien fallo: ${error.message}`);
+      console.warn(`Modelo principal y respaldo no disponibles (HTTP ${errorPrincipal.estado}/${error.estado ?? 502}).`);
+      throw new ErrorIa(
+        "Los dos modelos de IA están temporalmente no disponibles por alta demanda, cuota o tiempo de espera. Tus apuntes se mantienen en el formulario. Vuelve a intentarlo en unos minutos.",
+        errorPrincipal.estado
+      );
     }
   }
 
-  throw errorAltaDemanda();
+  throw errorPrincipal;
 }
 
 export async function sugerirPreguntasEntrevista({ cargo, familia }) {
