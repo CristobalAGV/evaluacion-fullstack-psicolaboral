@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { listarFamilias } from "../services/familiaService";
 import { listarOfertas, obtenerOferta, guardarOferta, cambiarPublicacion, archivarOferta } from "../services/ofertaService";
 import { ofertasDemostracion } from "../config/ofertasDemostracion";
+import { etiquetasModalidad } from "../config/modalidadesOferta";
 
 const alcance = [
   ["descripcion", "Descripción", 4000, true], ["objetivo", "Objetivo del cargo", 4000],
@@ -164,7 +165,7 @@ export function FormularioOferta() {
           <label className="col-md-5 form-label">
             Modalidad
             <select className="form-select" name="modalidad" required defaultValue={borrador?.modalidad ?? "presencial"}>
-              {["presencial", "híbrida", "remota"].map((valor) => <option key={valor}>{valor}</option>)}
+              {Object.entries(etiquetasModalidad).map(([valor, texto]) => <option key={valor} value={valor}>{texto}</option>)}
             </select>
           </label>
           <label className="col-md-2 form-label">

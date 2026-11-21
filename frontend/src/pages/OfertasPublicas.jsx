@@ -3,8 +3,9 @@ import { Link, useParams } from "react-router-dom";
 import { listarOfertas, obtenerOferta } from "../services/ofertaService";
 import { listarFamiliasPublicas } from "../services/postulacionService";
 import Postular from "./Postular";
+import { etiquetasModalidad } from "../config/modalidadesOferta";
 
-const modalidades = ["presencial", "híbrida", "remota"];
+const modalidades = Object.entries(etiquetasModalidad).map(([valor, texto]) => ({ valor, texto }));
 const fechaOferta = new Intl.DateTimeFormat("es-CL", {
   day: "numeric", month: "short", year: "numeric", timeZone: "America/Santiago",
 });
@@ -70,7 +71,7 @@ export function OfertasPublicas() {
           <Filtro nombre="familia" etiqueta="Familia de cargo" opciones={familias.map(({ _id, nombre }) => ({ valor: _id, texto: nombre }))} />
           <Filtro nombre="area" etiqueta="Área" opciones={opciones("area")} />
           <Filtro nombre="region" etiqueta="Región" opciones={opciones("region")} />
-          <Filtro nombre="modalidad" etiqueta="Modalidad" opciones={opcionesTexto(modalidades)} />
+          <Filtro nombre="modalidad" etiqueta="Modalidad" opciones={modalidades} />
           <div className="col-12 col-lg-auto d-flex gap-2 align-items-end">
             <button className="btn btn-primary">Buscar</button>
             <button className="btn btn-outline-secondary" type="reset">Limpiar filtros</button>
@@ -88,7 +89,7 @@ export function OfertasPublicas() {
               <div className="card-body d-flex flex-column">
                 <p className="small fw-semibold text-primary-emphasis mb-2">{oferta.area || oferta.familiaDeCargo?.nombre}</p>
                 <h2 className="h5">{oferta.cargo}</h2>
-                <p className="small text-body-secondary">{ubicacionOferta(oferta)} · {oferta.modalidad}
+                <p className="small text-body-secondary">{ubicacionOferta(oferta)} · {etiquetasModalidad[oferta.modalidad]}
                   {oferta.fechaPublicacion && <> · <time dateTime={oferta.fechaPublicacion}>{fechaOferta.format(new Date(oferta.fechaPublicacion))}</time></>}
                 </p>
                 <p className="text-break">{oferta.descripcion.length > 180 ? oferta.descripcion.slice(0, 177).trimEnd() + "…" : oferta.descripcion}</p>
@@ -128,7 +129,7 @@ export function DetalleOfertaPublica({ postular = false }) {
         <header className="card-header bg-primary-subtle p-4">
           <p className="fw-semibold text-primary-emphasis mb-2">{oferta.area || oferta.familiaDeCargo?.nombre}</p>
           <h1>{oferta.cargo}</h1>
-          <p className="mb-1">{ubicacionOferta(oferta)} · {oferta.modalidad}</p>
+          <p className="mb-1">{ubicacionOferta(oferta)} · {etiquetasModalidad[oferta.modalidad]}</p>
           {oferta.area && oferta.familiaDeCargo?.nombre && <p className="mb-1 small">Familia de cargo · {oferta.familiaDeCargo.nombre}</p>}
           <p className="mb-0 small">{oferta.cupos} {oferta.cupos === 1 ? "cupo" : "cupos"}
             {oferta.fechaPublicacion && <> · Publicada el <time dateTime={oferta.fechaPublicacion}>{fechaOferta.format(new Date(oferta.fechaPublicacion))}</time></>}
