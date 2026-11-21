@@ -1,22 +1,37 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ArchivoDescargable from "./ArchivoDescargable";
+import ReemplazarCv from "./ReemplazarCv";
 import { descargarPautaEntrevista } from "../services/archivoService";
 import { obtenerExpediente } from "../services/solicitudService";
 
-export default function ExpedientePostulante({ solicitudId, enlaceOferta }) {
+export default function ExpedientePostulante({ solicitudId, puedeGestionar, onCvReemplazado }) {
   const [expediente, setExpediente] = useState(null);
   const [error, setError] = useState("");
+  const [aviso, setAviso] = useState("");
+  const [errorRefresco, setErrorRefresco] = useState("");
+  const [revision, setRevision] = useState(0);
 
   useEffect(() => {
     let vigente = true;
     obtenerExpediente(solicitudId)
       .then((datos) => { if (vigente) setExpediente(datos); })
       .catch((err) => {
-        if (vigente) setError(err.response?.data?.mensaje || "No se pudo consultar el expediente.");
+        if (!vigente) return;
+        const mensaje = err.response?.data?.mensaje || "No se pudo consultar el expediente.";
+        if (revision) setErrorRefresco(mensaje);
+        else setError(mensaje);
       });
     return () => { vigente = false; };
-  }, [solicitudId]);
+  }, [solicitudId, revision]);
+
+  function alReemplazarCv(cv) {
+    setExpediente((actual) => ({ ...actual, documentos: { ...actual.documentos, cv } }));
+    onCvReemplazado(cv);
+    setAviso("CV reemplazado correctamente.");
+    setErrorRefresco("");
+    setRevision((actual) => actual + 1);
+  }
 
   if (error) return <p role="alert" className="alert alert-warning mb-0">{error}</p>;
   if (!expediente) return <p role="status" className="text-secondary mb-0">Cargando expediente…</p>;
@@ -26,7 +41,7 @@ export default function ExpedientePostulante({ solicitudId, enlaceOferta }) {
     "ID del candidato": candidato?._id,
     "ID de la solicitud": expediente.solicitudId,
     Contenedor: carpeta ? <code className="text-break">{carpeta}</code> : "No disponible",
-    "Oferta asociada": oferta && (enlaceOferta
+    "Oferta asociada": oferta && (puedeGestionar
       ? <Link to={`/gestion/ofertas/${oferta._id}`}>{oferta.cargo}</Link>
       : oferta.cargo),
     "Familia de cargo": familia?.nombre,
@@ -47,7 +62,11 @@ export default function ExpedientePostulante({ solicitudId, enlaceOferta }) {
           </div>
         ))}
       </dl>
-      <ArchivoDescargable etiqueta="CV" archivo={documentos?.cv} textoNoDisponible="No disponible" />
+      <ArchivoDescargable etiqueta="CV" archivo={documentos?.cv} textoNoDisponible="No disponible"
+        acciones={puedeGestionar && documentos?.cv &&
+          <ReemplazarCv solicitudId={solicitudId} alReemplazar={alReemplazarCv} />} />
+      {aviso && <p role="status" className="alert alert-success py-2 mb-0">{aviso}</p>}
+      {errorRefresco && <p role="alert" className="alert alert-warning py-2 mb-0">{errorRefresco}</p>}
       <ArchivoDescargable etiqueta="Informe de entrevista" archivo={documentos?.informe} textoNoDisponible="No disponible" />
       <ArchivoDescargable
         etiqueta={familia?.nombre ? `Pauta de entrevista · ${familia.nombre}` : "Pauta de entrevista"}

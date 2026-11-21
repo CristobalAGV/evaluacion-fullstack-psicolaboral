@@ -212,9 +212,11 @@ export async function generarEvaluacionIa(req, res) {
       return res.status(403).json({ mensaje: MENSAJE_SIN_PERMISO });
     }
 
-    const { cvArchivoId, informeArchivoId } = solicitud.oferta
+    const adjuntos = solicitud.oferta
       ? { cvArchivoId: solicitud.cvPostulacion, informeArchivoId: solicitud.informePostulacion }
       : solicitud.candidato ?? {};
+    const cvArchivoId = solicitud.cvPostulacion ?? adjuntos.cvArchivoId;
+    const { informeArchivoId } = adjuntos;
     const faltantes = [!cvArchivoId && "el CV", !informeArchivoId && "el informe de entrevista (Word)"].filter(Boolean);
     if (faltantes.length) {
       return res.status(400).json({

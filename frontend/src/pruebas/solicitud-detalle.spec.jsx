@@ -433,6 +433,69 @@ describe("SolicitudDetalle", () => {
     });
   });
 
+  describe("reemplazo del CV en el expediente", () => {
+    const selector = () => document.querySelector('input[aria-label="Seleccionar nuevo CV"]');
+
+    it("abre el selector, confirma y vuelve a consultar el expediente con el nuevo archivo", async () => {
+      const expediente = crearExpediente(crearSolicitud());
+      const get = await abrirDetalle(USUARIOS.analista, { expediente });
+      const clic = vi.spyOn(selector(), "click");
+      const put = vi.spyOn(api, "put").mockImplementation(async () => {
+        const cvArchivo = { _id: "cv-corregido", nombreOriginal: "CV_Benjamin_Ficticio.pdf" };
+        expediente.documentos.cv = cvArchivo;
+        return { data: { cvArchivo } };
+      });
+      const cv = within(fila("CV"));
+      expect(cv.getByRole("button", { name: "Descargar" })).toBeTruthy();
+      fireEvent.click(cv.getByRole("button", { name: "Reemplazar CV" }));
+      expect(clic).toHaveBeenCalledOnce();
+      expect(selector().accept).toBe(".pdf,application/pdf");
+      elegirArchivo(selector(), archivoDePrueba("CV_Benjamin_Ficticio.pdf", "application/pdf"));
+      const modal = within(screen.getByRole("dialog", { name: "Confirmar reemplazo del CV" }));
+      expect(modal.getByText("¿Deseas reemplazar el CV actual? El archivo anterior dejará de estar asociado a esta solicitud.")).toBeTruthy();
+      expect(put).not.toHaveBeenCalled();
+      fireEvent.click(modal.getByRole("button", { name: "Confirmar reemplazo" }));
+      expect(await screen.findByText("CV reemplazado correctamente.")).toBeTruthy();
+      expect(cv.getByText("CV_Benjamin_Ficticio.pdf")).toBeTruthy();
+      expect(cv.queryByText("CV Lucía.pdf")).toBeNull();
+      expect(put.mock.lastCall[0]).toBe("/solicitudes/s1/cv");
+      expect(put.mock.lastCall[1].get("cv").name).toBe("CV_Benjamin_Ficticio.pdf");
+      await esperarQue(() => get.mock.calls.filter(([ruta]) => ruta.endsWith("/carpeta")).length === 2);
+      fireEvent.click(screen.getByRole("button", { name: "Cambiar" }));
+      const edicion = within(screen.getByRole("dialog", { name: "Editar solicitud" }));
+      expect(await edicion.findByText("CV_Benjamin_Ficticio.pdf", {}, { timeout: 3000 })).toBeTruthy();
+    });
+
+    it("rechaza Word y archivos de más de 5 MB antes de confirmar", async () => {
+      await abrirDetalle(USUARIOS.admin);
+      const put = vi.spyOn(api, "put");
+      elegirArchivo(selector(), archivoDePrueba("CV.docx", WORD));
+      expect(screen.getByRole("alert").textContent).toBe("Selecciona un archivo PDF.");
+      elegirArchivo(selector(), archivoDePrueba("CV.pdf", "application/pdf", 5 * 1024 * 1024 + 1));
+      expect(screen.getByRole("alert").textContent).toBe("El CV supera el tamaño máximo de 5 MB.");
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(put).not.toHaveBeenCalled();
+    });
+
+    it("un error conserva el CV original y permite cancelar sin actualizarlo", async () => {
+      await abrirDetalle(USUARIOS.admin);
+      const put = vi.spyOn(api, "put").mockRejectedValue(errorAxios(400, "No se pudo abrir el CV como un PDF válido."));
+      elegirArchivo(selector(), archivoDePrueba("CV.pdf", "application/pdf"));
+      fireEvent.click(screen.getByRole("button", { name: "Confirmar reemplazo" }));
+      expect(await screen.findByText("No se pudo abrir el CV como un PDF válido.")).toBeTruthy();
+      expect(within(fila("CV")).getByText("CV Lucía.pdf")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(put).toHaveBeenCalledOnce();
+    });
+
+    it("el evaluador asignado puede descargar el CV pero no reemplazarlo", async () => {
+      await abrirDetalle(USUARIOS.evaluador);
+      expect(within(fila("CV")).getByRole("button", { name: "Descargar" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Reemplazar CV" })).toBeNull();
+    });
+  });
+
   describe("asignar evaluador desde el detalle", () => {
     it("el analista cambia el evaluador en el modal y el detalle se actualiza", async () => {
       // Arrange

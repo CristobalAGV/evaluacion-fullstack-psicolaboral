@@ -9,6 +9,7 @@ import {
   obtenerCarpetaSolicitud,
   descargarPautaEntrevista,
   subirInformeEntrevista,
+  reemplazarCv,
 } from "../controllers/solicitudController.js";
 import { crearEvaluacion, listarEvaluacionesPorSolicitud } from "../controllers/evaluacionController.js";
 import {
@@ -36,6 +37,7 @@ router.get("/", listarSolicitudes);
 router.post("/", gestionSolicitudes, recibirArchivo("cv", "El CV"), crearSolicitud);
 router.get("/:id", obtenerSolicitud);
 router.put("/:id", gestionSolicitudes, recibirArchivo("cv", "El CV"), actualizarSolicitud);
+router.put("/:id/cv", gestionSolicitudes, recibirArchivo("cv", "El CV"), reemplazarCv);
 router.delete("/:id", permitirRoles("admin"), eliminarSolicitud);
 router.patch("/:id/estado", gestionSolicitudes, actualizarEstadoSolicitud);
 router.get("/:id/carpeta", obtenerCarpetaSolicitud);

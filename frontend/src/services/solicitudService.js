@@ -15,6 +15,13 @@ export async function obtenerExpediente(id) {
   return data;
 }
 
+export async function reemplazarCvSolicitud(id, archivo) {
+  const formulario = new FormData();
+  formulario.append("cv", archivo);
+  const { data } = await api.put(`/solicitudes/${id}/cv`, formulario);
+  return data.cvArchivo;
+}
+
 function construirFormData({
   candidatoNombre,
   candidatoCorreo,

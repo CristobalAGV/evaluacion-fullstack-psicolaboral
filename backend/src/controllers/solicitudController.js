@@ -8,9 +8,9 @@ import Evaluacion from "../models/Evaluacion.js";
 import Archivo from "../models/Archivo.js";
 import Informe from "../models/Informe.js";
 import { esEvaluadorResponsable, puedeConsultarSolicitud } from "../middleware/auth.js";
-import { reemplazarAdjuntoOferta } from "../services/postulacionOferta.js";
+import { reemplazarAdjuntoSolicitud } from "../services/postulacionOferta.js";
 import { RESULTADOS, interpretarFechaEvaluacion } from "../utils/datosSolicitud.js";
-import { validarArchivo, guardarArchivo, EXTENSIONES_CV, EXTENSIONES_WORD } from "../utils/validarArchivo.js";
+import { validarArchivo, validarCvPdf, guardarArchivo, EXTENSIONES_CV, EXTENSIONES_WORD } from "../utils/validarArchivo.js";
 import {
   CANDIDATOS_DIR,
   prepararCarpetaSolicitud,
@@ -262,12 +262,14 @@ export async function actualizarSolicitud(req, res) {
       return res.status(400).json({ mensaje: "Datos del candidato inválidos", error: errorValidacion.message });
     }
 
-    if (req.file && solicitud.oferta) {
+    if (req.file && (solicitud.oferta || solicitud.cvPostulacion)) {
       const cambios = { observaciones: observaciones || "", profesionalResponsable };
+      if (!solicitud.oferta) Object.assign(cambios, { familiaDeCargo, cargo });
       if (!fechaEvaluacion.omitida) cambios.fechaEvaluacion = fechaEvaluacion.fecha;
-      await reemplazarAdjuntoOferta({
+      const archivo = await reemplazarAdjuntoSolicitud({
         solicitudId: solicitud._id, candidato, archivo: req.file, tipo: "cv", usuarioId: req.usuario.id, cambios,
       });
+      if (!archivo) return res.status(404).json({ mensaje: "Solicitud o candidato no encontrado" });
       return obtenerSolicitud(req, res);
     }
 
@@ -345,6 +347,7 @@ export async function eliminarSolicitud(req, res) {
     await Solicitud.findByIdAndDelete(id);
     await Evaluacion.deleteMany({ solicitud: id });
     await Informe.deleteMany({ solicitud: id });
+    if (solicitud.cvPostulacion) await Archivo.deleteOne({ _id: solicitud.cvPostulacion, solicitudId: id, tipo: "cv" });
 
     // Sin otras solicitudes, el candidato queda huérfano: se borran él y sus archivos (CV e
     // informe), y así puede volver a postular con el mismo correo desde /postular.
@@ -407,6 +410,25 @@ export async function actualizarEstadoSolicitud(req, res) {
   }
 }
 
+export async function reemplazarCv(req, res) {
+  const { id } = req.params;
+  try {
+    if (!mongoose.isObjectIdOrHexString(id) || !(await Solicitud.exists({ _id: id }))) {
+      return res.status(404).json({ mensaje: "Solicitud no encontrada" });
+    }
+    if (!req.file) return res.status(400).json({ mensaje: "Adjunta el CV en formato PDF." });
+    const error = await validarCvPdf(req.file);
+    if (error) return res.status(400).json({ mensaje: error });
+
+    const nuevo = await reemplazarAdjuntoSolicitud({ solicitudId: id, archivo: req.file, tipo: "cv", usuarioId: req.usuario.id });
+    if (!nuevo) return res.status(404).json({ mensaje: "Solicitud o candidato no encontrado" });
+    const { _id, nombreOriginal, mimeType, tamano, tipo, fecha } = nuevo;
+    return res.json({ cvArchivo: { _id, nombreOriginal, mimeType, tamano, tipo, fecha } });
+  } catch {
+    return res.status(500).json({ mensaje: "No se pudo reemplazar el CV" });
+  }
+}
+
 export async function descargarPautaEntrevista(req, res) {
   try {
     if (!mongoose.isObjectIdOrHexString(req.params.id)) {
@@ -459,25 +481,28 @@ export async function obtenerCarpetaSolicitud(req, res) {
     const { candidato, oferta, familiaDeCargo } = solicitud;
     const archivosPrivados = candidato ? await Archivo.find({
       candidatoId: candidato._id,
-      solicitudId: conOferta ? solicitud._id : null,
       $or: [
-        { _id: conOferta ? solicitud.cvPostulacion : candidato.cvArchivoId, tipo: "cv" },
-        { _id: conOferta ? solicitud.informePostulacion : candidato.informeArchivoId, tipo: "informe" },
+        conOferta || solicitud.cvPostulacion
+          ? { _id: solicitud.cvPostulacion, tipo: "cv", solicitudId: solicitud._id }
+          : { _id: candidato.cvArchivoId, tipo: "cv", solicitudId: null },
+        conOferta
+          ? { _id: solicitud.informePostulacion, tipo: "informe", solicitudId: solicitud._id }
+          : { _id: candidato.informeArchivoId, tipo: "informe", solicitudId: null },
       ],
     }).select("nombreOriginal tipo clave") : [];
     const cv = archivosPrivados.find((archivo) => archivo.tipo === "cv");
     const informe = archivosPrivados.find((archivo) => archivo.tipo === "informe");
     const pauta = Boolean(await resolverPautaEntrevista(familiaDeCargo?.pautaEntrevista));
     const metadatos = (archivo) => archivo ? { _id: archivo._id, nombreOriginal: archivo.nombreOriginal } : null;
-    const opcionesContenedor = [candidato?.contenedorCv, cv?.clave?.split("/").slice(0, 2).join("/")];
+    const opcionesContenedor = [cv?.clave?.split("/").slice(0, 2).join("/"), candidato?.contenedorCv];
     const contenedor = opcionesContenedor.find((valor) =>
       /^postulantes\/[a-z\d-]+-[a-f\d]{24}$/i.test(valor) && valor.endsWith(`-${candidato?._id}`)
     );
     const carpetaAnterior = /^[a-z\d-]+$/i.test(solicitud.carpetaCandidato ?? "") ? solicitud.carpetaCandidato : null;
-    const carpeta = conOferta ? contenedor ?? null : carpetaAnterior;
+    const carpeta = conOferta ? contenedor ?? null : carpetaAnterior ?? contenedor ?? null;
     const archivos = conOferta
       ? (cv ? [{ nombre: cv.nombreOriginal, tipo: path.extname(cv.nombreOriginal).slice(1) }] : [])
-      : (carpeta ? await listarArchivosCarpeta(path.join(CANDIDATOS_DIR, carpeta)) : []);
+      : (carpetaAnterior ? await listarArchivosCarpeta(path.join(CANDIDATOS_DIR, carpetaAnterior)) : []);
 
     res.set("Cache-Control", "private, no-store");
     return res.json({
@@ -526,9 +551,10 @@ export async function subirInformeEntrevista(req, res) {
     }
 
     if (solicitud.oferta) {
-      const archivo = await reemplazarAdjuntoOferta({
+      const archivo = await reemplazarAdjuntoSolicitud({
         solicitudId: solicitud._id, candidato, archivo: req.file, tipo: "informe", usuarioId: req.usuario.id,
       });
+      if (!archivo) return res.status(404).json({ mensaje: "Solicitud o candidato no encontrado" });
       const { _id, nombreOriginal, mimeType, tamano, tipo, fecha } = archivo;
       return res.json({ informeArchivo: { _id, nombreOriginal, mimeType, tamano, tipo, fecha } });
     }

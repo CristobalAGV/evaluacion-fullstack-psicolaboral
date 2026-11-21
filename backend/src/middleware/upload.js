@@ -7,7 +7,8 @@ const upload = multer({
   storage: multer.memoryStorage(),
   // Sin esto, multer lee el nombre del archivo como latin1 y "Matías.pdf" se guarda mal.
   defParamCharset: "utf8",
-  limits: { fileSize: TAMANO_MAXIMO_ARCHIVO, files: 1 },
+  // Busboy marca el límite al alcanzarlo. La validación del buffer aplica el máximo inclusivo.
+  limits: { fileSize: TAMANO_MAXIMO_ARCHIVO + 1, files: 1 },
 });
 
 // Recibe un único archivo en el campo indicado y traduce los errores de multer.

@@ -5,7 +5,7 @@ import { descargarArchivo, mensajeDeErrorDescarga } from "../services/archivoSer
 // archivo: metadatos poblados ({ _id, nombreOriginal }) o solo el id.
 // rutaAntigua: ruta en disco de datos anteriores a MongoDB; ese archivo ya no existe.
 export default function ArchivoDescargable({
-  etiqueta, archivo, rutaAntigua, descargar, textoDescarga = "Descargar", textoNoDisponible = "Sin archivo",
+  etiqueta, archivo, rutaAntigua, descargar, textoDescarga = "Descargar", textoNoDisponible = "Sin archivo", acciones,
 }) {
   const [descargando, setDescargando] = useState(false);
   const [error, setError] = useState("");
@@ -53,6 +53,7 @@ export default function ArchivoDescargable({
           <span className="small text-secondary flex-shrink-0">{textoNoDisponible}</span>
         )}
       </div>
+      {acciones && <div className="mt-2">{acciones}</div>}
       {error && <p className="small text-danger mt-1 mb-0" role="alert">{error}</p>}
     </div>
   );

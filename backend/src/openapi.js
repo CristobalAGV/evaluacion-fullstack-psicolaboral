@@ -160,6 +160,10 @@ export default {
         estado: estados, documentos: objeto({ cv: adjuntoExpediente, informe: adjuntoExpediente, pauta: { type: "boolean" } }),
       }),
     }) },
+    "/solicitudes/{id}/cv": { put: operacion("Archivos", "Reemplazar el CV de la solicitud (admin/analista)", {
+      ...porId, media: multipart, body: objeto({ cv: { ...archivo, description: "PDF válido de hasta 5 MB" } }, ["cv"]),
+      salida: objeto({ cvArchivo: ref("Archivo") }), errores: [400, 404],
+    }) },
     "/solicitudes/{id}/informe-entrevista": { put: operacion("Archivos", "Adjuntar informe Word", {
       ...porId, media: multipart, body: objeto({ informe: archivo }, ["informe"]), salida: objeto({ informeArchivo: ref("Archivo") }), errores: [400, 404],
     }) },

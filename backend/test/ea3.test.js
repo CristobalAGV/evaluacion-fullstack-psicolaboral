@@ -17,6 +17,20 @@ const secreto = "jwt-exclusivo-de-la-suite-ficticia";
 const password = "password-academica-ficticia";
 const pdf = "%PDF-1.4\n% archivo sintético para probar el transporte";
 const tipoWord = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const pdfReal = (() => {
+  let contenido = "%PDF-1.4\n";
+  const objetos = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>",
+  ];
+  const entradas = objetos.map((objeto, indice) => {
+    const offset = contenido.length;
+    contenido += `${indice + 1} 0 obj\n${objeto}\nendobj\n`;
+    return `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  return Buffer.from(contenido + `xref\n0 4\n0000000000 65535 f \n${entradas.join("")}trailer\n<< /Size 4 /Root 1 0 R >>\nstartxref\n${contenido.length}\n%%EOF\n`);
+})();
 const nombre = "Camila Ficticia";
 const correo = "camila@example.invalid";
 const telefono = "+56 9 0000 0000";
@@ -455,4 +469,62 @@ test("descarga las pautas maestras por familia con JWT y asignación", async () 
   }
   await pedir("/solicitudes/no-existe/pauta-entrevista", { rol: "admin", estado: 404 });
   await pedir(`/solicitudes/${new mongoose.Types.ObjectId()}/pauta-entrevista`, { rol: "admin", estado: 404 });
+});
+
+test("reemplaza únicamente el CV de la solicitud y valida PDF, permisos y archivos previos", async () => {
+  const oferta = await solicitudesPublicadas();
+  await pedir("/postulaciones", {
+    metodo: "POST", estado: 201, ip: "192.0.2.26",
+    datos: postular(oferta, undefined, { nombre: "Benjamin Ficticio", correo: "benjamin@example.invalid" }),
+  });
+  const original = await Solicitud.findOne({ oferta });
+  await Solicitud.findByIdAndUpdate(original.id, { profesionalResponsable: evaluador.id, estado: "Finalizada", resultado: "Aprobada" });
+  const ruta = `/solicitudes/${original.id}`;
+  const antes = (await pedir(ruta + "/carpeta", { rol: "analista" })).resultado;
+  const cuentaSolicitudes = await Solicitud.countDocuments();
+  const cuentaCandidatos = await Candidato.countDocuments();
+  const archivo = (bytes = pdfReal, nombre = "CV_Benjamin_Ficticio.pdf", mime = "application/pdf") =>
+    formulario({}, { campo: "cv", bytes, nombre, mime });
+  const reemplazar = (rol, datos, estado = 200) => pedir(ruta + "/cv", { rol, metodo: "PUT", datos, estado });
+  await reemplazar(undefined, archivo(), 401);
+  await reemplazar("evaluador", archivo(), 403);
+  await reemplazar("ajeno", archivo(), 403);
+  await reemplazar("analista", formulario({}), 400);
+  await reemplazar("analista", archivo(documentoWord, "CV.docx", tipoWord), 400);
+  await reemplazar("analista", archivo(pdfReal, "CV.pdf", "application/octet-stream"), 400);
+  await reemplazar("analista", archivo("firma incorrecta"), 400);
+  await reemplazar("analista", archivo("%PDF-1.4\nDocumento trucado"), 400);
+  await reemplazar("analista", archivo(Buffer.alloc(5 * 1024 * 1024 + 1)), 400);
+  assert.equal(String((await Solicitud.findById(original.id)).cvPostulacion), String(original.cvPostulacion));
+  const { resultado: analistaCv } = await reemplazar("analista", archivo());
+  assert.equal(analistaCv.cvArchivo.nombreOriginal, "CV_Benjamin_Ficticio.pdf");
+  const { resultado: adminCv } = await reemplazar("admin", archivo(pdfReal, "CV_corregido.pdf"));
+  const id = adminCv.cvArchivo._id;
+  await pedir(`/archivos/${original.cvPostulacion}`, { rol: "admin", estado: 404 });
+  await pedir(`/archivos/${analistaCv.cvArchivo._id}`, { rol: "admin", estado: 404 });
+  assert.deepEqual((await pedir(`/archivos/${id}`, { rol: "evaluador" })).resultado, pdfReal);
+  const despues = (await pedir(ruta + "/carpeta", { rol: "analista" })).resultado;
+  assert.equal(despues.carpeta, antes.carpeta);
+  assert.deepEqual(despues.candidato, antes.candidato);
+  assert.deepEqual(despues.oferta, antes.oferta);
+  assert.equal(despues.solicitudId, antes.solicitudId);
+  assert.equal(despues.estado, "Finalizada");
+  assert.equal((await Solicitud.findById(original.id)).resultado, "Aprobada");
+  assert.equal(despues.documentos.cv._id, id);
+  assert.equal(await Solicitud.countDocuments(), cuentaSolicitudes);
+  assert.equal(await Candidato.countDocuments(), cuentaCandidatos);
+
+  const candidato = await Candidato.findById(original.candidato);
+  const compartido = await Archivo.create({
+    tipo: "cv", candidatoId: candidato.id, datos: pdfReal, nombreOriginal: "CV_Anterior.pdf",
+    mimeType: "application/pdf", tamano: pdfReal.length,
+  });
+  candidato.cvArchivoId = compartido._id;
+  await candidato.save();
+  const anterior = await Solicitud.create({ candidato: candidato.id, familiaDeCargo: familia.id, cargo: "Cargo anterior" });
+  const otra = await Solicitud.create({ candidato: candidato.id, familiaDeCargo: familia.id, cargo: "Otra solicitud" });
+  await pedir(`/solicitudes/${anterior.id}/cv`, { rol: "analista", metodo: "PUT", datos: archivo() });
+  const carpeta = async (solicitud) => (await pedir(`/solicitudes/${solicitud.id}/carpeta`, { rol: "analista" })).resultado;
+  assert.notEqual((await carpeta(anterior)).documentos.cv._id, compartido.id);
+  assert.equal((await carpeta(otra)).documentos.cv._id, compartido.id);
 });

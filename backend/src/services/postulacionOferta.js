@@ -51,19 +51,26 @@ export async function registrarPostulacionOferta({ ofertaId, nombre, correo, tel
   }
 }
 
-export function reemplazarAdjuntoOferta({ solicitudId, candidato, archivo, tipo, usuarioId, cambios }) {
+export function reemplazarAdjuntoSolicitud({ solicitudId, candidato, archivo, tipo, usuarioId, cambios }) {
   const campo = tipo === "cv" ? "cvPostulacion" : "informePostulacion";
   return mongoose.connection.transaction(async (session) => {
-    const perfil = await Candidato.findById(candidato._id).select("+contenedorCv").session(session);
-    if (tipo === "cv") await candidato.save({ session });
+    const solicitud = await Solicitud.findById(solicitudId).select(`candidato ${campo}`).session(session);
+    if (!solicitud) return null;
+    const perfil = await Candidato.findById(solicitud.candidato).select("+contenedorCv").session(session);
+    if (!perfil) return null;
+    if (tipo === "cv" && candidato) await candidato.save({ session });
+    const filtroAnterior = { _id: solicitud[campo], candidatoId: perfil._id, solicitudId, tipo };
+    const archivoAnterior = solicitud[campo] && await Archivo.findOne(filtroAnterior).select("clave").session(session);
+    const contenedor = archivoAnterior?.clave?.split("/").slice(0, 2).join("/") || perfil.contenedorCv
+      || crearContenedorCv(perfil.nombre, perfil._id);
     const nuevo = await guardarArchivo({
-      archivo, tipo, candidatoId: candidato._id, subidoPor: usuarioId, session,
-      postulacion: { contenedor: perfil.contenedorCv, solicitudId },
+      archivo, tipo, candidatoId: perfil._id, subidoPor: usuarioId, session,
+      postulacion: { contenedor, solicitudId },
     });
-    const anterior = await Solicitud.findByIdAndUpdate(solicitudId, { ...cambios, [campo]: nuevo._id }, {
-      returnDocument: "before", runValidators: true, session,
+    await Solicitud.updateOne({ _id: solicitudId }, { ...cambios, [campo]: nuevo._id }, {
+      runValidators: true, session,
     });
-    if (anterior[campo]) await Archivo.deleteOne({ _id: anterior[campo] }).session(session);
+    if (archivoAnterior) await Archivo.deleteOne(filtroAnterior).session(session);
     return nuevo;
   });
 }

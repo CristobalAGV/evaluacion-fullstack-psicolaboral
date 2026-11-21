@@ -37,6 +37,7 @@ export async function descargarArchivo(req, res) {
         if (!candidato) return res.status(403).json({ mensaje: "Sin permiso para descargar el archivo" });
         filtro.candidato = archivo.candidatoId;
         filtro.oferta = { $exists: false };
+        if (archivo.tipo === "cv") filtro.cvPostulacion = null;
       }
       if (!(await Solicitud.exists(filtro))) {
         return res.status(403).json({ mensaje: "Sin permiso para descargar el archivo" });

@@ -530,7 +530,7 @@ export default function SolicitudFormulario({
               <ArchivoDescargable
                 etiqueta="CV actual"
                 archivo={
-                  (solicitud.oferta ? solicitud.cvPostulacion : solicitud.candidato?.cvArchivoId)
+                  (solicitud.cvPostulacion ?? (solicitud.oferta ? null : solicitud.candidato?.cvArchivoId))
                 }
                 rutaAntigua={
                   solicitud.candidato?.cvUrl ||

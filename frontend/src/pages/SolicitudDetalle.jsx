@@ -191,6 +191,7 @@ export default function SolicitudDetalle() {
   const [editandoSolicitud, setEditandoSolicitud] = useState(false);
   const [guardandoResultado, setGuardandoResultado] = useState(false);
   const [errorResultado, setErrorResultado] = useState("");
+  const [revisionEdicion, setRevisionEdicion] = useState(0);
 
   useEffect(() => {
     // Si el efecto se repite (cambio de id o doble montaje de StrictMode), la respuesta de la
@@ -272,7 +273,7 @@ export default function SolicitudDetalle() {
   const puedeGestionarSolicitud = ["analista", "admin"].includes(usuario?.rol);
   const puedeGestionarEvaluaciones = usuario?.rol === "admin" || esResponsable;
   const puedeSubirInforme = puedeGestionarSolicitud || esResponsable;
-  const cvArchivo = solicitud.oferta ? solicitud.cvPostulacion : solicitud.candidato?.cvArchivoId;
+  const cvArchivo = solicitud.cvPostulacion ?? (solicitud.oferta ? null : solicitud.candidato?.cvArchivoId);
   const informeArchivo = solicitud.oferta ? solicitud.informePostulacion : solicitud.candidato?.informeArchivoId;
 
   return (
@@ -436,9 +437,12 @@ export default function SolicitudDetalle() {
             <div className="card-body d-flex flex-column gap-3">
               <ExpedientePostulante
                 key={JSON.stringify([id, solicitud.candidato?.nombre, solicitud.estado, solicitud.familiaDeCargo?._id,
-                  cvArchivo?._id ?? cvArchivo, informeArchivo?._id ?? informeArchivo])}
+                  revisionEdicion, informeArchivo?._id ?? informeArchivo])}
                 solicitudId={id}
-                enlaceOferta={puedeGestionarSolicitud}
+                puedeGestionar={puedeGestionarSolicitud}
+                onCvReemplazado={(cvPostulacion) => setSolicitud((anterior) =>
+                  anterior?._id === id ? { ...anterior, cvPostulacion } : anterior
+                )}
               />
               <SubirInforme
                   solicitudId={id}
@@ -541,6 +545,7 @@ export default function SolicitudDetalle() {
             alGuardar={(actualizada) => {
               // La respuesta del PUT no trae analistaId populado; se conserva el que ya teníamos.
               setSolicitud((anterior) => ({ ...anterior, ...actualizada, analistaId: anterior.analistaId }));
+              setRevisionEdicion((actual) => actual + 1);
               setEditandoSolicitud(false);
             }}
             alCancelar={() => setEditandoSolicitud(false)}

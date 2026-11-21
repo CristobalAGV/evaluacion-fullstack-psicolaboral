@@ -1,5 +1,6 @@
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { getDocumentProxy } from "unpdf";
 import Archivo from "../models/Archivo.js";
 
 // Por extensión: mimetypes aceptados y firma (primeros bytes) del formato. No basta con el
@@ -48,6 +49,20 @@ export function validarArchivo(archivo, extensionesPermitidas, descripcionFormat
   }
 
   return null;
+}
+
+export async function validarCvPdf(archivo) {
+  const error = validarArchivo(archivo, [".pdf"], "PDF");
+  if (error) return error;
+  try {
+    const pdf = await getDocumentProxy(new Uint8Array(archivo.buffer));
+    const paginas = pdf.numPages;
+    await pdf.loadingTask.destroy();
+    if (paginas > 0) return null;
+  } catch {
+    // Una firma PDF sola no garantiza que el documento se pueda abrir.
+  }
+  return "No se pudo abrir el CV como un PDF válido.";
 }
 
 // Nombre para mostrar y para la descarga: sin rutas, sin caracteres de control y acotado.
