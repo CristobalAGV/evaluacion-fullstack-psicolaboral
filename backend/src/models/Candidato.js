@@ -14,6 +14,8 @@ const candidatoSchema = new mongoose.Schema(
       trim: true,
       match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Correo inválido"],
     },
+    identidadPostulacion: { type: String, unique: true, sparse: true, select: false },
+    contenedorCv: { type: String, select: false },
     telefono: {
       type: String,
       required: true,

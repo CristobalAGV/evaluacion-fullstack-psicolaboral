@@ -1,4 +1,5 @@
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import Archivo from "../models/Archivo.js";
 
 // Por extensión: mimetypes aceptados y firma (primeros bytes) del formato. No basta con el
@@ -60,14 +61,29 @@ function limpiarNombre(nombreOriginal) {
 
 // Guarda en MongoDB un archivo ya validado. Se identifica por su _id, así que no necesita un
 // nombre aleatorio en disco.
-export function guardarArchivo({ archivo, tipo, candidatoId, subidoPor = null }) {
-  return Archivo.create({
-    nombreOriginal: limpiarNombre(archivo.originalname),
+export function crearContenedorCv(nombre, candidatoId) {
+  const slug = nombre.normalize("NFD").replace(/\p{M}/gu, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "postulante";
+  return `postulantes/${slug}-${candidatoId}`;
+}
+
+export function guardarArchivo({ archivo, tipo, candidatoId, subidoPor = null, postulacion, session }) {
+  const nombreOriginal = limpiarNombre(archivo.originalname);
+  const documento = {
+    nombreOriginal,
     mimeType: archivo.mimetype,
     tamano: archivo.buffer.length,
     tipo,
     datos: archivo.buffer,
     candidatoId,
     subidoPor,
+  };
+  if (!postulacion) return Archivo.create(documento);
+
+  const cv = new Archivo({
+    ...documento,
+    solicitudId: postulacion.solicitudId,
+    clave: `${postulacion.contenedor}/${tipo}/${postulacion.solicitudId}/${randomUUID()}-${nombreOriginal}`,
   });
+  return cv.save({ session });
 }

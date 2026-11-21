@@ -29,7 +29,7 @@ function validarArchivoCv(archivo) {
 }
 
 // Página pública (sin login) para que un candidato, interno o externo, envíe su postulación.
-export default function Postular() {
+export default function Postular({ oferta }) {
   const prefijo = useId();
 
   const [familias, setFamilias] = useState([]);
@@ -44,7 +44,7 @@ export default function Postular() {
   const [sitioWeb, setSitioWeb] = useState("");
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const [cargandoFamilias, setCargandoFamilias] = useState(true);
+  const [cargandoFamilias, setCargandoFamilias] = useState(!oferta);
   const [enviada, setEnviada] = useState(false);
 
   const { mensajes, validar, limpiar } = useValidacionFormulario();
@@ -62,13 +62,14 @@ export default function Postular() {
   );
 
   useEffect(() => {
+    if (oferta) return;
     listarFamiliasPublicas()
       .then(setFamilias)
       .catch(() =>
         setError("No pudimos cargar los cargos disponibles. Recarga la página.")
       )
       .finally(() => setCargandoFamilias(false));
-  }, []);
+  }, [oferta]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -100,8 +101,7 @@ export default function Postular() {
         nombre,
         correo,
         telefono,
-        familiaDeCargo,
-        cargo,
+        ...(oferta ? { ofertaId: oferta._id } : { familiaDeCargo, cargo }),
         mensajeAdicional: mensajeAdicional.trim(),
         cv,
         sitioWeb,
@@ -190,11 +190,11 @@ export default function Postular() {
       <div className="col-12 col-md-9 col-lg-7 col-xl-6">
         <div className="card shadow-sm">
           <div className="card-body p-4">
-            <h1 className="h4">Postula a un cargo</h1>
+            <h1 className="h4">{oferta ? `Postula a ${oferta.cargo}` : "Postula a un cargo"}</h1>
 
             <p className="text-body-secondary mb-4">
-              Completa tus datos, selecciona un área y un cargo disponible, y
-              adjunta tu CV. No necesitas crear una cuenta.
+              {oferta ? "Completa tus datos y adjunta un CV ficticio para la demostración."
+                : "Completa tus datos, selecciona un área y un cargo disponible, y adjunta tu CV. No necesitas crear una cuenta."}
             </p>
 
             <form
@@ -301,7 +301,7 @@ export default function Postular() {
                   )}
                 </div>
 
-                <div className="col-12">
+                {!oferta && <><div className="col-12">
                   <label
                     htmlFor={`${prefijo}-postular-area`}
                     className="form-label"
@@ -412,6 +412,7 @@ export default function Postular() {
                   )}
                 </div>
 
+                </>}
                 <div className="col-12">
                   <label
                     htmlFor={`${prefijo}-postular-mensaje`}

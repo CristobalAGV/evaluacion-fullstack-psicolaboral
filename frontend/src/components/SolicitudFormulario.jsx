@@ -321,6 +321,7 @@ export default function SolicitudFormulario({
               id={`${prefijo}-solicitud-familia`}
               name="familia"
               value={familiaDeCargo}
+              disabled={Boolean(solicitud?.oferta)}
               onChange={(e) => {
                 setFamiliaDeCargo(e.target.value);
                 setCargo("");
@@ -366,7 +367,7 @@ export default function SolicitudFormulario({
               value={cargo}
               onChange={alCambiar(setCargo)}
               required
-              disabled={!familiaDeCargo}
+              disabled={!familiaDeCargo || Boolean(solicitud?.oferta)}
               aria-invalid={Boolean(mensajes.cargo)}
               aria-describedby={
                 mensajes.cargo
@@ -529,7 +530,7 @@ export default function SolicitudFormulario({
               <ArchivoDescargable
                 etiqueta="CV actual"
                 archivo={
-                  solicitud.candidato?.cvArchivoId
+                  (solicitud.oferta ? solicitud.cvPostulacion : solicitud.candidato?.cvArchivoId)
                 }
                 rutaAntigua={
                   solicitud.candidato?.cvUrl ||

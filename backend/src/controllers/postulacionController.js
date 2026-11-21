@@ -3,6 +3,7 @@ import Candidato from "../models/Candidato.js";
 import Solicitud from "../models/Solicitud.js";
 import FamiliaDeCargo from "../models/FamiliaDeCargo.js";
 import Archivo from "../models/Archivo.js";
+import { registrarPostulacionOferta } from "../services/postulacionOferta.js";
 import { prepararCarpetaSolicitud } from "../utils/carpetas.js";
 import { validarArchivo, guardarArchivo, EXTENSIONES_CV } from "../utils/validarArchivo.js";
 import { MAX_MENSAJE_ADICIONAL, MENSAJE_MENSAJE_LARGO, limpiarMensajeAdicional } from "../utils/datosSolicitud.js";
@@ -49,6 +50,7 @@ export async function crearPostulacion(req, res) {
   const cargo = limpiarTexto(req.body?.cargo, 100);
   const familiaDeCargo = limpiarTexto(req.body?.familiaDeCargo, 24);
   const mensajeAdicional = limpiarMensajeAdicional(req.body?.mensajeAdicional);
+  const ofertaId = req.body?.ofertaId;
 
   if (nombre.length < 3) {
     return res.status(400).json({ mensaje: "Ingresa tu nombre completo" });
@@ -59,10 +61,13 @@ export async function crearPostulacion(req, res) {
   if (!TELEFONO_REGEX.test(telefono)) {
     return res.status(400).json({ mensaje: "Ingresa un celular chileno válido: +56 9 1234 5678" });
   }
-  if (cargo.length < 2) {
+  if (ofertaId !== undefined && !mongoose.isObjectIdOrHexString(ofertaId)) {
+    return res.status(404).json({ mensaje: "Oferta no disponible" });
+  }
+  if (ofertaId === undefined && cargo.length < 2) {
     return res.status(400).json({ mensaje: "Indica el cargo al que postulas" });
   }
-  if (!mongoose.isValidObjectId(familiaDeCargo)) {
+  if (ofertaId === undefined && !mongoose.isValidObjectId(familiaDeCargo)) {
     return res.status(400).json({ mensaje: "Selecciona un área de interés" });
   }
   if (mensajeAdicional.length > MAX_MENSAJE_ADICIONAL) {
@@ -72,6 +77,23 @@ export async function crearPostulacion(req, res) {
   const errorCv = validarCv(req.file);
   if (errorCv) {
     return res.status(400).json({ mensaje: errorCv });
+  }
+
+  if (ofertaId !== undefined) {
+    try {
+      const estado = await registrarPostulacionOferta({
+        ofertaId, nombre, correo, telefono, mensajeAdicional, archivo: req.file,
+      });
+      const mensajes = {
+        201: "Postulación recibida",
+        404: "Oferta no disponible",
+        409: "Ya recibimos una postulación con este correo para esta oferta",
+      };
+      return res.status(estado).json({ mensaje: mensajes[estado] });
+    } catch (error) {
+      if (error.code === 20) console.error("Las postulaciones por oferta requieren MongoDB con replica set.");
+      return res.status(503).json({ mensaje: "No pudimos guardar la postulación. Inténtalo más tarde." });
+    }
   }
 
   let archivoCv = null;
@@ -120,7 +142,7 @@ export async function crearPostulacion(req, res) {
     if (solicitud) await Solicitud.findByIdAndDelete(solicitud._id);
     if (candidato) await Candidato.findByIdAndDelete(candidato._id);
     if (archivoCv) await Archivo.findByIdAndDelete(archivoCv._id);
-    console.error("Error al registrar postulación pública:", error.message);
+    console.error("Error al registrar postulación pública.");
     return res.status(500).json({ mensaje: "No pudimos registrar tu postulación. Inténtalo más tarde." });
   }
 }

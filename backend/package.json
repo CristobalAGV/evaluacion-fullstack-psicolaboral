@@ -12,7 +12,8 @@
     "migrar-familias": "node src/seed/migrarNombresFamilias.js",
     "migrar-titulos-informes": "node src/seed/migrarTitulosInformes.js",
     "generar-plantillas": "node src/seed/generarPlantillas.js",
-    "test": "node --test"
+    "test": "node --test",
+    "test:cobertura": "node --experimental-test-coverage --test-coverage-include=src/**/*.js --test-coverage-lines=85 --test"
   },
   "keywords": [],
   "author": "",
@@ -29,10 +30,12 @@
     "mammoth": "^1.13.0",
     "mongoose": "^9.9.4",
     "multer": "^2.3.0",
+    "swagger-ui-dist": "^5.35.1",
     "unpdf": "^1.8.1",
     "word-extractor": "^1.0.4"
   },
   "devDependencies": {
+    "mongodb-memory-server-core": "^11.3.0",
     "nodemon": "^3.1.14"
   }
 }

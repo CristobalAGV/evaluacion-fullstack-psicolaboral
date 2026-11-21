@@ -5,6 +5,7 @@ const ENLACES = [
   { a: "/registro", texto: "Crear usuario", roles: ["admin"] },
   { a: "/", texto: "Inicio" },
   { a: "/panel", texto: "Panel" },
+  { a: "/gestion/ofertas", texto: "Gestionar ofertas", roles: ["analista", "admin"] },
   { a: "/solicitudes/nueva", texto: "Nueva solicitud", roles: ["analista", "admin"] },
 ];
 

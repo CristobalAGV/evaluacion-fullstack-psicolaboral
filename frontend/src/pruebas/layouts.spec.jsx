@@ -192,9 +192,9 @@ describe("Layouts", () => {
     });
 
     it.each([
-      ["analista", ["Inicio", "Panel", "Nueva solicitud"]],
+      ["analista", ["Inicio", "Panel", "Gestionar ofertas", "Nueva solicitud"]],
       ["evaluador", ["Inicio", "Panel"]],
-      ["admin", ["Crear usuario", "Inicio", "Panel", "Nueva solicitud"]],
+      ["admin", ["Crear usuario", "Inicio", "Panel", "Gestionar ofertas", "Nueva solicitud"]],
     ])("para el rol %s muestra solo los enlaces permitidos", (rol, esperados) => {
       iniciarSesionSimulada(USUARIOS[rol]);
 

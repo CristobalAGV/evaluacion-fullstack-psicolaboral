@@ -1,6 +1,6 @@
 // Marca las solicitudes que el propio candidato envió desde el formulario público /postular.
 export function esPostulacionPublica(solicitud) {
-  return solicitud?.candidato?.origen === "postulacion_publica";
+  return Boolean(solicitud?.oferta) || solicitud?.candidato?.origen === "postulacion_publica";
 }
 
 export default function EtiquetaPostulacionPublica() {

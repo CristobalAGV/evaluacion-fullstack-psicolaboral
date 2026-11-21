@@ -10,6 +10,8 @@ import Panel from './pages/Panel'
 import NuevaSolicitud from './pages/NuevaSolicitud'
 import SolicitudDetalle from './pages/SolicitudDetalle'
 import Postular from './pages/Postular'
+import { OfertasPublicas, DetalleOfertaPublica } from './pages/OfertasPublicas'
+import { GestionOfertas, FormularioOferta } from './pages/GestionOfertas'
 import NotFoundPage from './pages/NotFoundPage'
 
 function App() {
@@ -20,6 +22,9 @@ function App() {
       <Route element={<PublicLayout />}>
         <Route path="/login" element={<Login />} />
         <Route path="/postular" element={<Postular />} />
+        <Route path="/ofertas" element={<OfertasPublicas />} />
+        <Route path="/ofertas/:id" element={<DetalleOfertaPublica />} />
+        <Route path="/ofertas/:id/postular" element={<DetalleOfertaPublica postular />} />
       </Route>
       {/* Zona privada: sin sesión se redirige a /login; cada ruta con roles lo vuelve a exigir. */}
       <Route
@@ -32,6 +37,9 @@ function App() {
         <Route path="/registro" element={<RutaProtegida roles={['admin']}><Registro /></RutaProtegida>} />
         <Route path="/" element={<Dashboard />} />
         <Route path="/panel" element={<Panel />} />
+        <Route path="/gestion/ofertas" element={<RutaProtegida roles={['analista', 'admin']}><GestionOfertas /></RutaProtegida>} />
+        <Route path="/gestion/ofertas/nueva" element={<RutaProtegida roles={['analista', 'admin']}><FormularioOferta /></RutaProtegida>} />
+        <Route path="/gestion/ofertas/:id" element={<RutaProtegida roles={['analista', 'admin']}><FormularioOferta /></RutaProtegida>} />
         <Route
           path="/solicitudes/nueva"
           element={

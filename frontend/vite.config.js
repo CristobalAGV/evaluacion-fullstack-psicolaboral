@@ -25,6 +25,7 @@ export default defineConfig({
       exclude: ['src/pruebas/**', 'src/main.jsx', '**/*.config.{js,cjs}'],
       reporter: ['text', 'text-summary', 'html', 'json-summary'],
       reportsDirectory: 'coverage',
+      thresholds: { lines: 85 },
     },
   },
 })

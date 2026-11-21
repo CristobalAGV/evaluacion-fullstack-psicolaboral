@@ -1,6 +1,6 @@
 import Evaluacion from "../models/Evaluacion.js";
 import Solicitud from "../models/Solicitud.js";
-import { esEvaluadorResponsable } from "../middleware/auth.js";
+import { esEvaluadorResponsable, puedeConsultarSolicitud } from "../middleware/auth.js";
 
 const ESTADOS_EVALUACION = ["Pendiente", "En proceso", "Finalizada"];
 const FECHA_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -62,6 +62,11 @@ export async function crearEvaluacion(req, res) {
 export async function listarEvaluacionesPorSolicitud(req, res) {
   try {
     const { id } = req.params;
+    const solicitud = await Solicitud.findById(id);
+    if (!solicitud) return res.status(404).json({ mensaje: "Solicitud no encontrada" });
+    if (!puedeConsultarSolicitud(req.usuario, solicitud)) {
+      return res.status(403).json({ mensaje: "Solicitud no asignada" });
+    }
     const evaluaciones = await Evaluacion.find({ solicitud: id }).sort({ createdAt: -1 });
     return res.json(evaluaciones);
   } catch (error) {

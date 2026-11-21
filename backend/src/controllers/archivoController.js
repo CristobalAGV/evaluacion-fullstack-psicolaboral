@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 import Archivo from "../models/Archivo.js";
+import Candidato from "../models/Candidato.js";
+import Solicitud from "../models/Solicitud.js";
 
 // Content-Disposition con nombre ASCII de respaldo y el original en UTF-8 (RFC 6266).
 function contentDisposition(nombreOriginal) {
@@ -24,6 +26,23 @@ export async function descargarArchivo(req, res) {
       return res.status(404).json({ mensaje: "Archivo no encontrado" });
     }
 
+    if (req.usuario.rol === "evaluador") {
+      const filtro = { profesionalResponsable: req.usuario.id };
+      if (archivo.solicitudId) {
+        filtro._id = archivo.solicitudId;
+        filtro[archivo.tipo === "cv" ? "cvPostulacion" : "informePostulacion"] = id;
+      } else {
+        const campo = archivo.tipo === "cv" ? "cvArchivoId" : "informeArchivoId";
+        const candidato = await Candidato.exists({ _id: archivo.candidatoId, [campo]: id });
+        if (!candidato) return res.status(403).json({ mensaje: "Sin permiso para descargar el archivo" });
+        filtro.candidato = archivo.candidatoId;
+        filtro.oferta = { $exists: false };
+      }
+      if (!(await Solicitud.exists(filtro))) {
+        return res.status(403).json({ mensaje: "Sin permiso para descargar el archivo" });
+      }
+    }
+
     res.set({
       "Content-Type": archivo.mimeType,
       "Content-Length": archivo.datos.length,
@@ -33,6 +52,6 @@ export async function descargarArchivo(req, res) {
     });
     return res.send(archivo.datos);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al descargar el archivo", error: error.message });
+    return res.status(500).json({ mensaje: "Error al descargar el archivo" });
   }
 }

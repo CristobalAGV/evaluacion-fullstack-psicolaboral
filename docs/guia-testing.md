@@ -1,5 +1,7 @@
 # Guía de testing del frontend (para la presentación)
 
+> Consulta la [guía de pruebas EA3](guia-ea3.md#pruebas-y-cobertura) para la suite y los comandos actuales. Los resultados EP2 de este documento son históricos.
+
 Explicación corta, en palabras simples, de cómo probamos el frontend. Los detalles técnicos y
 los números están en [`cobertura-testing.md`](cobertura-testing.md).
 

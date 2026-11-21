@@ -4,6 +4,7 @@ import { useParams, Link } from "react-router-dom";
 import { obtenerSolicitud, subirInformeEntrevista, actualizarEstadoSolicitud } from "../services/solicitudService";
 import { listarEvaluaciones, crearEvaluacion, actualizarEvaluacion } from "../services/evaluacionService";
 import InformePsicolaboral from "../components/InformePsicolaboral";
+import PreguntasEntrevista from "../components/PreguntasEntrevista";
 import SolicitudFormulario from "../components/SolicitudFormulario";
 import EtiquetaPostulacionPublica, { esPostulacionPublica } from "../components/EtiquetaPostulacionPublica";
 import InsigniaResultado from "../components/InsigniaResultado";
@@ -271,6 +272,8 @@ export default function SolicitudDetalle() {
   const puedeGestionarSolicitud = ["analista", "admin"].includes(usuario?.rol);
   const puedeGestionarEvaluaciones = usuario?.rol === "admin" || esResponsable;
   const puedeSubirInforme = puedeGestionarSolicitud || esResponsable;
+  const cvArchivo = solicitud.oferta ? solicitud.cvPostulacion : solicitud.candidato?.cvArchivoId;
+  const informeArchivo = solicitud.oferta ? solicitud.informePostulacion : solicitud.candidato?.informeArchivoId;
 
   return (
     <div>
@@ -304,7 +307,9 @@ export default function SolicitudDetalle() {
               </div>
               <div className="list-group-item">
                 <dt className="small text-secondary fw-normal">Cargo</dt>
-                <dd className="mb-0">{solicitud.cargo}</dd>
+                <dd className="mb-0">{solicitud.oferta && puedeGestionarSolicitud
+                  ? <Link to={`/gestion/ofertas/${solicitud.oferta}`}>{solicitud.cargo}</Link>
+                  : solicitud.cargo}</dd>
               </div>
               <div className="list-group-item">
                 <dt className="small text-secondary fw-normal">Familia de cargo</dt>
@@ -431,20 +436,20 @@ export default function SolicitudDetalle() {
             <div className="card-body d-flex flex-column gap-3">
               <ArchivoDescargable
                 etiqueta="CV"
-                archivo={solicitud.candidato?.cvArchivoId}
+                archivo={cvArchivo}
                 rutaAntigua={solicitud.candidato?.cvUrl || solicitud.cvUrl}
               />
               <ArchivoDescargable
                 etiqueta="Informe de entrevista"
-                archivo={solicitud.candidato?.informeArchivoId}
+                archivo={informeArchivo}
                 rutaAntigua={solicitud.candidato?.informeEntrevistaUrl}
               />
               {puedeSubirInforme && (
                 <SubirInforme
                   solicitudId={id}
-                  tieneInforme={Boolean(solicitud.candidato?.informeArchivoId)}
+                  tieneInforme={Boolean(informeArchivo)}
                   onSubido={(informeArchivo) =>
-                    setSolicitud((anterior) => ({
+                    setSolicitud((anterior) => anterior.oferta ? { ...anterior, informePostulacion: informeArchivo } : ({
                       ...anterior,
                       candidato: { ...anterior.candidato, informeArchivoId: informeArchivo, informeEntrevistaUrl: "" },
                     }))
@@ -456,6 +461,7 @@ export default function SolicitudDetalle() {
         </div>
 
         <div className="col-12 col-lg-8 order-lg-1 d-flex flex-column gap-3">
+          {IA_HABILITADA && puedeGestionarEvaluaciones && <PreguntasEntrevista id={id} key={id} />}
           {IA_HABILITADA && <section className="card shadow-sm">
             <div className="card-header">
               <h2 className="h6 fw-semibold mb-0">Informe psicolaboral</h2>
@@ -464,8 +470,8 @@ export default function SolicitudDetalle() {
               <InformePsicolaboral
                 solicitudId={id}
                 puedeEditar={puedeGestionarEvaluaciones}
-                tieneCv={Boolean(solicitud.candidato?.cvArchivoId)}
-                tieneInforme={Boolean(solicitud.candidato?.informeArchivoId)}
+                tieneCv={Boolean(cvArchivo)}
+                tieneInforme={Boolean(informeArchivo)}
               />
             </div>
           </section>}

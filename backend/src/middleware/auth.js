@@ -10,7 +10,10 @@ export function verificarToken(req, res, next) {
   const token = header.split(" ")[1];
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+    if (!payload?.id || !["admin", "analista", "evaluador"].includes(payload.rol)) {
+      return res.status(401).json({ mensaje: "Token inválido o expirado" });
+    }
     req.usuario = payload;
     next();
   } catch (error) {
@@ -22,6 +25,10 @@ export function verificarToken(req, res, next) {
 export function esEvaluadorResponsable(usuario, solicitud) {
   const responsable = solicitud.profesionalResponsable?._id ?? solicitud.profesionalResponsable;
   return usuario?.rol === "evaluador" && Boolean(responsable) && String(responsable) === String(usuario.id);
+}
+
+export function puedeConsultarSolicitud(usuario, solicitud) {
+  return ["analista", "admin"].includes(usuario.rol) || esEvaluadorResponsable(usuario, solicitud);
 }
 
 export function permitirRoles(...rolesPermitidos) {

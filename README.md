@@ -12,7 +12,18 @@ Cuando un proceso así se gestiona de forma manual y con la información
 repartida en distintos lugares, cuesta saber en qué estado está cada
 candidato. Este MVP propone centralizar esa información en un solo lugar.
 
-## Capturas de pantalla
+## EA3 · Ofertas, postulaciones y evaluación
+
+El portal **/ofertas** permite buscar vacantes publicadas y postular con un CV ficticio. En **Gestionar ofertas**, un administrador o analista puede crear, editar, publicar, despublicar y archivar vacantes. Cada postulación genera una solicitud pendiente en el Panel y guarda su CV privado en MongoDB. El evaluador asignado puede registrar la evaluación y solicitar preguntas orientativas a Gemini.
+
+La ficha profesional presenta objetivo, funciones y perfil requerido. El portal filtra por área, familia, región y modalidad. Para preparar la presentación, en **Nueva oferta → Cargar ejemplo ficticio** hay cuatro vacantes editables que puedes guardar y publicar.
+
+- [Guía EA3 de arquitectura, ejecución, pruebas, despliegue y demostración](docs/guia-ea3.md)
+- [Swagger UI local](http://localhost:4000/api/docs)
+
+Las capturas y las referencias a EP2 más abajo son antecedentes históricos del proyecto.
+
+### Capturas EP2
 
 Tomadas con la aplicación corriendo en local y **datos ficticios** de
 demostración.
@@ -149,11 +160,9 @@ El despliegue final no se realizó durante este cierre.
   disco efímero de Render y ya se perdieron; en el detalle aparecen como
   "Archivo no disponible" y hay que volver a subirlos.
 
-## Integración con IA (conservada para EP3)
+## Integración con IA
 
-La IA existe en este repositorio y queda desactivada en EP2.
-Configura `VITE_IA_HABILITADA=false` en frontend y `IA_HABILITADA=false` en backend.
-Solo el valor exacto `"true"` habilita cada flag; ausente también significa desactivada.
+Para EA3, configura `VITE_IA_HABILITADA=true` en frontend y `IA_HABILITADA=true` en backend. Configura `GEMINI_API_KEY` solo en backend. En el detalle, **Sugerir preguntas** envía únicamente el cargo ficticio y su familia a Gemini y muestra preguntas para revisión humana. El evaluador debe solicitar la generación.
 El frontend centraliza la lectura en `src/config/funcionalidades.js` y no monta
 la sección Informe psicolaboral ni consulta sus datos cuando está apagada.
 El backend registra sus seis rutas solo con la flag encendida; apagada responden
@@ -207,7 +216,7 @@ de IA se conservan para EP3. Lo siguiente describe su uso al habilitarla.
   solicitud o un **admin** (`permitirRoles("evaluador", "admin")` más la misma
   verificación de responsable que usan las evaluaciones). Así un evaluador
   ajeno no puede editarlos ni gastar cuota de la IA en esa solicitud.
-- Leer: cualquier usuario con sesión (el analista los ve en modo solo lectura).
+- Leer: administrador, analista y evaluador responsable.
 
 **Salvaguardas del prompt** (las mismas tres capas en los dos asistentes)
 
@@ -315,7 +324,7 @@ scripts externos ni de llamadas históricas a Gemini que este repositorio no rep
 
   | Acción | Analista | Evaluador | Admin |
   | ------ | :------: | :-------: | :---: |
-  | Ver dashboard, Kanban y detalle de solicitudes | ✅ | ✅ | ✅ |
+  | Ver dashboard, Kanban y detalle de solicitudes | ✅ | Solo sus asignaciones | ✅ |
   | Crear y editar solicitudes y candidatos, asignar evaluador, mover de estado | ✅ | — | ✅ |
   | Crear y editar evaluaciones | — | Solo si es el responsable | ✅ |
   | Subir el informe de entrevista | ✅ | Solo si es el responsable | ✅ |
@@ -592,7 +601,7 @@ Authorization: Bearer <token>
 
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
-| `GET` | `/api/solicitudes` | Lista todas las solicitudes, con candidato, familia, analista y responsable ya poblados. |
+| `GET` | `/api/solicitudes` | Lista solicitudes con candidato, familia y responsables. El evaluador recibe solo las asignadas. |
 | `POST` | `/api/solicitudes` | Crea una solicitud. **`multipart/form-data`**. |
 | `GET` | `/api/solicitudes/:id` | Detalle de una solicitud. |
 | `PUT` | `/api/solicitudes/:id` | Edita la solicitud. **`multipart/form-data`**; si se adjunta un CV nuevo, reemplaza el anterior. |
@@ -706,7 +715,7 @@ npm run seed-usuarios
 ### 5. Usar la aplicación
 
 Abre `http://localhost:5173` e inicia sesión con cualquiera de las cuentas que
-dejó `npm run seed-usuarios`. Todas comparten la misma contraseña, `Demo1234`:
+dejó `npm run seed-usuarios`. Todas usan la contraseña que configures en `SEED_PASSWORD` para la base académica:
 
 | Correo | Rol |
 | ------ | --- |
@@ -742,7 +751,7 @@ Kanban del analista con la etiqueta "Postulación pública".
 | `npm start` | Levanta la API sin nodemon. | En producción (es el que usa Render). |
 | `npm run generar-plantillas` | Genera los archivos `plantilla_informe.xlsx` y `pauta_entrevista.docx` de cada familia en `backend/plantillas/`. | Una vez al preparar el proyecto, o si quieres regenerar las plantillas tras modificar el script. |
 | `npm run seed` | Crea (o actualiza) las cuatro familias de cargo en la base de datos. | Al montar el proyecto en una base nueva. Es idempotente: ejecutarlo varias veces no duplica nada. |
-| `npm run seed-usuarios` | Crea (o actualiza) las cuatro cuentas de demostración con la contraseña `Demo1234`. Busca cada usuario por su correo y conserva su `_id`, para no romper las solicitudes que lo referencian. Acepta `SEED_PASSWORD=otraclave` para usar otra. | Al montar el proyecto en una base nueva, o cuando nadie recuerde las contraseñas. Es idempotente. |
+| `npm run seed-usuarios` | Crea o actualiza las cuentas ficticias con `SEED_PASSWORD` y conserva el `_id` de los usuarios existentes. | Al montar una base académica nueva. |
 | `npm test` | Corre las pruebas del backend con el runner de Node (`node --test`): reintentos ante 503 y modelo de respaldo de la IA, con Gemini simulado (nunca llama a la API real). | Antes de subir cambios en `servicioIa.js`. |
 | `npm run migrar-familias` | Corrige los nombres de familias guardados sin tilde (`Administracion` → `Administración`), actualizando cada documento **por su `_id`** para no romper las solicitudes que las referencian. | Solo en bases creadas antes de esa corrección. Es idempotente y seguro de repetir. |
 
@@ -792,7 +801,7 @@ Comprobación histórica del 1 de noviembre (no repetida en este cierre):
 `npm.cmd run dev` conectó a MongoDB y escuchó en el puerto 4000 al reintentar
 fuera del sandbox (el primer intento tuvo timeout DNS). `/api/health` respondió 200;
 las consultas autenticadas al informe IA y su evaluación respondieron el 404 normal.
-Se conservan `MONGO_URI` y `JWT_SECRET`; `.env` tiene `IA_HABILITADA=false`.
+Ese resultado corresponde a EP2 con `IA_HABILITADA=false`.
 
 - [Cobertura y alcance](docs/cobertura-testing.md).
 - [Guía para ejecutar e interpretar](docs/guia-testing.md).
@@ -848,7 +857,7 @@ docs/             Capturas, guía de git y documentación de pruebas
 | Rama | Para qué sirve |
 | ---- | -------------- |
 | `main` | La versión oficial, la que se entrega y se despliega. **No experimentar aquí.** |
-| `feature/integracion-ia` | Espacio para probar la integración de IA, que no es parte del alcance evaluado. |
+| `feature/integracion-ia` | Historial de desarrollo de la integración Gemini usada en EA3. |
 
 Además existe el tag `v1.0-mvp`, que marca el MVP terminado para poder volver a él si algo se rompe más adelante.
 

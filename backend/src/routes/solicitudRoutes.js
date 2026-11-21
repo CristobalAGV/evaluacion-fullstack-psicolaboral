@@ -17,6 +17,7 @@ import {
   obtenerEvaluacionIa,
   generarEvaluacionIa,
   guardarEvaluacionIa,
+  generarPreguntas,
 } from "../controllers/informeController.js";
 import { verificarToken, permitirRoles } from "../middleware/auth.js";
 import { recibirArchivo } from "../middleware/upload.js";
@@ -28,7 +29,7 @@ const router = Router();
 // controlador, que un evaluador sea el responsable de esa solicitud.
 const gestionSolicitudes = permitirRoles("analista", "admin");
 
-router.use(verificarToken);
+router.use(verificarToken, permitirRoles("analista", "evaluador", "admin"));
 
 router.get("/", listarSolicitudes);
 router.post("/", gestionSolicitudes, recibirArchivo("cv", "El CV"), crearSolicitud);
@@ -42,6 +43,7 @@ router.get("/:id/evaluaciones", listarEvaluacionesPorSolicitud);
 router.post("/:id/evaluaciones", permitirRoles("evaluador", "admin"), crearEvaluacion);
 
 if (process.env.IA_HABILITADA === "true") {
+router.post("/:id/preguntas-entrevista/generar", permitirRoles("evaluador", "admin"), generarPreguntas);
 // El informe lo puede leer cualquier usuario autenticado (por ejemplo el
 // analista), pero solo evaluador y admin pueden generarlo o editarlo.
 router.get("/:id/informe", obtenerInforme);

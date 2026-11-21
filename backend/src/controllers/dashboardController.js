@@ -3,12 +3,15 @@ import Solicitud from "../models/Solicitud.js";
 
 export async function obtenerDashboard(req, res) {
   try {
+    const filtro = req.usuario.rol === "evaluador" ? { profesionalResponsable: req.usuario.id } : {};
     const [totalCandidatos, solicitudesPendientes, solicitudesEnProceso, solicitudesFinalizadas] =
       await Promise.all([
-        Candidato.countDocuments(),
-        Solicitud.countDocuments({ estado: "Pendiente" }),
-        Solicitud.countDocuments({ estado: "En proceso" }),
-        Solicitud.countDocuments({ estado: "Finalizada" }),
+        req.usuario.rol === "evaluador"
+          ? Solicitud.distinct("candidato", filtro).then((ids) => ids.length)
+          : Candidato.countDocuments(),
+        Solicitud.countDocuments({ ...filtro, estado: "Pendiente" }),
+        Solicitud.countDocuments({ ...filtro, estado: "En proceso" }),
+        Solicitud.countDocuments({ ...filtro, estado: "Finalizada" }),
       ]);
 
     return res.json({

@@ -37,7 +37,7 @@ const limiteLectura = rateLimit({
   message: { mensaje: "Demasiadas solicitudes. Espera unos minutos." },
 });
 
-// El CV queda en memoria hasta validar su contenido; recién entonces se escribe en disco.
+// El CV queda en memoria hasta validar su contenido y persistirlo en MongoDB.
 const uploadPublico = multer({
   storage: multer.memoryStorage(),
   defParamCharset: "utf8",

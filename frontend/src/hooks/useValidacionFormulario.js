@@ -19,7 +19,9 @@ export function useValidacionFormulario() {
   function validar(formulario) {
     const nuevos = {};
     for (const campo of formulario.elements) {
-      if (campo.name && campo.willValidate && !campo.validity.valid) nuevos[campo.name] = mensajeDeValidez(campo);
+      if (!campo.name || !campo.willValidate) continue;
+      const invalido = campo.type === "file" ? campo.required && !campo.files.length : !campo.validity.valid;
+      if (invalido) nuevos[campo.name] = mensajeDeValidez(campo);
     }
     setMensajes(nuevos);
     const primero = [...formulario.elements].find((campo) => nuevos[campo.name]);

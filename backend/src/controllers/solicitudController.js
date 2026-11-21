@@ -7,7 +7,8 @@ import Usuario from "../models/Usuario.js";
 import Evaluacion from "../models/Evaluacion.js";
 import Archivo from "../models/Archivo.js";
 import Informe from "../models/Informe.js";
-import { esEvaluadorResponsable } from "../middleware/auth.js";
+import { esEvaluadorResponsable, puedeConsultarSolicitud } from "../middleware/auth.js";
+import { reemplazarAdjuntoOferta } from "../services/postulacionOferta.js";
 import { RESULTADOS, interpretarFechaEvaluacion } from "../utils/datosSolicitud.js";
 import { validarArchivo, guardarArchivo, EXTENSIONES_CV, EXTENSIONES_WORD } from "../utils/validarArchivo.js";
 import {
@@ -157,7 +158,8 @@ export async function crearSolicitud(req, res) {
 
 export async function listarSolicitudes(req, res) {
   try {
-    const solicitudes = await Solicitud.find()
+    const filtro = req.usuario.rol === "evaluador" ? { profesionalResponsable: req.usuario.id } : {};
+    const solicitudes = await Solicitud.find(filtro)
       .populate("candidato")
       .populate("familiaDeCargo")
       .populate("analistaId", "nombre correo rol")
@@ -176,6 +178,7 @@ export async function obtenerSolicitud(req, res) {
 
     const solicitud = await Solicitud.findById(id)
       .populate(POBLAR_CANDIDATO)
+      .populate("cvPostulacion informePostulacion", DATOS_ARCHIVO)
       .populate("familiaDeCargo")
       .populate("analistaId", "nombre correo rol")
       .populate("profesionalResponsable", "nombre correo rol");
@@ -184,6 +187,9 @@ export async function obtenerSolicitud(req, res) {
       return res.status(404).json({ mensaje: "Solicitud no encontrada" });
     }
 
+    if (!puedeConsultarSolicitud(req.usuario, solicitud)) {
+      return res.status(403).json({ mensaje: "Solicitud no asignada" });
+    }
     return res.json(solicitud);
   } catch (error) {
     return res.status(500).json({ mensaje: "Error al obtener la solicitud", error: error.message });
@@ -253,10 +259,19 @@ export async function actualizarSolicitud(req, res) {
       return res.status(400).json({ mensaje: "Datos del candidato inválidos", error: errorValidacion.message });
     }
 
+    if (req.file && solicitud.oferta) {
+      const cambios = { observaciones: observaciones || "", profesionalResponsable };
+      if (!fechaEvaluacion.omitida) cambios.fechaEvaluacion = fechaEvaluacion.fecha;
+      await reemplazarAdjuntoOferta({
+        solicitudId: solicitud._id, candidato, archivo: req.file, tipo: "cv", usuarioId: req.usuario.id, cambios,
+      });
+      return obtenerSolicitud(req, res);
+    }
+
     // CV nuevo: se guarda en MongoDB y reemplaza al anterior (y a la ruta antigua en disco, si había).
     let cvAnteriorId = null;
     let archivoCv = null;
-    if (req.file) {
+    if (req.file && !solicitud.oferta) {
       archivoCv = await guardarArchivo({
         archivo: req.file,
         tipo: "cv",
@@ -276,10 +291,14 @@ export async function actualizarSolicitud(req, res) {
       throw errorGuardar;
     }
     if (cvAnteriorId) await Archivo.findByIdAndDelete(cvAnteriorId);
-    if (req.file) await guardarCopiaEnCarpeta(solicitud.carpetaCandidato, "CV", req.file, EXTENSIONES_CV);
+    if (req.file && !solicitud.oferta) {
+      await guardarCopiaEnCarpeta(solicitud.carpetaCandidato, "CV", req.file, EXTENSIONES_CV);
+    }
 
-    solicitud.familiaDeCargo = familiaDeCargo;
-    solicitud.cargo = cargo;
+    if (!solicitud.oferta) {
+      solicitud.familiaDeCargo = familiaDeCargo;
+      solicitud.cargo = cargo;
+    }
     solicitud.observaciones = observaciones || "";
     solicitud.profesionalResponsable = profesionalResponsable;
     // Si la petición no trae la fecha (clientes anteriores), la guardada no se toca.
@@ -288,6 +307,7 @@ export async function actualizarSolicitud(req, res) {
     await solicitud.save();
     const solicitudActualizada = await solicitud.populate([
       POBLAR_CANDIDATO,
+      { path: "cvPostulacion informePostulacion", select: DATOS_ARCHIVO },
       "familiaDeCargo",
       { path: "profesionalResponsable", select: "nombre correo rol" },
     ]);
@@ -307,6 +327,16 @@ export async function eliminarSolicitud(req, res) {
       return res.status(404).json({ mensaje: "Solicitud no encontrada" });
     }
 
+    if (solicitud.oferta) {
+      await mongoose.connection.transaction(async (session) => {
+        await Solicitud.findByIdAndDelete(id).session(session);
+        await Evaluacion.deleteMany({ solicitud: id }).session(session);
+        await Informe.deleteMany({ solicitud: id }).session(session);
+        await Archivo.deleteMany({ solicitudId: id }).session(session);
+      });
+      return res.json({ mensaje: "Solicitud eliminada" });
+    }
+
     await eliminarCarpetaCandidato(solicitud.carpetaCandidato);
 
     await Solicitud.findByIdAndDelete(id);
@@ -316,7 +346,8 @@ export async function eliminarSolicitud(req, res) {
     // Sin otras solicitudes, el candidato queda huérfano: se borran él y sus archivos (CV e
     // informe), y así puede volver a postular con el mismo correo desde /postular.
     const candidatoId = solicitud.candidato;
-    if (candidatoId && !(await Solicitud.exists({ candidato: candidatoId }))) {
+    if (candidatoId && !(await Candidato.exists({ _id: candidatoId, contenedorCv: { $exists: true } }))
+        && !(await Solicitud.exists({ candidato: candidatoId }))) {
       await Archivo.deleteMany({ candidatoId });
       await Candidato.findByIdAndDelete(candidatoId);
     }
@@ -382,6 +413,18 @@ export async function obtenerCarpetaSolicitud(req, res) {
       return res.status(404).json({ mensaje: "Solicitud no encontrada" });
     }
 
+    if (!puedeConsultarSolicitud(req.usuario, solicitud)) {
+      return res.status(403).json({ mensaje: "Solicitud no asignada" });
+    }
+    if (solicitud.oferta) {
+      const archivo = await Archivo.findById(solicitud.cvPostulacion).select("clave nombreOriginal");
+      if (!archivo) return res.status(404).json({ mensaje: "La solicitud no tiene un CV disponible" });
+      return res.json({
+        carpeta: archivo.clave.split("/").slice(0, 2).join("/"),
+        archivos: [{ nombre: archivo.nombreOriginal, tipo: path.extname(archivo.nombreOriginal).slice(1) }],
+      });
+    }
+
     if (!solicitud.carpetaCandidato) {
       return res.status(404).json({ mensaje: "La solicitud no tiene una carpeta asociada" });
     }
@@ -425,6 +468,13 @@ export async function subirInformeEntrevista(req, res) {
       return res.status(404).json({ mensaje: "Candidato no encontrado" });
     }
 
+    if (solicitud.oferta) {
+      const archivo = await reemplazarAdjuntoOferta({
+        solicitudId: solicitud._id, candidato, archivo: req.file, tipo: "informe", usuarioId: req.usuario.id,
+      });
+      const { _id, nombreOriginal, mimeType, tamano, tipo, fecha } = archivo;
+      return res.json({ informeArchivo: { _id, nombreOriginal, mimeType, tamano, tipo, fecha } });
+    }
     const archivo = await guardarArchivo({
       archivo: req.file,
       tipo: "informe",

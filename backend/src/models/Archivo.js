@@ -4,6 +4,8 @@ import mongoose from "mongoose";
 // en vez del disco del servidor porque el disco de Render es efímero. Con el límite de 5 MB,
 // cada documento queda muy por debajo del máximo de 16 MB de MongoDB, así que no hace falta GridFS.
 const archivoSchema = new mongoose.Schema({
+  clave: { type: String, unique: true, sparse: true },
+  solicitudId: { type: mongoose.Schema.Types.ObjectId, ref: "Solicitud" },
   nombreOriginal: {
     type: String,
     required: true,

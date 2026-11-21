@@ -9,6 +9,8 @@ import dashboardRoutes from "./routes/dashboardRoutes.js";
 import usuarioRoutes from "./routes/usuarioRoutes.js";
 import postulacionRoutes from "./routes/postulacionRoutes.js";
 import archivoRoutes from "./routes/archivoRoutes.js";
+import ofertaRoutes from "./routes/ofertaRoutes.js";
+import docsRoutes from "./routes/docsRoutes.js";
 
 const app = express();
 
@@ -36,6 +38,8 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/usuarios", usuarioRoutes);
 app.use("/api/postulaciones", postulacionRoutes);
 app.use("/api/archivos", archivoRoutes);
+app.use("/api/ofertas", ofertaRoutes);
+app.use("/api/docs", docsRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ mensaje: "Ruta no encontrada" });
@@ -45,10 +49,9 @@ app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     return res.status(400).json({ mensaje: `Error al subir el archivo: ${err.message}` });
   }
-  if (err) {
-    return res.status(400).json({ mensaje: err.message || "Solicitud inválida" });
-  }
-  next();
+  if (err.type === "entity.parse.failed") return res.status(400).json({ mensaje: "JSON inválido" });
+  if (err.type === "entity.too.large") return res.status(413).json({ mensaje: "Solicitud demasiado grande" });
+  return res.status(500).json({ mensaje: "Error interno" });
 });
 
 export default app;

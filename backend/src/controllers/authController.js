@@ -16,7 +16,7 @@ export async function registrar(req, res) {
   try {
     const { nombre, correo, password, rol } = req.body;
 
-    if (!nombre || !correo || !password) {
+    if (![nombre, correo, password].every((valor) => typeof valor === "string" && valor.trim())) {
       return res.status(400).json({ mensaje: "Nombre, correo y contraseña son obligatorios" });
     }
 
@@ -35,7 +35,7 @@ export async function registrar(req, res) {
       mensaje: "Usuario creado correctamente",
     });
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al registrar usuario", error: error.message });
+    return res.status(500).json({ mensaje: "Error al registrar usuario" });
   }
 }
 
@@ -43,7 +43,7 @@ export async function login(req, res) {
   try {
     const { correo, password } = req.body;
 
-    if (!correo || !password) {
+    if (![correo, password].every((valor) => typeof valor === "string" && valor.trim())) {
       return res.status(400).json({ mensaje: "Correo y contraseña son obligatorios" });
     }
 
@@ -64,7 +64,7 @@ export async function login(req, res) {
       token,
     });
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al iniciar sesión", error: error.message });
+    return res.status(500).json({ mensaje: "Error al iniciar sesión" });
   }
 }
 

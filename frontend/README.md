@@ -19,7 +19,7 @@ Copia `.env.example` como `.env` y ajusta la URL de la API (incluye el sufijo `/
 
 ```
 VITE_API_URL=http://localhost:4000/api
-VITE_IA_HABILITADA=false
+VITE_IA_HABILITADA=true
 ```
 
 ## Ejecutar
@@ -43,7 +43,15 @@ Las pruebas están en `src/pruebas/` y la configuración en la sección `test` d
 
 Más detalle: `docs/cobertura-testing.md` y `docs/guia-testing.md` en la raíz del repositorio.
 
-## Estado EP2 validado
+## Vistas EA3
+
+- `/ofertas`, detalle y postulación por oferta funcionan sin sesión.
+- `/gestion/ofertas` permite a analistas y administradores gestionar la publicación.
+- El Panel recibe postulaciones como solicitudes pendientes. El detalle muestra el CV privado y el evaluador responsable puede pedir sugerencias de entrevista si IA está habilitada.
+
+Consulta la [guía EA3](../docs/guia-ea3.md) y la [cobertura medida](../docs/cobertura-testing.md).
+
+## Referencia histórica de EP2
 
 339 pruebas frontend aprobadas en 22 archivos. Cobertura: **96,66 % statements,
 90,52 % branches, 98,83 % functions y 97,53 % lines**. Build aprobado.
@@ -52,7 +60,7 @@ en AuthContext y EtiquetaPostulacionPublica. Backend: 57/57 pruebas aprobadas.
 
 `/login` y `/postular` son públicos; los candidatos postulan sin cuenta.
 `/registro` es interno y exclusivo de admin; crear usuarios conserva su sesión.
-La IA se conserva para EP3 y queda desactivada por flag (solo `"true"` habilita).
+En EP2 la IA se mantuvo desactivada.
 
 Las solicitudes permiten programar fecha y hora de evaluación (hora local en la
 interfaz, instante ISO/UTC al guardar) y definir Aprobada/Rechazada como resultado

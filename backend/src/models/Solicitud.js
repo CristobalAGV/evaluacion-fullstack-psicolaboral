@@ -31,6 +31,10 @@ const evaluacionIaSchema = new mongoose.Schema(
 
 const solicitudSchema = new mongoose.Schema(
   {
+    oferta: { type: mongoose.Schema.Types.ObjectId, ref: "Oferta" },
+    cvPostulacion: { type: mongoose.Schema.Types.ObjectId, ref: "Archivo", default: null },
+    informePostulacion: { type: mongoose.Schema.Types.ObjectId, ref: "Archivo", default: null },
+    correoPostulacion: { type: String, select: false },
     candidato: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Candidato",
@@ -108,4 +112,8 @@ const solicitudSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+solicitudSchema.index({ oferta: 1, correoPostulacion: 1 }, {
+  unique: true,
+  partialFilterExpression: { correoPostulacion: { $type: "string" } },
+});
 export default mongoose.model("Solicitud", solicitudSchema);

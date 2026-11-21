@@ -5,8 +5,7 @@ import Usuario from "../models/Usuario.js";
 import mongoose from "mongoose";
 
 // Contraseña común para todas las cuentas de demostración.
-// Se puede cambiar sin tocar el código: SEED_PASSWORD=otraclave npm run seed-usuarios
-const PASSWORD = process.env.SEED_PASSWORD || "Demo1234";
+const PASSWORD = process.env.SEED_PASSWORD;
 
 const USUARIOS = [
   { nombre: "Daniela Soto", correo: "daniela.soto@ejemplo.cl", rol: "analista" },
@@ -16,6 +15,11 @@ const USUARIOS = [
 ];
 
 async function seed() {
+  if (!PASSWORD?.trim()) {
+    console.error("Configura SEED_PASSWORD para las cuentas ficticias antes de ejecutar este comando.");
+    process.exitCode = 1;
+    return;
+  }
   await connectDB();
 
   for (const datos of USUARIOS) {
@@ -42,10 +46,10 @@ async function seed() {
   }
 
   await mongoose.disconnect();
-  console.log(`\nSeed de usuarios completado. Contraseña para todas las cuentas: ${PASSWORD}`);
+  console.log("\nSeed de usuarios completado.");
 }
 
-seed().catch((error) => {
-  console.error("Error al ejecutar el seed de usuarios:", error.message);
+seed().catch(() => {
+  console.error("Error al ejecutar el seed de usuarios. Revisa la base académica y SEED_PASSWORD.");
   process.exit(1);
 });

@@ -1,5 +1,10 @@
 import api from "./api";
 
+export async function generarPreguntasEntrevista(id) {
+  const { data } = await api.post(`/solicitudes/${id}/preguntas-entrevista/generar`);
+  return data;
+}
+
 export async function obtenerInforme(solicitudId) {
   const { data } = await api.get(`/solicitudes/${solicitudId}/informe`);
   return data;

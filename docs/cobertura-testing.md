@@ -1,5 +1,22 @@
 # Cobertura y testing del proyecto real
 
+## Resultado EA3
+
+Medición local con Node.js 24, sin credenciales de producción.
+
+| Suite | Baseline EP2 | Resultado EA3 | Cobertura de líneas EA3 |
+| --- | --- | --- | --- |
+| Frontend · Vitest | 339/339, 97,53 % líneas | 345/345 en 23 archivos | **97,14 %** (884/910) |
+| Backend · node:test | 57/57, 58,78 % en el informe nativo inicial | 62/62 | **91,10 %** en la API backend |
+
+El informe nativo inicial también cargaba la utilidad frontend de fechas que reutiliza una prueba EP2. La medición EA3 usa el filtro del directorio `backend/src` y el umbral de 85 %. El frontend también aplica un umbral de 85 % de líneas.
+
+La suite integrada de backend usa Express por HTTP y un replica set temporal de MongoDB. Cubre publicación y filtros, roles, postulaciones concurrentes, lectura del CV desde otra conexión, reversión por fallo de almacenamiento, descarga privada, asignación, evaluaciones y finalización. Gemini se simula con respuestas y fallos predefinidos. Las pruebas de UI usan React Testing Library y `user-event`.
+
+El build de Vite con IA activa pasó. El lint frontend pasó con dos avisos de Fast Refresh existentes. El backend pasó la revisión de sintaxis y las pruebas HTTP. Lee los comandos y requisitos del [entorno de pruebas EA3](guia-ea3.md#pruebas-y-cobertura).
+
+## Referencia histórica de EP2
+
 Ejecución: 2 de noviembre de 2026. Estas cifras provienen del repositorio real,
 no de una copia de auditoría.
 

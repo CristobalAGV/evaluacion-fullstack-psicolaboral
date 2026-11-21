@@ -4,10 +4,11 @@ import { obtenerSeccionesDeFamilia } from "../utils/estructuraInforme.js";
 import {
   generarBorradorInforme,
   generarEvaluacionCandidato,
+  sugerirPreguntasEntrevista,
   normalizarEvaluacion,
   ErrorIa,
 } from "../services/servicioIa.js";
-import { esEvaluadorResponsable } from "../middleware/auth.js";
+import { esEvaluadorResponsable, puedeConsultarSolicitud } from "../middleware/auth.js";
 import { extraerTextoDeArchivo, ErrorLectura, LARGO_MAXIMO_DOCUMENTO } from "../utils/extraerTextoArchivo.js";
 import { obtenerCompetenciasDeFamilia } from "../utils/competenciasFamilia.js";
 
@@ -25,6 +26,25 @@ async function buscarSolicitudConFamilia(id) {
   return Solicitud.findById(id).populate("familiaDeCargo").populate("candidato");
 }
 
+export async function generarPreguntas(req, res) {
+  try {
+    const solicitud = await Solicitud.findById(req.params.id)
+      .select("cargo familiaDeCargo profesionalResponsable").populate("familiaDeCargo", "nombre");
+    if (!solicitud) return res.status(404).json({ mensaje: "Solicitud no encontrada" });
+    if (!puedeEditarInforme(req.usuario, solicitud)) {
+      return res.status(403).json({ mensaje: MENSAJE_SIN_PERMISO });
+    }
+    const resultado = await sugerirPreguntasEntrevista({
+      cargo: solicitud.cargo,
+      familia: solicitud.familiaDeCargo?.nombre || "",
+    });
+    return res.json(resultado);
+  } catch (error) {
+    if (error instanceof ErrorIa) return res.status(error.estado).json({ mensaje: error.message });
+    return res.status(500).json({ mensaje: "No se pudieron generar las preguntas de entrevista" });
+  }
+}
+
 export async function obtenerInforme(req, res) {
   try {
     const { id } = req.params;
@@ -34,6 +54,9 @@ export async function obtenerInforme(req, res) {
       return res.status(404).json({ mensaje: "Solicitud no encontrada" });
     }
 
+    if (!puedeConsultarSolicitud(req.usuario, solicitud)) {
+      return res.status(403).json({ mensaje: "Solicitud no asignada" });
+    }
     const informe = await Informe.findOne({ solicitud: id }).populate(
       "generadoPor",
       "nombre correo rol"
@@ -152,10 +175,13 @@ export async function guardarInforme(req, res) {
 export async function obtenerEvaluacionIa(req, res) {
   try {
     const solicitud = await Solicitud.findById(req.params.id)
-      .select("evaluacionIa")
+      .select("evaluacionIa profesionalResponsable")
       .populate("evaluacionIa.generadoPor", "nombre correo rol");
     if (!solicitud) {
       return res.status(404).json({ mensaje: "Solicitud no encontrada" });
+    }
+    if (!puedeConsultarSolicitud(req.usuario, solicitud)) {
+      return res.status(403).json({ mensaje: "Solicitud no asignada" });
     }
     return res.json(solicitud.evaluacionIa ?? null);
   } catch (error) {
@@ -186,7 +212,9 @@ export async function generarEvaluacionIa(req, res) {
       return res.status(403).json({ mensaje: MENSAJE_SIN_PERMISO });
     }
 
-    const { cvArchivoId, informeArchivoId } = solicitud.candidato ?? {};
+    const { cvArchivoId, informeArchivoId } = solicitud.oferta
+      ? { cvArchivoId: solicitud.cvPostulacion, informeArchivoId: solicitud.informePostulacion }
+      : solicitud.candidato ?? {};
     const faltantes = [!cvArchivoId && "el CV", !informeArchivoId && "el informe de entrevista (Word)"].filter(Boolean);
     if (faltantes.length) {
       return res.status(400).json({

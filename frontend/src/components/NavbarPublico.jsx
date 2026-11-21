@@ -17,6 +17,7 @@ export default function NavbarPublico() {
         </Link>
         {!soloMarca && (
           <div className="d-flex align-items-center gap-2">
+            <Link to="/ofertas" className="btn btn-outline-primary btn-sm">Ofertas laborales</Link>
             {!enLogin && (
               <Link to="/login" className={enRegistro ? "btn btn-primary btn-sm" : "btn btn-outline-primary btn-sm"}>
                 Iniciar sesión
