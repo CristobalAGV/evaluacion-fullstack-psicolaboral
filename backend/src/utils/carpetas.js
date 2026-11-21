@@ -7,6 +7,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const PLANTILLAS_DIR = path.join(__dirname, "..", "..", "plantillas");
 export const CANDIDATOS_DIR = path.join(__dirname, "..", "..", "candidatos");
 
+const PAUTAS_PERMITIDAS = new Set(
+  ["administracion", "atencion-cliente", "operaciones", "ventas"]
+    .map((familia) => `${familia}/pauta_entrevista.docx`)
+);
+
+export async function leerPautaEntrevista(ruta) {
+  if (!PAUTAS_PERMITIDAS.has(ruta)) return null;
+  try {
+    const raiz = await fs.promises.realpath(PLANTILLAS_DIR);
+    const esperada = path.join(raiz, ruta);
+    if (await fs.promises.realpath(esperada) !== esperada) return null;
+    return await fs.promises.readFile(esperada);
+  } catch (error) {
+    if (["ENOENT", "ENOTDIR", "EISDIR", "ELOOP"].includes(error.code)) return null;
+    throw error;
+  }
+}
+
 // Las carpetas de candidato son solo una comodidad local: los archivos reales viven en MongoDB
 // (modelo Archivo). Si el disco no está disponible, la aplicación sigue funcionando sin ellas.
 try {

@@ -17,8 +17,8 @@ function nombreDesdeCabecera(cabecera) {
 
 // Descarga un archivo guardado en MongoDB. Va por axios para enviar el token (no hay enlaces
 // públicos) y luego dispara la descarga en el navegador.
-export async function descargarArchivo(id, nombreSugerido = "archivo") {
-  const respuesta = await api.get(`/archivos/${id}`, { responseType: "blob" });
+async function descargarAdjunto(ruta, nombreSugerido) {
+  const respuesta = await api.get(ruta, { responseType: "blob" });
   const nombre = nombreDesdeCabecera(respuesta.headers["content-disposition"]) || nombreSugerido;
 
   const url = URL.createObjectURL(respuesta.data);
@@ -29,6 +29,14 @@ export async function descargarArchivo(id, nombreSugerido = "archivo") {
   enlace.click();
   enlace.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function descargarArchivo(id, nombreSugerido = "archivo") {
+  return descargarAdjunto(`/archivos/${id}`, nombreSugerido);
+}
+
+export function descargarPautaEntrevista(solicitudId) {
+  return descargarAdjunto(`/solicitudes/${solicitudId}/pauta-entrevista`, "Pauta_Entrevista.docx");
 }
 
 // Con responseType "blob" el error de la API también llega como Blob: se lee su "mensaje".

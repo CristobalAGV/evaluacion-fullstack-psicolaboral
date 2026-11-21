@@ -99,6 +99,15 @@ Para esta demo utiliza cargos, archivos y apuntes ficticios. La función de preg
 3. En Vercel configura `frontend` como raíz, Vite como preset, `npm run build` y `dist` como salida. Mantén el rewrite SPA de `frontend/vercel.json`. Configura `VITE_API_URL=https://<servicio-render>/api` y `VITE_IA_HABILITADA=true`. Recompila al cambiar variables `VITE_*`.
 4. Valida el flujo en una vista previa con la base académica antes de promover esa versión. Conserva los despliegues previos y deja fuera los archivos `.env`.
 
+## Pauta de entrevista por familia
+
+En el detalle de la solicitud, sobre **Subir informe de entrevista**, el analista, el administrador o el evaluador asignado puede pulsar **Descargar pauta de entrevista**. La pantalla indica la familia de cargo. `GET /api/solicitudes/{id}/pauta-entrevista` requiere Bearer JWT, verifica el acceso a esa solicitud y descarga el DOCX maestro de la familia desde `backend/plantillas/`. Las pautas están versionadas con el backend y la descarga funciona sin las copias locales de candidatos. Ante una familia sin pauta disponible, el servicio responde 404 y la carga sigue habilitada.
+
+1. Abre la solicitud y descarga la pauta específica de su familia.
+2. Durante o después de la entrevista, registra respuestas, ejemplos observables y observaciones. Guarda el documento completado en Word.
+3. Súbelo como DOC o DOCX de hasta 5 MB mediante **Subir informe de entrevista**. El adjunto queda privado en MongoDB.
+4. Como evaluador asignado o administrador, usa **Generar evaluación con IA** con el CV y el informe. Revisa el apoyo generado y registra las decisiones de forma manual.
+
 ## Guion de presentación
 
 1. Entra como analista o admin. En **Gestionar ofertas** crea un cargo ficticio o precarga **Analista de Operaciones**, revisa su objetivo y perfil, y guarda el borrador. Verifica que aún no figure en el portal público.

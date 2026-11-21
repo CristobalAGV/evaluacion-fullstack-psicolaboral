@@ -7,6 +7,7 @@ import {
   eliminarSolicitud,
   actualizarEstadoSolicitud,
   obtenerCarpetaSolicitud,
+  descargarPautaEntrevista,
   subirInformeEntrevista,
 } from "../controllers/solicitudController.js";
 import { crearEvaluacion, listarEvaluacionesPorSolicitud } from "../controllers/evaluacionController.js";
@@ -38,6 +39,7 @@ router.put("/:id", gestionSolicitudes, recibirArchivo("cv", "El CV"), actualizar
 router.delete("/:id", permitirRoles("admin"), eliminarSolicitud);
 router.patch("/:id/estado", gestionSolicitudes, actualizarEstadoSolicitud);
 router.get("/:id/carpeta", obtenerCarpetaSolicitud);
+router.get("/:id/pauta-entrevista", descargarPautaEntrevista);
 router.put("/:id/informe-entrevista", recibirArchivo("informe", "El informe"), subirInformeEntrevista);
 router.get("/:id/evaluaciones", listarEvaluacionesPorSolicitud);
 router.post("/:id/evaluaciones", permitirRoles("evaluador", "admin"), crearEvaluacion);

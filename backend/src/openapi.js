@@ -54,7 +54,7 @@ const mensajes = {
 
 function operacion(tag, summary, {
   publica = false, status = 200, salida = objeto({}, []), body, media, parametros,
-  errores = [], binario = false,
+  errores = [], binario = false, tipoBinario = "application/octet-stream",
 } = {}) {
   const respuestas = [...(publica ? [] : [401, 403]), ...errores, 500];
   return {
@@ -64,7 +64,7 @@ function operacion(tag, summary, {
     ...(body && { requestBody: { required: true, content: contenido(body, media) } }),
     responses: {
       [status]: { description: "Operación exitosa", ...(status !== 204 && {
-        content: contenido(binario ? archivo : salida, binario ? "application/octet-stream" : undefined),
+        content: contenido(binario ? archivo : salida, binario ? tipoBinario : undefined),
         ...(binario && { headers: { "Content-Disposition": { schema: texto } } }),
       }) },
       ...Object.fromEntries(respuestas.map((codigo) => [
@@ -156,6 +156,9 @@ export default {
     }) },
     "/solicitudes/{id}/informe-entrevista": { put: operacion("Archivos", "Adjuntar informe Word", {
       ...porId, media: multipart, body: objeto({ informe: archivo }, ["informe"]), salida: objeto({ informeArchivo: ref("Archivo") }), errores: [400, 404],
+    }) },
+    "/solicitudes/{id}/pauta-entrevista": { get: operacion("Archivos", "Descargar la pauta Word de la familia. Evaluador: solo asignadas", {
+      ...porId, binario: true, tipoBinario: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     }) },
     "/archivos/{id}": { get: operacion("Archivos", "Descargar archivo privado. Evaluador: solo asignadas", { ...porId, binario: true }) },
     "/solicitudes/{id}/evaluaciones": {

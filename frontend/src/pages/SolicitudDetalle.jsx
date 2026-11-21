@@ -1,4 +1,5 @@
 import { IA_HABILITADA } from "../config/funcionalidades";
+import { descargarPautaEntrevista, mensajeDeErrorDescarga } from "../services/archivoService";
 import { useEffect, useId, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { obtenerSolicitud, subirInformeEntrevista, actualizarEstadoSolicitud } from "../services/solicitudService";
@@ -118,10 +119,24 @@ function EvaluacionFormulario({ evaluacion, solicitudId, onGuardado, onCancelar 
 const EXTENSIONES_INFORME = [".doc", ".docx"];
 const TAMANO_MAXIMO_ARCHIVO = 5 * 1024 * 1024;
 
-function SubirInforme({ solicitudId, tieneInforme, onSubido }) {
+function SubirInforme({ solicitudId, familia, tieneInforme, onSubido }) {
   const [archivo, setArchivo] = useState(null);
   const [error, setError] = useState("");
   const [subiendo, setSubiendo] = useState(false);
+  const [descargando, setDescargando] = useState(false);
+  const [errorPauta, setErrorPauta] = useState("");
+
+  async function descargarPauta() {
+    setErrorPauta("");
+    setDescargando(true);
+    try {
+      await descargarPautaEntrevista(solicitudId);
+    } catch (err) {
+      setErrorPauta(await mensajeDeErrorDescarga(err) || "No se pudo descargar la pauta de entrevista.");
+    } finally {
+      setDescargando(false);
+    }
+  }
 
   function validar(seleccionado) {
     if (!seleccionado) return "";
@@ -152,6 +167,14 @@ function SubirInforme({ solicitudId, tieneInforme, onSubido }) {
 
   return (
     <form onSubmit={handleSubmit} className="d-flex flex-column gap-2">
+      <div>
+        <p className="small fw-semibold mb-1">{familia ? `Pauta de entrevista · ${familia}` : "Pauta de entrevista"}</p>
+        <button type="button" className="btn btn-outline-primary btn-sm" disabled={descargando} onClick={descargarPauta}>
+          {descargando ? "Descargando pauta…" : "Descargar pauta de entrevista"}
+        </button>
+        <p className="form-text mb-0">Completa esta pauta durante o después de la entrevista y vuelve a subirla en formato Word.</p>
+        {errorPauta && <p className="small text-danger mb-0 mt-1" role="alert">{errorPauta}</p>}
+      </div>
       <SelectorCv
         etiqueta={tieneInforme ? "Reemplazar informe de entrevista" : "Subir informe de entrevista"}
         archivo={archivo}
@@ -447,6 +470,7 @@ export default function SolicitudDetalle() {
               {puedeSubirInforme && (
                 <SubirInforme
                   solicitudId={id}
+                  familia={solicitud.familiaDeCargo?.nombre}
                   tieneInforme={Boolean(informeArchivo)}
                   onSubido={(informeArchivo) =>
                     setSolicitud((anterior) => anterior.oferta ? { ...anterior, informePostulacion: informeArchivo } : ({

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { after, before, test } from "node:test";
 import { MongoMemoryReplSet } from "mongodb-memory-server-core";
 import mongoose from "mongoose";
@@ -107,6 +108,11 @@ test("Swagger sirve UI y contrato | login emite JWT verificable y las rutas exig
   assert.match(html.toString(), /SwaggerUIBundle/);
   const { resultado: doc } = await pedir("/docs/openapi.json");
   assert.ok(doc.components.securitySchemes.bearerAuth);
+  const pauta = doc.paths["/solicitudes/{id}/pauta-entrevista"].get;
+  assert.deepEqual(doc.security, [{ bearerAuth: [] }]);
+  assert.equal(pauta.security, undefined);
+  assert.ok(pauta.responses[200].content[tipoWord]);
+  for (const estado of [401, 403, 404]) assert.ok(pauta.responses[estado]);
   assert.equal(doc.paths["/postulaciones"].post.security.length, 0);
   await pedir("/docs/assets/swagger-ui.css");
   await pedir("/health");
@@ -368,4 +374,52 @@ test("un fallo al persistir el CV revierte el alta y permite reintentar", async 
   fallo.mock.restore();
   await pedir("/postulaciones", { ...opciones, datos: postular(ofertaId, undefined, postulante), estado: 201 });
   assert.equal(await Solicitud.countDocuments({ oferta: ofertaId }), solicitudesAntes + 1);
+});
+
+test("descarga las pautas maestras por familia con JWT y asignación", async () => {
+  const candidato = await Candidato.create({ nombre, correo: "pauta@example.invalid", telefono });
+  const crear = (familiaDeCargo) => Solicitud.create({
+    candidato: candidato.id, familiaDeCargo, cargo: "Cargo ficticio", profesionalResponsable: evaluador.id,
+  });
+  for (const [nombre, carpeta, sufijo] of [
+    ["Operaciones", "operaciones", "Operaciones"],
+    ["Administración", "administracion", "Administracion"],
+    ["Atención al Cliente", "atencion-cliente", "Atencion_Al_Cliente"],
+    ["Ventas", "ventas", "Ventas"],
+  ]) {
+    const pautaEntrevista = `${carpeta}/pauta_entrevista.docx`;
+    const familiaActual = carpeta === "operaciones" ? familia : await Familia.create({ nombre, pautaEntrevista });
+    const solicitud = await crear(familiaActual.id);
+    const ruta = `/solicitudes/${solicitud.id}/pauta-entrevista`;
+    const esperado = await readFile(new URL(`../plantillas/${pautaEntrevista}`, import.meta.url));
+    const roles = carpeta === "operaciones" ? ["analista", "admin", "evaluador"] : ["evaluador"];
+    for (const rol of roles) {
+      const { resultado, headers } = await pedir(ruta, { rol });
+      assert.deepEqual(resultado, esperado);
+      assert.equal(headers.get("content-type"), tipoWord);
+      assert.equal(headers.get("content-disposition"), `attachment; filename="Pauta_Entrevista_${sufijo}.docx"`);
+      assert.equal(headers.get("cache-control"), "private, no-store");
+    }
+    if (carpeta === "operaciones") {
+      await pedir(ruta, { estado: 401 });
+      await pedir(ruta, { rol: "ajeno", estado: 403 });
+      const consulta = new URLSearchParams({ ruta: "../../package.json", pautaEntrevista: "ventas/pauta_entrevista.docx" });
+      assert.deepEqual((await pedir(`${ruta}?${consulta}`, { rol: "evaluador" })).resultado, esperado);
+    }
+  }
+  const sinPauta = await Familia.create({ nombre: "Familia ficticia sin pauta" });
+  const solicitudSinPauta = await crear(sinPauta.id);
+  const ruta = `/solicitudes/${solicitudSinPauta.id}/pauta-entrevista`;
+  const { resultado: error } = await pedir(ruta, { rol: "admin", estado: 404 });
+  assert.match(error.mensaje, /no tiene una pauta/);
+  for (const pautaEntrevista of [
+    "../package.json", "operaciones/../ventas/pauta_entrevista.docx",
+    String.raw`operaciones\..\ventas\pauta_entrevista.docx`, "operaciones/plantilla_informe.xlsx",
+    "C:/privado/pauta_entrevista.docx",
+  ]) {
+    await Familia.findByIdAndUpdate(sinPauta.id, { pautaEntrevista });
+    assert.deepEqual((await pedir(ruta, { rol: "admin", estado: 404 })).resultado, error);
+  }
+  await pedir("/solicitudes/no-existe/pauta-entrevista", { rol: "admin", estado: 404 });
+  await pedir(`/solicitudes/${new mongoose.Types.ObjectId()}/pauta-entrevista`, { rol: "admin", estado: 404 });
 });

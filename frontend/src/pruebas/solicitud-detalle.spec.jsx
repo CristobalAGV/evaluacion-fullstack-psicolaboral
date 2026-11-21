@@ -290,6 +290,43 @@ describe("SolicitudDetalle", () => {
   describe("informe de entrevista", () => {
     const inputInforme = () => document.querySelector('input[type="file"][accept=".doc,.docx"]');
 
+    it("muestra Ventas y descarga la pauta por la API con el nombre recibido", async () => {
+      await abrirDetalle(USUARIOS.evaluador);
+      const contenido = new Blob(["pauta ficticia"], { type: WORD });
+      const nombre = "Pauta_Entrevista_Ventas.docx";
+      const get = vi.spyOn(api, "get").mockResolvedValue({
+        data: contenido, headers: { "content-disposition": `attachment; filename="${nombre}"` },
+      });
+      const crearUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:pauta");
+      let nombreDescargado;
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function () {
+        nombreDescargado = this.download;
+      });
+      expect(screen.getByText("Pauta de entrevista · Ventas")).toBeTruthy();
+      expect(screen.getByText("Completa esta pauta durante o después de la entrevista y vuelve a subirla en formato Word.")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Descargar pauta de entrevista" }));
+      await esperarQue(() => nombreDescargado === nombre, "que se descargue la pauta con su nombre");
+      expect(get).toHaveBeenLastCalledWith("/solicitudes/s1/pauta-entrevista", { responseType: "blob" });
+      expect(crearUrl).toHaveBeenCalledWith(contenido);
+    });
+
+    it("no muestra el botón a un evaluador ajeno", async () => {
+      await abrirDetalle(EVALUADOR_AJENO);
+      expect(screen.queryByRole("button", { name: "Descargar pauta de entrevista" })).toBeNull();
+    });
+
+    it("muestra el error de descarga y permite reintentar sin afectar la carga", async () => {
+      await abrirDetalle(USUARIOS.analista);
+      const mensaje = "La familia de cargo no tiene una pauta de entrevista disponible";
+      vi.spyOn(api, "get").mockRejectedValue({ response: {
+        status: 404, data: new Blob([JSON.stringify({ mensaje })], { type: "application/json" }),
+      } });
+      fireEvent.click(screen.getByRole("button", { name: "Descargar pauta de entrevista" }));
+      expect((await screen.findByRole("alert")).textContent).toBe(mensaje);
+      expect(screen.getByRole("button", { name: "Descargar pauta de entrevista" }).disabled).toBe(false);
+      expect(inputInforme()).toBeTruthy();
+    });
+
     it("rechaza un archivo que no es Word", async () => {
       await abrirDetalle(USUARIOS.evaluador);
 
@@ -307,24 +344,25 @@ describe("SolicitudDetalle", () => {
       expect(screen.getByText("El informe supera el tamaño máximo de 5 MB.")).toBeTruthy();
     });
 
-    it("sube el Word con PUT y lo muestra como informe actual", async () => {
+    it.each([["doc", "application/msword"], ["docx", WORD]])("sube el Word .%s con PUT y lo muestra como informe actual", async (extension, tipo) => {
       // Arrange
       await abrirDetalle(USUARIOS.evaluador);
+      const nombre = `Informe Lucía.${extension}`;
       const put = vi.spyOn(api, "put").mockResolvedValue({
-        data: { informeArchivo: { _id: "a-inf", nombreOriginal: "Informe Lucía.docx" } },
+        data: { informeArchivo: { _id: "a-inf", nombreOriginal: nombre } },
       });
-      elegirArchivo(inputInforme(), archivoDePrueba("Informe Lucía.docx", WORD));
+      elegirArchivo(inputInforme(), archivoDePrueba(nombre, tipo));
 
       // Act
       fireEvent.click(screen.getByRole("button", { name: "Guardar informe" }));
 
       // Assert
-      expect(await within(fila("Informe de entrevista")).findByText("Informe Lucía.docx")).toBeTruthy();
+      expect(await within(fila("Informe de entrevista")).findByText(nombre)).toBeTruthy();
       expect(within(fila("Informe de entrevista")).getByRole("button", { name: "Descargar" })).toBeTruthy();
       expect(screen.getByText("Reemplazar informe de entrevista")).toBeTruthy();
       const [ruta, formData] = put.mock.lastCall;
       expect(ruta).toBe("/solicitudes/s1/informe-entrevista");
-      expect(formData.get("informe").name).toBe("Informe Lucía.docx");
+      expect(formData.get("informe").name).toBe(nombre);
     });
 
     it("muestra el error del servidor si rechaza el informe", async () => {

@@ -17,6 +17,8 @@ import {
   guardarCopiaEnCarpeta,
   eliminarCarpetaCandidato,
   listarArchivosCarpeta,
+  leerPautaEntrevista,
+  slugify,
 } from "../utils/carpetas.js";
 
 const ESTADOS_VALIDOS = ["Pendiente", "En proceso", "Finalizada"];
@@ -401,6 +403,34 @@ export async function actualizarEstadoSolicitud(req, res) {
     return res.json(solicitud);
   } catch (error) {
     return res.status(500).json({ mensaje: "Error al actualizar la solicitud", error: error.message });
+  }
+}
+
+export async function descargarPautaEntrevista(req, res) {
+  try {
+    if (!mongoose.isObjectIdOrHexString(req.params.id)) {
+      return res.status(404).json({ mensaje: "Solicitud no encontrada" });
+    }
+    const solicitud = await Solicitud.findById(req.params.id)
+      .select("profesionalResponsable familiaDeCargo")
+      .populate("familiaDeCargo", "nombre pautaEntrevista");
+    if (!solicitud) return res.status(404).json({ mensaje: "Solicitud no encontrada" });
+    if (!puedeConsultarSolicitud(req.usuario, solicitud)) {
+      return res.status(403).json({ mensaje: "Solicitud no asignada" });
+    }
+
+    const familia = solicitud.familiaDeCargo;
+    const datos = await leerPautaEntrevista(familia?.pautaEntrevista);
+    if (!datos) return res.status(404).json({ mensaje: "La familia de cargo no tiene una pauta de entrevista disponible" });
+
+    const nombre = slugify(familia.nombre).replace(/(^|-)([a-z])/g, (_, separador, letra) =>
+      (separador ? "_" : "") + letra.toUpperCase()
+    );
+    res.attachment(`Pauta_Entrevista_${nombre}.docx`);
+    res.set({ "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" });
+    return res.send(datos);
+  } catch {
+    return res.status(500).json({ mensaje: "No se pudo descargar la pauta de entrevista" });
   }
 }
 
