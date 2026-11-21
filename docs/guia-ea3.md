@@ -101,6 +101,8 @@ Para esta demo utiliza cargos, archivos y apuntes ficticios. La función de preg
 
 ## Pauta de entrevista por familia
 
+Desde **Ver detalle**, la tarjeta **Expediente del postulante** muestra el contenedor lógico, los identificadores, la oferta vinculada, la familia y el estado. Consulta `GET /api/solicitudes/{id}/carpeta` con JWT. Este endpoint conserva `carpeta` y `archivos` y añade metadatos del expediente y la disponibilidad de CV, informe y pauta. Los botones usan las rutas privadas de descarga. Si un documento falta, la tarjeta muestra **No disponible**.
+
 En el detalle de la solicitud, sobre **Subir informe de entrevista**, el analista, el administrador o el evaluador asignado puede pulsar **Descargar pauta de entrevista**. La pantalla indica la familia de cargo. `GET /api/solicitudes/{id}/pauta-entrevista` requiere Bearer JWT, verifica el acceso a esa solicitud y descarga el DOCX maestro de la familia desde `backend/plantillas/`. Las pautas están versionadas con el backend y la descarga funciona sin las copias locales de candidatos. Ante una familia sin pauta disponible, el servicio responde 404 y la carga sigue habilitada.
 
 1. Abre la solicitud y descarga la pauta específica de su familia.
@@ -113,7 +115,7 @@ En el detalle de la solicitud, sobre **Subir informe de entrevista**, el analist
 1. Entra como analista o admin. En **Gestionar ofertas** crea un cargo ficticio o precarga **Analista de Operaciones**, revisa su objetivo y perfil, y guarda el borrador. Verifica que aún no figure en el portal público.
 2. Publica la oferta. Abre **Ofertas laborales** en una ventana privada, busca por cargo o palabra clave, filtra por familia, área, región o modalidad y elige **Ver oferta**. Muestra la misión, las funciones y los requisitos de la ficha.
 3. Pulsa **Postular**. Usa el nombre **Camila Ficticia**, `camila@example.invalid`, `+56 9 0000 0000` y un PDF o DOCX inventado. Envía el formulario.
-4. Vuelve al **Panel** como analista. Abre la solicitud nueva en **Pendiente**. Descarga el CV y muestra en Swagger la carpeta lógica de la solicitud. Prueba la misma URL directa con una sesión sin asignación para mostrar el 403.
+4. Vuelve al **Panel** como analista. Abre la solicitud nueva en **Pendiente** y muestra el contenedor lógico en **Expediente del postulante**. Descarga el CV y la pauta desde la tarjeta. Cuando el informe esté cargado, vuelve a la tarjeta para mostrar su descarga.
 5. Asigna al evaluador y registra una fecha y observaciones ficticias. Mueve la solicitud a **En proceso**.
 6. Entra como ese evaluador, abre su solicitud, registra una evaluación y pulsa **Sugerir preguntas**. Revisa el resultado como apoyo a la entrevista.
 7. Regresa a la sesión de analista o administrador. Cambia a **Finalizada** y, si corresponde, registra manualmente el resultado.

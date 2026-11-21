@@ -45,10 +45,20 @@ const EVALUACIONES = [
   { _id: "e1", fechaEvaluacion: "2026-10-05T00:00:00.000Z", estado: "Pendiente", resultado: "Primera entrevista" },
 ];
 
-async function abrirDetalle(usuario, { solicitud = crearSolicitud(), evaluaciones = EVALUACIONES } = {}) {
+function crearExpediente(solicitud) {
+  const { candidato, familiaDeCargo, estado, _id } = solicitud;
+  return {
+    solicitudId: _id, candidato: { _id: "candidato-s1", nombre: candidato.nombre },
+    carpeta: "postulantes/lucia-pena-candidato-s1", familia: familiaDeCargo, estado,
+    documentos: { cv: candidato.cvArchivoId, informe: candidato.informeArchivoId, pauta: true },
+  };
+}
+
+async function abrirDetalle(usuario, { solicitud = crearSolicitud(), evaluaciones = EVALUACIONES, expediente = crearExpediente(solicitud) } = {}) {
   iniciarSesionSimulada(usuario);
   const get = simularGet({
     "/solicitudes/s1": solicitud,
+    "/solicitudes/s1/carpeta": expediente,
     "/solicitudes/s1/evaluaciones": evaluaciones,
     "/solicitudes/s1/informe": null,
     "/solicitudes/s1/informe/evaluacion": null,
@@ -59,11 +69,12 @@ async function abrirDetalle(usuario, { solicitud = crearSolicitud(), evaluacione
     ],
   });
   renderizar(<SolicitudDetalle />, { ruta: "/solicitudes/s1", rutaDelElemento: "/solicitudes/:id" });
-  await screen.findByRole("heading", { name: "Archivos del candidato" });
+  await screen.findByRole("heading", { name: "Datos de la solicitud" });
   // Las tarjetas de IA cargan sus datos aparte: se espera a que terminen para que ningún cambio de
   // estado ocurra fuera de la prueba (eso es lo que React avisa con "not wrapped in act").
   await esperarQue(
-    () => !screen.queryByText("Cargando informe...") && !screen.queryByText("Cargando evaluación..."),
+    () => !screen.queryByText("Cargando informe...") && !screen.queryByText("Cargando evaluación...") &&
+      !screen.queryByText("Cargando expediente…"),
     "que terminen de cargar el informe y la evaluación de IA"
   );
   return get;
@@ -84,19 +95,62 @@ describe("SolicitudDetalle", () => {
       expect(screen.getByText("lucia@ejemplo.cl")).toBeTruthy();
       expect(screen.getByText("+56 9 8765 4321")).toBeTruthy();
       expect(screen.getByText("Ejecutiva de ventas")).toBeTruthy();
-      expect(screen.getByText("Ventas")).toBeTruthy();
+      expect(within(screen.getByRole("heading", { name: "Datos de la solicitud" }).closest("section")).getByText("Ventas")).toBeTruthy();
       expect(screen.getByText("Eva Evaluadora")).toBeTruthy();
       expect(screen.getByText("Postulación pública del candidato")).toBeTruthy();
       expect(screen.getByText("Postula a la sucursal norte")).toBeTruthy();
     });
 
-    it('en "Archivos del candidato" el CV se puede descargar y el informe antiguo dice "Archivo no disponible"', async () => {
+    it('muestra el expediente y sus metadatos, el CV disponible y el informe faltante', async () => {
       await abrirDetalle(USUARIOS.analista);
 
+      const expediente = within(screen.getByRole("heading", { name: "Expediente del postulante" }).closest("section"));
+      for (const valor of ["Lucía Peña", "candidato-s1", "s1", "postulantes/lucia-pena-candidato-s1", "En proceso"]) {
+        expect(expediente.getByText(valor, { exact: true })).toBeTruthy();
+      }
       expect(within(fila("CV")).getByText("CV Lucía.pdf")).toBeTruthy();
       expect(within(fila("CV")).getByRole("button", { name: "Descargar" })).toBeTruthy();
-      expect(within(fila("Informe de entrevista")).getByText("Archivo no disponible")).toBeTruthy();
+      expect(within(fila("Informe de entrevista")).getByText("No disponible")).toBeTruthy();
       expect(within(fila("Informe de entrevista")).queryByRole("button", { name: "Descargar" })).toBeNull();
+    });
+
+    it("mantiene la solicitud y la carga si falla el endpoint del expediente", async () => {
+      const mensaje = "No se pudo consultar el expediente de la solicitud";
+      await abrirDetalle(USUARIOS.analista, { expediente: errorAxios(500, mensaje) });
+      expect((await screen.findByRole("alert")).textContent).toBe(mensaje);
+      expect(screen.getByRole("heading", { name: "Lucía Peña" })).toBeTruthy();
+      expect(subirInformeVisible()).toBe(true);
+      expect(screen.queryByRole("button", { name: "Descargar" })).toBeNull();
+    });
+
+    it("descarga los adjuntos del expediente usando sus IDs privados", async () => {
+      const solicitud = crearSolicitud();
+      const expediente = crearExpediente(solicitud);
+      expediente.oferta = { _id: "oferta-s1", cargo: "Vacante de prueba" };
+      expediente.documentos.informe = { _id: "nuevo-informe", nombreOriginal: "Entrevista.docx" };
+      await abrirDetalle(USUARIOS.analista, { solicitud, expediente });
+      expect(screen.getByRole("link", { name: "Vacante de prueba" }).getAttribute("href")).toBe("/gestion/ofertas/oferta-s1");
+      expect(within(fila("Informe de entrevista")).getByText("Entrevista.docx")).toBeTruthy();
+      const get = vi.spyOn(api, "get").mockResolvedValue({ data: new Blob(), headers: {} });
+      get.mockClear();
+      vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:expediente");
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+      fireEvent.click(within(fila("CV")).getByRole("button", { name: "Descargar" }));
+      fireEvent.click(within(fila("Informe de entrevista")).getByRole("button", { name: "Descargar" }));
+      await esperarQue(() => get.mock.calls.length === 2);
+      expect(get.mock.calls).toEqual([
+        ["/archivos/a-cv", { responseType: "blob" }], ["/archivos/nuevo-informe", { responseType: "blob" }],
+      ]);
+    });
+
+    it("muestra No disponible para la pauta y el contenedor faltantes", async () => {
+      const expediente = crearExpediente(crearSolicitud());
+      expediente.carpeta = null;
+      expediente.documentos.pauta = false;
+      await abrirDetalle(USUARIOS.admin, { expediente });
+      const pauta = within(fila("Pauta de entrevista · Ventas"));
+      expect(pauta.getByText("No disponible")).toBeTruthy();
+      expect(pauta.queryByRole("button")).toBeNull();
     });
 
     it("lista las evaluaciones con la fecha de calendario correcta", async () => {
@@ -202,15 +256,14 @@ describe("SolicitudDetalle", () => {
       expect(screen.queryByRole("button", { name: "Cambiar" })).toBeNull();
     });
 
-    it("evaluador ajeno: solo puede mirar (sin evaluaciones, sin informe, sin reasignar)", async () => {
+    it("evaluador ajeno: el detalle simulado no muestra acciones ni descargas", async () => {
       await abrirDetalle(EVALUADOR_AJENO);
 
       expect(screen.queryByRole("button", { name: "+ Nueva evaluación" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Editar" })).toBeNull();
       expect(subirInformeVisible()).toBe(false);
       expect(screen.queryByRole("button", { name: "Cambiar" })).toBeNull();
-      // Pero sí puede descargar el CV
-      expect(within(fila("CV")).getByRole("button", { name: "Descargar" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Descargar" })).toBeNull();
     });
 
     it("admin: puede todo", async () => {
@@ -311,8 +364,10 @@ describe("SolicitudDetalle", () => {
     });
 
     it("no muestra el botón a un evaluador ajeno", async () => {
-      await abrirDetalle(EVALUADOR_AJENO);
+      const get = await abrirDetalle(EVALUADOR_AJENO);
+      expect(screen.queryByRole("heading", { name: "Expediente del postulante" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Descargar pauta de entrevista" })).toBeNull();
+      expect(get.mock.calls.some(([ruta]) => ruta.endsWith("/carpeta"))).toBe(false);
     });
 
     it("muestra el error de descarga y permite reintentar sin afectar la carga", async () => {
@@ -346,10 +401,12 @@ describe("SolicitudDetalle", () => {
 
     it.each([["doc", "application/msword"], ["docx", WORD]])("sube el Word .%s con PUT y lo muestra como informe actual", async (extension, tipo) => {
       // Arrange
-      await abrirDetalle(USUARIOS.evaluador);
+      const expediente = crearExpediente(crearSolicitud());
+      await abrirDetalle(USUARIOS.evaluador, { expediente });
       const nombre = `Informe Lucía.${extension}`;
-      const put = vi.spyOn(api, "put").mockResolvedValue({
-        data: { informeArchivo: { _id: "a-inf", nombreOriginal: nombre } },
+      const put = vi.spyOn(api, "put").mockImplementation(async () => {
+        expediente.documentos.informe = { _id: "a-inf", nombreOriginal: nombre };
+        return { data: { informeArchivo: expediente.documentos.informe } };
       });
       elegirArchivo(inputInforme(), archivoDePrueba(nombre, tipo));
 
@@ -357,7 +414,7 @@ describe("SolicitudDetalle", () => {
       fireEvent.click(screen.getByRole("button", { name: "Guardar informe" }));
 
       // Assert
-      expect(await within(fila("Informe de entrevista")).findByText(nombre)).toBeTruthy();
+      await esperarQue(() => Boolean(within(fila("Informe de entrevista")).queryByText(nombre)));
       expect(within(fila("Informe de entrevista")).getByRole("button", { name: "Descargar" })).toBeTruthy();
       expect(screen.getByText("Reemplazar informe de entrevista")).toBeTruthy();
       const [ruta, formData] = put.mock.lastCall;

@@ -224,7 +224,29 @@ test("flujo integrado de dos ofertas reutiliza candidato y mantiene separados lo
   assert.equal((await pedir(ruta, { rol: "analista" })).resultado.cvPostulacion.nombreOriginal, "CV_Ficticio.pdf");
   assert.ok((await pedir("/solicitudes", { rol: "analista" })).resultado.some(({ _id }) => _id === postulacion.id));
   assert.deepEqual((await pedir("/solicitudes", { rol: "evaluador" })).resultado, []);
-  await pedir(`${ruta}/carpeta`, { rol: "analista" });
+  const rutaExpediente = `${ruta}/carpeta`;
+  await pedir(rutaExpediente, { estado: 401 });
+  await pedir(`/solicitudes/${new mongoose.Types.ObjectId()}/carpeta`, { rol: "admin", estado: 404 });
+  const { resultado: expediente } = await pedir(rutaExpediente, { rol: "analista" });
+  assert.equal(expediente.carpeta, candidato.contenedorCv);
+  assert.equal(expediente.solicitudId, postulacion.id);
+  assert.deepEqual(expediente.candidato, { _id: candidato.id, nombre });
+  assert.equal(expediente.oferta._id, ofertaId);
+  assert.equal(expediente.familia._id, familia.id);
+  assert.equal(expediente.estado, "Pendiente");
+  assert.deepEqual(expediente.documentos, {
+    cv: { _id: String(postulacion.cvPostulacion), nombreOriginal: "CV_Ficticio.pdf" },
+    informe: null, pauta: true,
+  });
+  assert.deepEqual((await pedir(rutaExpediente, { rol: "admin" })).resultado, expediente);
+  const expedienteOtra = (await pedir(`/solicitudes/${otra.id}/carpeta`, { rol: "analista" })).resultado;
+  assert.equal(expedienteOtra.carpeta, expediente.carpeta);
+  assert.equal(expedienteOtra.documentos.cv._id, String(otra.cvPostulacion));
+  await Solicitud.findByIdAndUpdate(otra.id, { cvPostulacion: postulacion.cvPostulacion });
+  const expedienteInconsistente = (await pedir(`/solicitudes/${otra.id}/carpeta`, { rol: "analista" })).resultado;
+  assert.equal(expedienteInconsistente.documentos.cv, null);
+  assert.equal(expedienteInconsistente.carpeta, expediente.carpeta);
+  await Solicitud.findByIdAndUpdate(otra.id, { cvPostulacion: otra.cvPostulacion });
   await pedir(descarga, { estado: 401 });
   await pedir(descarga, { rol: "evaluador", estado: 403 });
   const { resultado: bytes, headers } = await pedir(descarga, { rol: "analista" });
@@ -236,6 +258,9 @@ test("flujo integrado de dos ofertas reutiliza candidato y mantiene separados lo
     cargo: postulacion.cargo, profesionalResponsable: evaluador.id, observaciones: "Prueba ficticia", fechaEvaluacion: "2026-12-02T10:30:00-03:00" };
   await pedir(ruta, { rol: "analista", metodo: "PUT", datos: edicion });
   await pedir(`${ruta}/estado`, { rol: "analista", metodo: "PATCH", datos: { estado: "En proceso" } });
+  const asignado = (await pedir(rutaExpediente, { rol: "evaluador" })).resultado;
+  assert.equal(asignado.estado, "En proceso");
+  assert.deepEqual(asignado.documentos, expediente.documentos);
   await pedir(descarga, { rol: "evaluador" });
   await pedir(descarga, { rol: "ajeno", estado: 403 });
   await pedir(`/archivos/${otra.cvPostulacion}`, { rol: "evaluador", estado: 403 });
@@ -258,6 +283,11 @@ test("flujo integrado de dos ofertas reutiliza candidato y mantiene separados lo
   const entrevista = formulario({}, { campo: "informe", bytes: documentoWord, mime: tipoWord, nombre: "Entrevista.docx" });
   await pedir(`${ruta}/informe-entrevista`, { rol: "ajeno", metodo: "PUT", datos: entrevista, estado: 403 });
   const { resultado: informe } = await pedir(`${ruta}/informe-entrevista`, { rol: "evaluador", metodo: "PUT", datos: entrevista });
+  assert.deepEqual((await pedir(rutaExpediente, { rol: "evaluador" })).resultado.documentos, {
+    cv: { _id: editada.cvPostulacion._id, nombreOriginal: "CV_Nuevo.docx" },
+    informe: { _id: informe.informeArchivo._id, nombreOriginal: "Entrevista.docx" },
+    pauta: true,
+  });
   await pedir(`/archivos/${informe.informeArchivo._id}`, { rol: "evaluador" });
   assert.match((await extraerTextoDeArchivo(informe.informeArchivo._id, "la entrevista")).texto, /ficticios/);
   await comprobarIa(ruta);
@@ -409,6 +439,9 @@ test("descarga las pautas maestras por familia con JWT y asignación", async () 
   }
   const sinPauta = await Familia.create({ nombre: "Familia ficticia sin pauta" });
   const solicitudSinPauta = await crear(sinPauta.id);
+  const expedienteSinPauta = (await pedir(`/solicitudes/${solicitudSinPauta.id}/carpeta`, { rol: "admin" })).resultado;
+  assert.equal(expedienteSinPauta.carpeta, null);
+  assert.deepEqual(expedienteSinPauta.documentos, { cv: null, informe: null, pauta: false });
   const ruta = `/solicitudes/${solicitudSinPauta.id}/pauta-entrevista`;
   const { resultado: error } = await pedir(ruta, { rol: "admin", estado: 404 });
   assert.match(error.mensaje, /no tiene una pauta/);

@@ -12,15 +12,26 @@ const PAUTAS_PERMITIDAS = new Set(
     .map((familia) => `${familia}/pauta_entrevista.docx`)
 );
 
-export async function leerPautaEntrevista(ruta) {
+export async function resolverPautaEntrevista(ruta) {
   if (!PAUTAS_PERMITIDAS.has(ruta)) return null;
   try {
     const raiz = await fs.promises.realpath(PLANTILLAS_DIR);
     const esperada = path.join(raiz, ruta);
     if (await fs.promises.realpath(esperada) !== esperada) return null;
-    return await fs.promises.readFile(esperada);
+    return (await fs.promises.stat(esperada)).isFile() ? esperada : null;
   } catch (error) {
     if (["ENOENT", "ENOTDIR", "EISDIR", "ELOOP"].includes(error.code)) return null;
+    throw error;
+  }
+}
+
+export async function leerPautaEntrevista(ruta) {
+  const archivo = await resolverPautaEntrevista(ruta);
+  if (!archivo) return null;
+  try {
+    return await fs.promises.readFile(archivo);
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
     throw error;
   }
 }

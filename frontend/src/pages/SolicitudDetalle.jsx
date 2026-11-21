@@ -1,5 +1,4 @@
 import { IA_HABILITADA } from "../config/funcionalidades";
-import { descargarPautaEntrevista, mensajeDeErrorDescarga } from "../services/archivoService";
 import { useEffect, useId, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { obtenerSolicitud, subirInformeEntrevista, actualizarEstadoSolicitud } from "../services/solicitudService";
@@ -10,7 +9,7 @@ import SolicitudFormulario from "../components/SolicitudFormulario";
 import EtiquetaPostulacionPublica, { esPostulacionPublica } from "../components/EtiquetaPostulacionPublica";
 import InsigniaResultado from "../components/InsigniaResultado";
 import SelectorCv from "../components/SelectorCv";
-import ArchivoDescargable from "../components/ArchivoDescargable";
+import ExpedientePostulante from "../components/ExpedientePostulante";
 import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 import { formatearFechaCalendario, formatearFechaHora, hoyLocal } from "../utils/fechas";
@@ -119,24 +118,10 @@ function EvaluacionFormulario({ evaluacion, solicitudId, onGuardado, onCancelar 
 const EXTENSIONES_INFORME = [".doc", ".docx"];
 const TAMANO_MAXIMO_ARCHIVO = 5 * 1024 * 1024;
 
-function SubirInforme({ solicitudId, familia, tieneInforme, onSubido }) {
+function SubirInforme({ solicitudId, tieneInforme, onSubido }) {
   const [archivo, setArchivo] = useState(null);
   const [error, setError] = useState("");
   const [subiendo, setSubiendo] = useState(false);
-  const [descargando, setDescargando] = useState(false);
-  const [errorPauta, setErrorPauta] = useState("");
-
-  async function descargarPauta() {
-    setErrorPauta("");
-    setDescargando(true);
-    try {
-      await descargarPautaEntrevista(solicitudId);
-    } catch (err) {
-      setErrorPauta(await mensajeDeErrorDescarga(err) || "No se pudo descargar la pauta de entrevista.");
-    } finally {
-      setDescargando(false);
-    }
-  }
 
   function validar(seleccionado) {
     if (!seleccionado) return "";
@@ -167,14 +152,6 @@ function SubirInforme({ solicitudId, familia, tieneInforme, onSubido }) {
 
   return (
     <form onSubmit={handleSubmit} className="d-flex flex-column gap-2">
-      <div>
-        <p className="small fw-semibold mb-1">{familia ? `Pauta de entrevista · ${familia}` : "Pauta de entrevista"}</p>
-        <button type="button" className="btn btn-outline-primary btn-sm" disabled={descargando} onClick={descargarPauta}>
-          {descargando ? "Descargando pauta…" : "Descargar pauta de entrevista"}
-        </button>
-        <p className="form-text mb-0">Completa esta pauta durante o después de la entrevista y vuelve a subirla en formato Word.</p>
-        {errorPauta && <p className="small text-danger mb-0 mt-1" role="alert">{errorPauta}</p>}
-      </div>
       <SelectorCv
         etiqueta={tieneInforme ? "Reemplazar informe de entrevista" : "Subir informe de entrevista"}
         archivo={archivo}
@@ -452,25 +429,19 @@ export default function SolicitudDetalle() {
             </dl>
           </section>
 
-          <section className="card shadow-sm">
+          {puedeSubirInforme && <section className="card shadow-sm">
             <div className="card-header">
-              <h2 className="h6 fw-semibold mb-0">Archivos del candidato</h2>
+              <h2 className="h6 fw-semibold mb-0">Expediente del postulante</h2>
             </div>
             <div className="card-body d-flex flex-column gap-3">
-              <ArchivoDescargable
-                etiqueta="CV"
-                archivo={cvArchivo}
-                rutaAntigua={solicitud.candidato?.cvUrl || solicitud.cvUrl}
+              <ExpedientePostulante
+                key={JSON.stringify([id, solicitud.candidato?.nombre, solicitud.estado, solicitud.familiaDeCargo?._id,
+                  cvArchivo?._id ?? cvArchivo, informeArchivo?._id ?? informeArchivo])}
+                solicitudId={id}
+                enlaceOferta={puedeGestionarSolicitud}
               />
-              <ArchivoDescargable
-                etiqueta="Informe de entrevista"
-                archivo={informeArchivo}
-                rutaAntigua={solicitud.candidato?.informeEntrevistaUrl}
-              />
-              {puedeSubirInforme && (
-                <SubirInforme
+              <SubirInforme
                   solicitudId={id}
-                  familia={solicitud.familiaDeCargo?.nombre}
                   tieneInforme={Boolean(informeArchivo)}
                   onSubido={(informeArchivo) =>
                     setSolicitud((anterior) => anterior.oferta ? { ...anterior, informePostulacion: informeArchivo } : ({
@@ -478,10 +449,9 @@ export default function SolicitudDetalle() {
                       candidato: { ...anterior.candidato, informeArchivoId: informeArchivo, informeEntrevistaUrl: "" },
                     }))
                   }
-                />
-              )}
+              />
             </div>
-          </section>
+          </section>}
         </div>
 
         <div className="col-12 col-lg-8 order-lg-1 d-flex flex-column gap-3">

@@ -18,6 +18,7 @@ import {
   eliminarCarpetaCandidato,
   listarArchivosCarpeta,
   leerPautaEntrevista,
+  resolverPautaEntrevista,
   slugify,
 } from "../utils/carpetas.js";
 
@@ -438,7 +439,10 @@ export async function obtenerCarpetaSolicitud(req, res) {
   try {
     const { id } = req.params;
 
-    const solicitud = await Solicitud.findById(id);
+    if (!mongoose.isObjectIdOrHexString(id)) return res.status(404).json({ mensaje: "Solicitud no encontrada" });
+    const solicitud = await Solicitud.findById(id).select(
+      "candidato familiaDeCargo oferta estado profesionalResponsable cvPostulacion informePostulacion carpetaCandidato"
+    );
     if (!solicitud) {
       return res.status(404).json({ mensaje: "Solicitud no encontrada" });
     }
@@ -446,25 +450,48 @@ export async function obtenerCarpetaSolicitud(req, res) {
     if (!puedeConsultarSolicitud(req.usuario, solicitud)) {
       return res.status(403).json({ mensaje: "Solicitud no asignada" });
     }
-    if (solicitud.oferta) {
-      const archivo = await Archivo.findById(solicitud.cvPostulacion).select("clave nombreOriginal");
-      if (!archivo) return res.status(404).json({ mensaje: "La solicitud no tiene un CV disponible" });
-      return res.json({
-        carpeta: archivo.clave.split("/").slice(0, 2).join("/"),
-        archivos: [{ nombre: archivo.nombreOriginal, tipo: path.extname(archivo.nombreOriginal).slice(1) }],
-      });
-    }
+    const conOferta = Boolean(solicitud.oferta);
+    await solicitud.populate([
+      { path: "candidato", select: "nombre cvArchivoId informeArchivoId +contenedorCv" },
+      { path: "oferta", select: "cargo" },
+      { path: "familiaDeCargo", select: "nombre pautaEntrevista" },
+    ]);
+    const { candidato, oferta, familiaDeCargo } = solicitud;
+    const archivosPrivados = candidato ? await Archivo.find({
+      candidatoId: candidato._id,
+      solicitudId: conOferta ? solicitud._id : null,
+      $or: [
+        { _id: conOferta ? solicitud.cvPostulacion : candidato.cvArchivoId, tipo: "cv" },
+        { _id: conOferta ? solicitud.informePostulacion : candidato.informeArchivoId, tipo: "informe" },
+      ],
+    }).select("nombreOriginal tipo clave") : [];
+    const cv = archivosPrivados.find((archivo) => archivo.tipo === "cv");
+    const informe = archivosPrivados.find((archivo) => archivo.tipo === "informe");
+    const pauta = Boolean(await resolverPautaEntrevista(familiaDeCargo?.pautaEntrevista));
+    const metadatos = (archivo) => archivo ? { _id: archivo._id, nombreOriginal: archivo.nombreOriginal } : null;
+    const opcionesContenedor = [candidato?.contenedorCv, cv?.clave?.split("/").slice(0, 2).join("/")];
+    const contenedor = opcionesContenedor.find((valor) =>
+      /^postulantes\/[a-z\d-]+-[a-f\d]{24}$/i.test(valor) && valor.endsWith(`-${candidato?._id}`)
+    );
+    const carpetaAnterior = /^[a-z\d-]+$/i.test(solicitud.carpetaCandidato ?? "") ? solicitud.carpetaCandidato : null;
+    const carpeta = conOferta ? contenedor ?? null : carpetaAnterior;
+    const archivos = conOferta
+      ? (cv ? [{ nombre: cv.nombreOriginal, tipo: path.extname(cv.nombreOriginal).slice(1) }] : [])
+      : (carpeta ? await listarArchivosCarpeta(path.join(CANDIDATOS_DIR, carpeta)) : []);
 
-    if (!solicitud.carpetaCandidato) {
-      return res.status(404).json({ mensaje: "La solicitud no tiene una carpeta asociada" });
-    }
-
-    const carpetaAbsoluta = path.join(CANDIDATOS_DIR, solicitud.carpetaCandidato);
-    const archivos = await listarArchivosCarpeta(carpetaAbsoluta);
-
-    return res.json({ carpeta: solicitud.carpetaCandidato, archivos });
-  } catch (error) {
-    return res.status(500).json({ mensaje: "Error al listar la carpeta de la solicitud", error: error.message });
+    res.set("Cache-Control", "private, no-store");
+    return res.json({
+      carpeta,
+      archivos,
+      solicitudId: solicitud._id,
+      candidato: candidato ? { _id: candidato._id, nombre: candidato.nombre } : null,
+      oferta: oferta ? { _id: oferta._id, cargo: oferta.cargo } : null,
+      familia: familiaDeCargo ? { _id: familiaDeCargo._id, nombre: familiaDeCargo.nombre } : null,
+      estado: solicitud.estado,
+      documentos: { cv: metadatos(cv), informe: metadatos(informe), pauta },
+    });
+  } catch {
+    return res.status(500).json({ mensaje: "No se pudo consultar el expediente de la solicitud" });
   }
 }
 

@@ -27,6 +27,7 @@ const filtrosOferta = [
   consulta("modalidad", datosOferta.modalidad),
 ];
 const familia = objeto({ _id: id, nombre: texto });
+const adjuntoExpediente = { ...objeto({ _id: id, nombreOriginal: texto }), nullable: true };
 const estadosPublicacion = { ...texto, enum: ["borrador", "publicada", "archivada"] };
 const postulacion = objeto({
   nombre: texto, correo: texto, telefono: texto, ofertaId: id, cargo: texto, familiaDeCargo: id,
@@ -151,8 +152,13 @@ export default {
       ...porId, body: objeto({ estado: estados, resultado: { ...texto, enum: ["Aprobada", "Rechazada"], nullable: true } }, ["estado"]),
       salida: ref("Solicitud"), errores: [400, 404],
     }) },
-    "/solicitudes/{id}/carpeta": { get: operacion("Archivos", "Consultar carpeta y nombres de archivos", {
-      ...porId, salida: objeto({ carpeta: texto, archivos: lista(objeto({ nombre: texto, tipo: texto })) }),
+    "/solicitudes/{id}/carpeta": { get: operacion("Archivos", "Consultar el expediente privado de la solicitud", {
+      ...porId, salida: objeto({
+        carpeta: { ...texto, nullable: true }, archivos: lista(objeto({ nombre: texto, tipo: texto })),
+        solicitudId: id, candidato: { ...objeto({ _id: id, nombre: texto }), nullable: true },
+        oferta: { ...objeto({ _id: id, cargo: texto }), nullable: true }, familia: { ...familia, nullable: true },
+        estado: estados, documentos: objeto({ cv: adjuntoExpediente, informe: adjuntoExpediente, pauta: { type: "boolean" } }),
+      }),
     }) },
     "/solicitudes/{id}/informe-entrevista": { put: operacion("Archivos", "Adjuntar informe Word", {
       ...porId, media: multipart, body: objeto({ informe: archivo }, ["informe"]), salida: objeto({ informeArchivo: ref("Archivo") }), errores: [400, 404],

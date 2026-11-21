@@ -44,6 +44,7 @@ const RESPUESTAS = {
   "/solicitudes/s1/evaluaciones": EVALUACIONES,
   "/solicitudes/s1/informe": null,
   "/solicitudes/s1/informe/evaluacion": null,
+  "/solicitudes/s1/carpeta": { documentos: {} },
   "/familias": [{ _id: "fam-ventas", nombre: "Ventas" }],
   "/usuarios": [{ _id: USUARIOS.evaluador.id, nombre: "Eva Evaluadora" }],
 };
@@ -60,7 +61,7 @@ async function abrir(usuario, respuestas = RESPUESTAS) {
   iniciarSesionSimulada(usuario);
   simularGet(respuestas);
   renderizarDetalle();
-  await screen.findByRole("heading", { name: "Archivos del candidato" });
+  await screen.findByRole("heading", { name: "Datos de la solicitud" });
   // Espera a que terminen de cargar las tarjetas de IA para que no queden cambios de estado pendientes.
   await esperarQue(
     () => !screen.queryByText("Cargando informe...") && !screen.queryByText("Cargando evaluación..."),
@@ -94,7 +95,7 @@ describe("SolicitudDetalle: marcado de Bootstrap", () => {
       const alerta = await screen.findByRole("alert");
       expect(alerta.classList.contains("alert-danger")).toBe(true);
       expect(alerta.textContent).toBe("Solicitud no encontrada");
-      expect(screen.queryByRole("heading", { name: "Archivos del candidato" })).toBeNull();
+      expect(screen.queryByRole("heading", { name: "Expediente del postulante" })).toBeNull();
     });
   });
 
@@ -116,7 +117,7 @@ describe("SolicitudDetalle: marcado de Bootstrap", () => {
       fireEvent.click(volver);
 
       expect(await screen.findByText("Pantalla del panel")).toBeTruthy();
-      expect(screen.queryByRole("heading", { name: "Archivos del candidato" })).toBeNull();
+      expect(screen.queryByRole("heading", { name: "Expediente del postulante" })).toBeNull();
     });
   });
 
@@ -129,7 +130,7 @@ describe("SolicitudDetalle: marcado de Bootstrap", () => {
       expect(principal.classList.contains("col-lg-8")).toBe(true);
       expect(lateral.classList.contains("col-lg-4")).toBe(true);
       expect(principal.contains(seccion("Evaluaciones del evaluador"))).toBe(true);
-      expect(lateral.contains(seccion("Archivos del candidato"))).toBe(true);
+      expect(lateral.contains(seccion("Expediente del postulante"))).toBe(true);
       // Ambas columnas ocupan todo el ancho en móvil.
       expect(principal.classList.contains("col-12")).toBe(true);
       expect(lateral.classList.contains("col-12")).toBe(true);
@@ -163,9 +164,10 @@ describe("SolicitudDetalle: marcado de Bootstrap", () => {
     ])("%s: muestra todas las secciones y los controles que le corresponden", async (_nombre, usuario, esperado) => {
       await abrir(usuario);
 
-      for (const titulo of ["Datos de la solicitud", "Archivos del candidato", "Informe psicolaboral", "Evaluaciones del evaluador"]) {
+      for (const titulo of ["Datos de la solicitud", "Informe psicolaboral", "Evaluaciones del evaluador"]) {
         expect(screen.getByRole("heading", { name: titulo }), titulo).toBeTruthy();
       }
+      expect(Boolean(screen.queryByRole("heading", { name: "Expediente del postulante" }))).toBe(esperado.subirInforme);
       expect(controles()).toEqual(esperado);
     });
 

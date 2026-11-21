@@ -397,6 +397,7 @@ describe("SolicitudDetalle: fecha de evaluación, resultado final y mensaje adic
     return {
       "/solicitudes/s1": solicitud,
       "/solicitudes/s1/evaluaciones": [],
+      "/solicitudes/s1/carpeta": { documentos: { cv: solicitud.candidato?.cvArchivoId } },
       "/familias": [{ _id: "fam-operaciones", nombre: "Operaciones" }],
       "/usuarios": [{ _id: USUARIOS.evaluador.id, nombre: "Eva Evaluadora" }],
     };
@@ -406,7 +407,7 @@ describe("SolicitudDetalle: fecha de evaluación, resultado final y mensaje adic
     iniciarSesionSimulada(usuario);
     simularGet(respuestas(solicitud));
     renderizar(<SolicitudDetalle />, { ruta: "/solicitudes/s1", rutaDelElemento: "/solicitudes/:id" });
-    await screen.findByRole("heading", { name: "Archivos del candidato" });
+    await screen.findByRole("heading", { name: "Datos de la solicitud" });
   }
 
   const datos = () => within(screen.getByRole("heading", { name: "Datos de la solicitud" }).closest("section"));

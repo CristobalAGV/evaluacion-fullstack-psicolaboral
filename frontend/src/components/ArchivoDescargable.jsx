@@ -4,7 +4,9 @@ import { descargarArchivo, mensajeDeErrorDescarga } from "../services/archivoSer
 // Fila con un archivo del candidato y su botón de descarga (con token).
 // archivo: metadatos poblados ({ _id, nombreOriginal }) o solo el id.
 // rutaAntigua: ruta en disco de datos anteriores a MongoDB; ese archivo ya no existe.
-export default function ArchivoDescargable({ etiqueta, archivo, rutaAntigua }) {
+export default function ArchivoDescargable({
+  etiqueta, archivo, rutaAntigua, descargar, textoDescarga = "Descargar", textoNoDisponible = "Sin archivo",
+}) {
   const [descargando, setDescargando] = useState(false);
   const [error, setError] = useState("");
 
@@ -15,7 +17,8 @@ export default function ArchivoDescargable({ etiqueta, archivo, rutaAntigua }) {
     setError("");
     setDescargando(true);
     try {
-      await descargarArchivo(archivoId, nombre || etiqueta);
+      if (descargar) await descargar();
+      else await descargarArchivo(archivoId, nombre || etiqueta);
     } catch (err) {
       setError((await mensajeDeErrorDescarga(err)) || "No se pudo descargar el archivo");
     } finally {
@@ -30,14 +33,14 @@ export default function ArchivoDescargable({ etiqueta, archivo, rutaAntigua }) {
           <span className="small">{etiqueta}</span>
           {nombre && <p className="small text-secondary text-truncate mb-0">{nombre}</p>}
         </div>
-        {archivoId ? (
+        {archivoId || descargar ? (
           <button
             type="button"
             onClick={handleDescargar}
             disabled={descargando}
             className="btn btn-outline-primary btn-sm flex-shrink-0"
           >
-            {descargando ? "Descargando..." : "Descargar"}
+            {descargando ? "Descargando..." : textoDescarga}
           </button>
         ) : rutaAntigua ? (
           <span
@@ -47,10 +50,10 @@ export default function ArchivoDescargable({ etiqueta, archivo, rutaAntigua }) {
             Archivo no disponible
           </span>
         ) : (
-          <span className="small text-secondary flex-shrink-0">Sin archivo</span>
+          <span className="small text-secondary flex-shrink-0">{textoNoDisponible}</span>
         )}
       </div>
-      {error && <p className="small text-danger mt-1 mb-0">{error}</p>}
+      {error && <p className="small text-danger mt-1 mb-0" role="alert">{error}</p>}
     </div>
   );
 }

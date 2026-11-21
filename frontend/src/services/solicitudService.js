@@ -10,6 +10,11 @@ export async function obtenerSolicitud(id) {
   return data;
 }
 
+export async function obtenerExpediente(id) {
+  const { data } = await api.get(`/solicitudes/${id}/carpeta`);
+  return data;
+}
+
 function construirFormData({
   candidatoNombre,
   candidatoCorreo,

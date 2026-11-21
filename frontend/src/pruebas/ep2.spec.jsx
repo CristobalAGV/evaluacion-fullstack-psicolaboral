@@ -41,11 +41,12 @@ it("EP2 no monta IA ni consulta sus rutas", async () => {
   const get = simularGet({
     "/solicitudes/s1": { _id: "s1", candidato: { nombre: "Candidata" }, familiaDeCargo: {}, profesionalResponsable: null },
     "/solicitudes/s1/evaluaciones": [],
+    "/solicitudes/s1/carpeta": { documentos: {} },
   });
   renderizar(<SolicitudDetalle />, { ruta: "/solicitudes/s1", rutaDelElemento: "/solicitudes/:id" });
   await screen.findByRole("heading", { name: "Candidata" });
   expect(screen.queryByRole("heading", { name: "Informe psicolaboral" })).toBeNull();
-  expect(get.mock.calls.map(([ruta]) => ruta)).toEqual(["/solicitudes/s1", "/solicitudes/s1/evaluaciones"]);
+  expect(get.mock.calls.map(([ruta]) => ruta)).toEqual(["/solicitudes/s1", "/solicitudes/s1/evaluaciones", "/solicitudes/s1/carpeta"]);
 });
 
 it("modal contiene Tab, conserva Escape y devuelve el foco", () => {
