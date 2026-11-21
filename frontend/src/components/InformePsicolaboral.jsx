@@ -20,7 +20,7 @@ function AvisoIa() {
 
 // puedeEditar lo calcula el detalle con la misma regla del backend: admin, o el evaluador
 // responsable de la solicitud. tieneCv y tieneInforme habilitan la evaluación con nota.
-export default function InformePsicolaboral({ solicitudId, puedeEditar, tieneCv, tieneInforme }) {
+export default function InformePsicolaboral({ solicitudId, puedeEditar, estadoSolicitud, tieneCv, tieneInforme }) {
   const prefijoId = useId();
 
   const [informe, setInforme] = useState(null);
@@ -103,12 +103,14 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar, tieneCv,
   }
 
   const hayContenido = secciones.length > 0;
+  const finalizada = estadoSolicitud === "Finalizada";
 
   // Tarjeta de la evaluación con nota: misma sección y mismos permisos que el informe.
   const tarjetaEvaluacion = (
     <EvaluacionIa
       solicitudId={solicitudId}
       puedeEditar={puedeEditar}
+      estadoSolicitud={estadoSolicitud}
       apuntes={apuntes}
       tieneCv={tieneCv}
       tieneInforme={tieneInforme}
@@ -116,17 +118,18 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar, tieneCv,
   );
 
   // Vista de solo lectura para quien no puede editar (por ejemplo, el analista).
-  if (!puedeEditar) {
+  if (!puedeEditar || finalizada) {
+    const seccionesGuardadas = informe?.secciones ?? [];
     return (
       <div className="d-flex flex-column gap-4">
-        {!hayContenido ? (
+        {!seccionesGuardadas.length ? (
           <p className="text-secondary mb-0">
-            Todavía no hay un informe para esta solicitud. Solo el evaluador responsable puede generarlo.
+            Todavía no hay un informe para esta solicitud.{!finalizada && " Solo el evaluador responsable puede generarlo."}
           </p>
         ) : (
           <>
             <AvisoIa />
-            {secciones.map((seccion) => (
+            {seccionesGuardadas.map((seccion) => (
               <div key={seccion.titulo}>
                 <h4 className="h6 fw-semibold">{seccion.titulo}</h4>
                 <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>
@@ -141,9 +144,9 @@ export default function InformePsicolaboral({ solicitudId, puedeEditar, tieneCv,
                 {informe.modeloIa ? ` · borrador inicial generado con ${informe.modeloIa}` : ""}
               </p>
             )}
-            <p className="small text-secondary mb-0">
+            {!finalizada && <p className="small text-secondary mb-0">
               Puedes consultar el informe; solo el evaluador responsable (o un admin) puede editarlo.
-            </p>
+            </p>}
           </>
         )}
         {tarjetaEvaluacion}

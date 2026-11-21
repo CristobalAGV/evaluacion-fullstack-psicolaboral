@@ -32,12 +32,13 @@ const GUARDADA = {
   generadoEn: "2026-10-08T15:00:00.000Z",
 };
 
-async function abrir({ guardada = null, puedeEditar = true, tieneCv = true, tieneInforme = true, apuntes = "" } = {}) {
+async function abrir({ guardada = null, puedeEditar = true, estadoSolicitud = "En proceso", tieneCv = true, tieneInforme = true, apuntes = "" } = {}) {
   simularGet({ [RUTA_GET]: guardada });
   render(
     <EvaluacionIa
       solicitudId="s1"
       puedeEditar={puedeEditar}
+      estadoSolicitud={estadoSolicitud}
       apuntes={apuntes}
       tieneCv={tieneCv}
       tieneInforme={tieneInforme}
@@ -166,16 +167,30 @@ describe("EvaluacionIa", () => {
       expect(await screen.findByText("No se pudo generar la evaluación. Intenta nuevamente.")).toBeTruthy();
     });
 
-    it("descartar el borrador vuelve a la evaluación guardada", async () => {
-      vi.spyOn(api, "post").mockResolvedValue({ data: crearEvaluacion({ puntajeGlobal: 90 }) });
+    it("regenerar una evaluación guardada requiere confirmar y descartar conserva el resultado anterior", async () => {
+      const post = vi.spyOn(api, "post").mockResolvedValue({ data: crearEvaluacion({ puntajeGlobal: 90 }) });
       await abrir({ guardada: GUARDADA });
-      fireEvent.click(botonGenerar());
+      expect(botonGenerar()).toBeNull();
+      const regenerar = screen.getByRole("button", { name: "Volver a generar evaluación" });
+      fireEvent.click(regenerar);
+      expect(post).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+      expect(post).not.toHaveBeenCalled();
+      fireEvent.click(regenerar);
+      fireEvent.click(screen.getByRole("button", { name: "Generar nuevo borrador" }));
       await screen.findByLabelText("Nota global: 90 de 100");
+      expect(screen.getByRole("button", { name: "Volver a generar con IA" })).toBeTruthy();
 
       fireEvent.click(screen.getByRole("button", { name: "Descartar borrador" }));
 
       expect(screen.getByLabelText("Nota global: 65 de 100")).toBeTruthy();
       expect(screen.queryByText(/Borrador sin guardar/)).toBeNull();
+    });
+
+    it("una evaluación guardada en Pendiente se consulta sin opción de regenerar", async () => {
+      await abrir({ guardada: GUARDADA, estadoSolicitud: "Pendiente" });
+      expect(screen.getByLabelText("Nota global: 65 de 100")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /generar/i })).toBeNull();
     });
   });
 
@@ -190,6 +205,8 @@ describe("EvaluacionIa", () => {
       await abrir();
       fireEvent.click(botonGenerar());
       await screen.findByText(/Borrador sin guardar/);
+      expect(screen.getByRole("button", { name: "Volver a generar con IA" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Descartar borrador" })).toBeTruthy();
 
       // Act
       fireEvent.click(screen.getByRole("button", { name: "Confirmar y guardar" }));

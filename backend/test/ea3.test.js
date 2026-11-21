@@ -305,10 +305,33 @@ test("flujo integrado de dos ofertas reutiliza candidato y mantiene separados lo
   await pedir(`/archivos/${informe.informeArchivo._id}`, { rol: "evaluador" });
   assert.match((await extraerTextoDeArchivo(informe.informeArchivo._id, "la entrevista")).texto, /ficticios/);
   await comprobarIa(ruta);
+  const informeGuardado = (await pedir(`${ruta}/informe`, { rol: "analista" })).resultado;
+  const apoyoGuardado = (await pedir(`${ruta}/informe/evaluacion`, { rol: "analista" })).resultado;
+  await pedir(`${ruta}/estado`, { rol: "analista", metodo: "PATCH", datos: { estado: "Pendiente" } });
+  await pedir(`${ruta}/informe/evaluacion/generar`, { rol: "evaluador", metodo: "POST", datos: {}, estado: 409 });
+  await pedir(`${ruta}/informe/evaluacion`, { rol: "admin", metodo: "PUT", datos: { ...apoyoGuardado, puntajeGlobal: 10 }, estado: 409 });
   const { resultado: finalizada } = await pedir(`${ruta}/estado`, {
     rol: "admin", metodo: "PATCH", datos: { estado: "Finalizada", resultado: "Aprobada" },
   });
   assert.equal(finalizada.resultado, "Aprobada");
+  for (const [rol, metodo, endpoint, datos] of [
+    ["admin", "POST", `${ruta}/preguntas-entrevista/generar`, {}],
+    ["evaluador", "POST", `${ruta}/informe/generar`, { apuntes: "Apuntes ficticios" }],
+    ["evaluador", "PUT", `${ruta}/informe`, { secciones: [{ titulo: "Fortalezas", contenido: "Cambio ficticio" }] }],
+    ["admin", "POST", `${ruta}/informe/evaluacion/generar`, {}],
+    ["evaluador", "PUT", `${ruta}/informe/evaluacion`, { ...apoyoGuardado, puntajeGlobal: 10 }],
+    ["evaluador", "POST", `${ruta}/evaluaciones`, { fechaEvaluacion: "2026-12-02" }],
+    ["admin", "PUT", `/evaluaciones/${evaluacion._id}`, { resultado: "Cambio ficticio" }],
+  ]) {
+    const { resultado } = await pedir(endpoint, { rol, metodo, datos, estado: 409 });
+    assert.match(resultado.mensaje, /solo lectura/);
+  }
+  assert.deepEqual((await pedir(`${ruta}/informe`, { rol: "evaluador" })).resultado, informeGuardado);
+  assert.deepEqual((await pedir(`${ruta}/informe/evaluacion`, { rol: "admin" })).resultado, apoyoGuardado);
+  const { resultado: historial } = await pedir(`${ruta}/evaluaciones`, { rol: "evaluador" });
+  assert.equal(historial.length, 1);
+  assert.equal(historial[0].resultado, datos.resultado);
+  assert.equal((await pedir(ruta, { rol: "analista" })).resultado.resultado, "Aprobada");
   await pedir(ruta, { rol: "admin", metodo: "DELETE" });
   await pedir(`/archivos/${editada.cvPostulacion._id}`, { rol: "admin", estado: 404 });
   await pedir(`/archivos/${otra.cvPostulacion}`, { rol: "admin" });

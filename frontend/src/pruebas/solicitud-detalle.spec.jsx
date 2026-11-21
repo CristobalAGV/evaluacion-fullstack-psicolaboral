@@ -54,14 +54,16 @@ function crearExpediente(solicitud) {
   };
 }
 
-async function abrirDetalle(usuario, { solicitud = crearSolicitud(), evaluaciones = EVALUACIONES, expediente = crearExpediente(solicitud) } = {}) {
+async function abrirDetalle(usuario, {
+  solicitud = crearSolicitud(), evaluaciones = EVALUACIONES, expediente = crearExpediente(solicitud), informe = null, evaluacionIa = null,
+} = {}) {
   iniciarSesionSimulada(usuario);
   const get = simularGet({
     "/solicitudes/s1": solicitud,
     "/solicitudes/s1/carpeta": expediente,
     "/solicitudes/s1/evaluaciones": evaluaciones,
-    "/solicitudes/s1/informe": null,
-    "/solicitudes/s1/informe/evaluacion": null,
+    "/solicitudes/s1/informe": informe,
+    "/solicitudes/s1/informe/evaluacion": evaluacionIa,
     "/familias": [{ _id: "fam-ventas", nombre: "Ventas" }],
     "/usuarios": [
       { _id: USUARIOS.evaluador.id, nombre: "Eva Evaluadora" },
@@ -85,6 +87,31 @@ const subirInformeVisible = () => screen.queryByText(/^(Subir|Reemplazar) inform
 
 describe("SolicitudDetalle", () => {
   afterEach(() => limpiarSesion());
+
+  it.each([USUARIOS.admin, USUARIOS.evaluador])("muestra los antecedentes de Finalizada en solo lectura para $rol", async (usuario) => {
+    await abrirDetalle(usuario, {
+      solicitud: crearSolicitud({ estado: "Finalizada", resultado: "Aprobada" }),
+      informe: { secciones: [{ titulo: "Síntesis", contenido: "Informe guardado de prueba" }] },
+      evaluacionIa: {
+        puntajeGlobal: 82, competencias: [{ nombre: "Logística", puntaje: 77, justificacion: "Evidencia de prueba" }],
+        fortalezas: ["Fortaleza publicada de prueba"], areasDeMejora: ["Aspecto por desarrollar"],
+        recomendaciones: ["Recomendación de prueba"], resumen: "Resumen guardado de apoyo",
+      },
+    });
+
+    expect(screen.getByText("Proceso finalizado. La evaluación y sus antecedentes se muestran en modo de solo lectura.")).toBeTruthy();
+    for (const texto of [
+      "Informe guardado de prueba", "Resumen guardado de apoyo", "Logística", "Fortaleza publicada de prueba",
+      "Aspecto por desarrollar", "Recomendación de prueba", "Primera entrevista",
+    ]) expect(screen.getByText(texto)).toBeTruthy();
+    expect(screen.getByLabelText("Nota global: 82 de 100")).toBeTruthy();
+    expect(screen.getAllByText("Aprobada").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "Expediente del postulante" })).toBeTruthy();
+    expect(within(fila("CV")).getByRole("button", { name: "Descargar" })).toBeTruthy();
+    for (const nombre of [/Sugerir preguntas/i, /Generar|Volver a generar/i, /Nueva evaluación/i, /^Editar$/, /Confirmar y guardar/i]) {
+      expect(screen.queryByRole("button", { name: nombre })).toBeNull();
+    }
+  });
 
   describe("datos y archivos", () => {
     it("muestra los datos del candidato y de la solicitud", async () => {

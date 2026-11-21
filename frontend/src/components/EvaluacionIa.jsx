@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { obtenerEvaluacionIa, generarEvaluacionIa, guardarEvaluacionIa } from "../services/informeService";
 import { mensajeErrorIa } from "../utils/mensajeErrorIa";
+import Modal from "./Modal";
 
 const AVISO_APOYO_IA = "Apoyo generado por IA; la decisión final es del evaluador";
 
@@ -112,14 +113,15 @@ function VistaEvaluacion({ evaluacion }) {
 
 // Tarjeta de la sección "Informe psicolaboral". puedeEditar sigue la misma regla que el informe
 // (evaluador responsable o admin). Los apuntes vienen del informe para no pedirlos dos veces.
-export default function EvaluacionIa({ solicitudId, puedeEditar, apuntes = "", tieneCv, tieneInforme }) {
-  const [guardada, setGuardada] = useState(null);
+export default function EvaluacionIa({ solicitudId, puedeEditar, estadoSolicitud = "En proceso", apuntes = "", tieneCv, tieneInforme }) {
+  const [guardada, setGuardada] = useState(undefined);
   const [borrador, setBorrador] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [generando, setGenerando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
+  const [confirmandoRegeneracion, setConfirmandoRegeneracion] = useState(false);
 
   useEffect(() => {
     obtenerEvaluacionIa(solicitudId)
@@ -129,6 +131,7 @@ export default function EvaluacionIa({ solicitudId, puedeEditar, apuntes = "", t
   }, [solicitudId]);
 
   async function handleGenerar() {
+    setConfirmandoRegeneracion(false);
     setError("");
     setAviso("");
     setGenerando(true);
@@ -156,7 +159,13 @@ export default function EvaluacionIa({ solicitudId, puedeEditar, apuntes = "", t
   }
 
   const faltaArchivo = !tieneCv || !tieneInforme;
-  const mostrada = borrador ?? guardada;
+  const activa = estadoSolicitud !== "Finalizada";
+  const borradorVisible = puedeEditar && activa ? borrador : null;
+  const mostrada = borradorVisible ?? guardada;
+  const puedeGenerar = puedeEditar && activa && guardada !== undefined &&
+    (!guardada || estadoSolicitud === "En proceso");
+  const textoGenerar = borradorVisible ? "Volver a generar con IA"
+    : guardada ? "Volver a generar evaluación" : "Generar evaluación con IA";
 
   return (
     <section className="card border-primary-subtle">
@@ -178,19 +187,19 @@ export default function EvaluacionIa({ solicitudId, puedeEditar, apuntes = "", t
           </div>
         ) : (
           <>
-            {puedeEditar && (
+            {puedeGenerar && (
               <div className="d-flex flex-column gap-2">
                 <div className="d-flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={handleGenerar}
+                    onClick={() => guardada ? setConfirmandoRegeneracion(true) : handleGenerar()}
                     disabled={generando || guardando || faltaArchivo}
-                    className="btn btn-primary"
+                    className={guardada || borradorVisible ? "btn btn-outline-primary" : "btn btn-primary"}
                   >
                     {generando && <Spinner />}
-                    {generando ? "Generando..." : "Generar evaluación con IA"}
+                    {generando ? "Generando..." : textoGenerar}
                   </button>
-                  {borrador && (
+                  {borradorVisible && (
                     <>
                       <button
                         type="button"
@@ -220,7 +229,7 @@ export default function EvaluacionIa({ solicitudId, puedeEditar, apuntes = "", t
               </div>
             )}
 
-            {generando && (
+            {generando && activa && (
               <div className="d-flex align-items-center gap-2 text-secondary" role="status">
                 <span className="spinner-border spinner-border-sm" aria-hidden="true" />
                 <span>Generando… puede tardar hasta 1 minuto.</span>
@@ -237,12 +246,12 @@ export default function EvaluacionIa({ solicitudId, puedeEditar, apuntes = "", t
               </div>
             )}
 
-            {borrador && (
+            {borradorVisible && (
               <div className="alert alert-warning mb-0 py-2" role="note">
                 <p className="small fw-semibold text-uppercase mb-1">
                   Borrador sin guardar: revísalo y confírmalo para guardarlo en la solicitud
                 </p>
-                {borrador.avisos?.map((avisoIa) => (
+                {borradorVisible.avisos?.map((avisoIa) => (
                   <p key={avisoIa} className="small mb-0">
                     {avisoIa}
                   </p>
@@ -253,21 +262,30 @@ export default function EvaluacionIa({ solicitudId, puedeEditar, apuntes = "", t
             {mostrada ? (
               <VistaEvaluacion evaluacion={mostrada} />
             ) : (
-              !puedeEditar && (
+              (!puedeEditar || !activa) && (
                 <p className="text-secondary mb-0">
-                  Todavía no hay una evaluación guardada. Solo el evaluador responsable (o un admin) puede
-                  generarla.
+                  Todavía no hay una evaluación guardada.{activa && " Solo el evaluador responsable (o un admin) puede generarla."}
                 </p>
               )
             )}
 
-            {!borrador && guardada?.generadoPor?.nombre && (
+            {!borradorVisible && guardada?.generadoPor?.nombre && (
               <p className="small text-secondary mb-0">
                 Guardada por {guardada.generadoPor.nombre} · {new Date(guardada.generadoEn).toLocaleString()}
                 {guardada.modeloIa ? ` · generada con ${guardada.modeloIa}` : ""}
               </p>
             )}
           </>
+        )}
+        {confirmandoRegeneracion && puedeGenerar && (
+          <Modal etiqueta="Volver a generar evaluación" onCerrar={() => setConfirmandoRegeneracion(false)} pie={
+            <>
+              <button type="button" className="btn btn-outline-secondary" onClick={() => setConfirmandoRegeneracion(false)}>Cancelar</button>
+              <button type="button" className="btn btn-primary" onClick={handleGenerar}>Generar nuevo borrador</button>
+            </>
+          }>
+            <p className="mb-0">Se generará un nuevo borrador. La evaluación guardada se reemplazará cuando confirmes y guardes el nuevo análisis.</p>
+          </Modal>
         )}
       </div>
     </section>

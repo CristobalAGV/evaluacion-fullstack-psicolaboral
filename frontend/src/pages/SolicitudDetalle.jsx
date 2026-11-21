@@ -271,7 +271,9 @@ export default function SolicitudDetalle() {
   const esResponsable =
     usuario?.rol === "evaluador" && solicitud.profesionalResponsable?._id === usuario.id;
   const puedeGestionarSolicitud = ["analista", "admin"].includes(usuario?.rol);
-  const puedeGestionarEvaluaciones = usuario?.rol === "admin" || esResponsable;
+  const finalizada = solicitud.estado === "Finalizada";
+  const puedeGestionarEvaluaciones = !finalizada && (usuario?.rol === "admin" || esResponsable);
+  const creandoEvaluacion = puedeGestionarEvaluaciones && mostrarFormularioNueva;
   const puedeSubirInforme = puedeGestionarSolicitud || esResponsable;
   const cvArchivo = solicitud.cvPostulacion ?? (solicitud.oferta ? null : solicitud.candidato?.cvArchivoId);
   const informeArchivo = solicitud.oferta ? solicitud.informePostulacion : solicitud.candidato?.informeArchivoId;
@@ -459,6 +461,11 @@ export default function SolicitudDetalle() {
         </div>
 
         <div className="col-12 col-lg-8 order-lg-1 d-flex flex-column gap-3">
+          {finalizada && (
+            <p className="small text-secondary border rounded px-3 py-2 mb-0">
+              Proceso finalizado. La evaluación y sus antecedentes se muestran en modo de solo lectura.
+            </p>
+          )}
           {IA_HABILITADA && puedeGestionarEvaluaciones && <PreguntasEntrevista id={id} key={id} />}
           {IA_HABILITADA && <section className="card shadow-sm">
             <div className="card-header">
@@ -468,6 +475,7 @@ export default function SolicitudDetalle() {
               <InformePsicolaboral
                 solicitudId={id}
                 puedeEditar={puedeGestionarEvaluaciones}
+                estadoSolicitud={solicitud.estado}
                 tieneCv={Boolean(cvArchivo)}
                 tieneInforme={Boolean(informeArchivo)}
               />
@@ -477,7 +485,7 @@ export default function SolicitudDetalle() {
           <section className="card shadow-sm">
             <div className="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
               <h2 className="h6 fw-semibold mb-0">Evaluaciones del evaluador</h2>
-              {puedeGestionarEvaluaciones && !mostrarFormularioNueva && (
+              {puedeGestionarEvaluaciones && !creandoEvaluacion && (
                 <button
                   type="button"
                   onClick={() => setMostrarFormularioNueva(true)}
@@ -488,7 +496,7 @@ export default function SolicitudDetalle() {
               )}
             </div>
             <div className="card-body d-flex flex-column gap-3">
-              {mostrarFormularioNueva && (
+              {creandoEvaluacion && (
                 <EvaluacionFormulario
                   solicitudId={id}
                   onGuardado={manejarEvaluacionCreada}
@@ -496,11 +504,11 @@ export default function SolicitudDetalle() {
                 />
               )}
 
-              {evaluaciones.length === 0 && !mostrarFormularioNueva && (
+              {evaluaciones.length === 0 && !creandoEvaluacion && (
                 <p className="text-secondary mb-0">Todavía no hay evaluaciones registradas.</p>
               )}
               {evaluaciones.map((evaluacion) =>
-                evaluacionEnEdicion?._id === evaluacion._id ? (
+                puedeGestionarEvaluaciones && evaluacionEnEdicion?._id === evaluacion._id ? (
                   <EvaluacionFormulario
                     key={evaluacion._id}
                     evaluacion={evaluacion}

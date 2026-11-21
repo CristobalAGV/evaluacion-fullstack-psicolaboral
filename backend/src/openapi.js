@@ -48,7 +48,7 @@ const apoyo = objeto({
 
 const mensajes = {
   400: "Datos inválidos", 401: "Token ausente o inválido, o credenciales incorrectas",
-  403: "Rol insuficiente o evaluador sin asignación", 404: "Recurso no disponible", 409: "Conflicto con registro existente",
+  403: "Rol insuficiente o evaluador sin asignación", 404: "Recurso no disponible", 409: "Conflicto con el estado de la solicitud o con un registro existente",
   429: "Límite de intentos o cuota alcanzada", 500: "Error interno", 502: "Error del proveedor de IA",
   503: "Servicio temporalmente no disponible", 504: "Tiempo de espera del proveedor agotado",
 };
@@ -77,7 +77,7 @@ function operacion(tag, summary, {
 
 const multipart = "multipart/form-data";
 const porId = { parametros: idRuta, errores: [404] };
-const ia = { ...porId, errores: [400, 404, 429, 502, 503, 504] };
+const ia = { ...porId, errores: [400, 404, 409, 429, 502, 503, 504] };
 const rutaInforme = "/solicitudes/{id}/informe";
 const rutaNota = `${rutaInforme}/evaluacion`;
 const lecturaOferta = { salida: ref("Oferta"), ...porId };
@@ -174,22 +174,22 @@ export default {
     "/solicitudes/{id}/evaluaciones": {
       get: operacion("Evaluaciones", "Listar evaluaciones de una solicitud", { ...porId, salida: lista(ref("Evaluacion")) }),
       post: operacion("Evaluaciones", "Registrar evaluación (responsable/admin)", {
-        ...porId, status: 201, body: datosEvaluacion, salida: ref("Evaluacion"), errores: [400, 404],
+        ...porId, status: 201, body: datosEvaluacion, salida: ref("Evaluacion"), errores: [400, 404, 409],
       }),
     },
     "/evaluaciones/{id}": { put: operacion("Evaluaciones", "Actualizar evaluación (responsable/admin)", {
-      ...porId, body: datosEvaluacion, salida: ref("Evaluacion"), errores: [400, 404],
+      ...porId, body: datosEvaluacion, salida: ref("Evaluacion"), errores: [400, 404, 409],
     }) },
     [rutaInforme]: {
       get: operacion("IA", "Leer informe psicolaboral", { ...porId, salida: { ...datosInforme, nullable: true } }),
-      put: operacion("IA", "Guardar informe revisado (responsable/admin)", { ...porId, body: datosInforme, salida: datosInforme, errores: [400, 404] }),
+      put: operacion("IA", "Guardar informe revisado (responsable/admin)", { ...porId, body: datosInforme, salida: datosInforme, errores: [400, 404, 409] }),
     },
     [`${rutaInforme}/generar`]: { post: operacion("IA", "Generar borrador desde apuntes ficticios (responsable/admin)", {
       ...ia, body: objeto({ apuntes: texto, instrucciones: texto }, ["apuntes"]), salida: datosInforme,
     }) },
     [rutaNota]: {
       get: operacion("IA", "Leer evaluación de apoyo", { ...porId, salida: { ...apoyo, nullable: true } }),
-      put: operacion("IA", "Guardar evaluación de apoyo revisada (responsable/admin)", { ...porId, body: apoyo, salida: apoyo, errores: [400, 404] }),
+      put: operacion("IA", "Guardar evaluación de apoyo revisada (responsable/admin)", { ...porId, body: apoyo, salida: apoyo, errores: [400, 404, 409] }),
     },
     [`${rutaNota}/generar`]: { post: operacion("IA", "Generar evaluación de apoyo con archivos ficticios (responsable/admin)", {
       ...ia, body: objeto({ apuntes: texto }), salida: apoyo,

@@ -1,6 +1,7 @@
 import Informe from "../models/Informe.js";
 import Solicitud from "../models/Solicitud.js";
 import { obtenerSeccionesDeFamilia } from "../utils/estructuraInforme.js";
+import { conEvaluacionActiva, EVALUACION_CERRADA } from "../services/escrituraEvaluacion.js";
 import {
   generarBorradorInforme,
   generarEvaluacionCandidato,
@@ -22,6 +23,14 @@ function puedeEditarInforme(usuario, solicitud) {
   return usuario.rol === "admin" || esEvaluadorResponsable(usuario, solicitud);
 }
 
+function conflictoEvaluacionIa(solicitud) {
+  if (solicitud.estado === "Finalizada") return EVALUACION_CERRADA;
+  if (solicitud.evaluacionIa && solicitud.estado !== "En proceso") {
+    return "Solo se puede actualizar una evaluación de apoyo guardada mientras la solicitud está En proceso.";
+  }
+  return null;
+}
+
 async function buscarSolicitudConFamilia(id) {
   return Solicitud.findById(id).populate("familiaDeCargo").populate("candidato");
 }
@@ -29,11 +38,12 @@ async function buscarSolicitudConFamilia(id) {
 export async function generarPreguntas(req, res) {
   try {
     const solicitud = await Solicitud.findById(req.params.id)
-      .select("cargo familiaDeCargo profesionalResponsable").populate("familiaDeCargo", "nombre");
+      .select("cargo familiaDeCargo profesionalResponsable estado").populate("familiaDeCargo", "nombre");
     if (!solicitud) return res.status(404).json({ mensaje: "Solicitud no encontrada" });
     if (!puedeEditarInforme(req.usuario, solicitud)) {
       return res.status(403).json({ mensaje: MENSAJE_SIN_PERMISO });
     }
+    if (solicitud.estado === "Finalizada") return res.status(409).json({ mensaje: EVALUACION_CERRADA });
     const resultado = await sugerirPreguntasEntrevista({
       cargo: solicitud.cargo,
       familia: solicitud.familiaDeCargo?.nombre || "",
@@ -99,6 +109,7 @@ export async function generarInforme(req, res) {
       return res.status(403).json({ mensaje: MENSAJE_SIN_PERMISO });
     }
 
+    if (solicitud.estado === "Finalizada") return res.status(409).json({ mensaje: EVALUACION_CERRADA });
     const secciones = await obtenerSeccionesDeFamilia(solicitud.familiaDeCargo);
 
     const borrador = await generarBorradorInforme({
@@ -142,11 +153,12 @@ export async function guardarInforme(req, res) {
       return res.status(403).json({ mensaje: MENSAJE_SIN_PERMISO });
     }
 
+    if (solicitud.estado === "Finalizada") return res.status(409).json({ mensaje: EVALUACION_CERRADA });
     const seccionesLimpias = secciones
       .filter((s) => s && s.titulo)
       .map((s) => ({ titulo: String(s.titulo), contenido: String(s.contenido ?? "") }));
 
-    const informe = await Informe.findOneAndUpdate(
+    const guardado = await conEvaluacionActiva(id, (session) => Informe.findOneAndUpdate(
       { solicitud: id },
       {
         solicitud: id,
@@ -159,10 +171,11 @@ export async function guardarInforme(req, res) {
         generadoPor: req.usuario.id,
         generadoEn: new Date(),
       },
-      { upsert: true, returnDocument: "after", runValidators: true }
-    ).populate("generadoPor", "nombre correo rol");
+      { upsert: true, returnDocument: "after", runValidators: true, session }
+    ).populate("generadoPor", "nombre correo rol"));
 
-    return res.json(informe);
+    if (guardado.cerrada) return res.status(409).json({ mensaje: EVALUACION_CERRADA });
+    return res.json(guardado.documento);
   } catch (error) {
     return res.status(500).json({ mensaje: "Error al guardar el informe", error: error.message });
   }
@@ -212,6 +225,8 @@ export async function generarEvaluacionIa(req, res) {
       return res.status(403).json({ mensaje: MENSAJE_SIN_PERMISO });
     }
 
+    const conflicto = conflictoEvaluacionIa(solicitud);
+    if (conflicto) return res.status(409).json({ mensaje: conflicto });
     const adjuntos = solicitud.oferta
       ? { cvArchivoId: solicitud.cvPostulacion, informeArchivoId: solicitud.informePostulacion }
       : solicitud.candidato ?? {};
@@ -269,6 +284,9 @@ export async function guardarEvaluacionIa(req, res) {
       return res.status(403).json({ mensaje: MENSAJE_SIN_PERMISO });
     }
 
+    const conflicto = conflictoEvaluacionIa(solicitud);
+    if (conflicto) return res.status(409).json({ mensaje: conflicto });
+
     // Se vuelve a validar: lo que llega del navegador no es confiable aunque venga de la IA.
     let evaluacion;
     try {
@@ -277,8 +295,8 @@ export async function guardarEvaluacionIa(req, res) {
       return res.status(400).json({ mensaje: `La evaluación no es válida: ${error.message}` });
     }
 
-    const actualizada = await Solicitud.findByIdAndUpdate(
-      id,
+    const actualizada = await Solicitud.findOneAndUpdate(
+      { _id: id, estado: { $ne: "Finalizada" }, $or: [{ estado: "En proceso" }, { evaluacionIa: null }] },
       {
         $set: {
           evaluacionIa: {
@@ -294,6 +312,7 @@ export async function guardarEvaluacionIa(req, res) {
       .select("evaluacionIa")
       .populate("evaluacionIa.generadoPor", "nombre correo rol");
 
+    if (!actualizada) return res.status(409).json({ mensaje: "Cambió la solicitud. Actualiza el detalle antes de guardar la evaluación." });
     return res.json(actualizada.evaluacionIa);
   } catch (error) {
     return res.status(500).json({ mensaje: "Error al guardar la evaluación", error: error.message });
