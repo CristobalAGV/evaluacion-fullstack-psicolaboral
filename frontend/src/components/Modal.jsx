@@ -16,12 +16,14 @@ export default function Modal({ etiqueta, onCerrar, tamano = "", pie = null, chi
     const anterior = document.activeElement;
     function alPresionarTecla(e) {
       if (e.key === "Tab") {
-        const campos = [...dialogoRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]')].filter((campo) => !campo.closest("[hidden], [aria-hidden=true]"));
+        const campos = [...dialogoRef.current.querySelectorAll('button, input, select, textarea, a[href], [tabindex]')]
+          .filter((campo) => campo.tabIndex >= 0 && !campo.matches(':disabled, input[type="hidden"]')
+            && !campo.closest('[hidden], [aria-hidden="true"], [inert]'));
         const primero = campos[0];
         const ultimo = campos.at(-1);
         if (!primero) { e.preventDefault(); dialogoRef.current.focus(); }
-        else if (e.shiftKey && (document.activeElement === primero || document.activeElement === dialogoRef.current)) { e.preventDefault(); ultimo.focus(); }
-        else if (!e.shiftKey && (document.activeElement === ultimo || document.activeElement === dialogoRef.current)) { e.preventDefault(); primero.focus(); }
+        else if (e.shiftKey && (document.activeElement === primero || !campos.includes(document.activeElement))) { e.preventDefault(); ultimo.focus(); }
+        else if (!e.shiftKey && (document.activeElement === ultimo || !campos.includes(document.activeElement))) { e.preventDefault(); primero.focus(); }
       }
       if (e.key === "Escape") cerrarRef.current();
     }

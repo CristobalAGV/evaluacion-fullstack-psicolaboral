@@ -57,7 +57,7 @@ export async function crearEvaluacion(req, res) {
     if (guardada.cerrada) return res.status(409).json({ mensaje: EVALUACION_CERRADA });
     return res.status(201).json(guardada.documento);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al crear la evaluación", error: error.message });
+    return res.status(500).json({ mensaje: "Error al crear la evaluación" });
   }
 }
 
@@ -72,7 +72,7 @@ export async function listarEvaluacionesPorSolicitud(req, res) {
     const evaluaciones = await Evaluacion.find({ solicitud: id }).sort({ createdAt: -1 });
     return res.json(evaluaciones);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al listar evaluaciones", error: error.message });
+    return res.status(500).json({ mensaje: "Error al listar evaluaciones" });
   }
 }
 
@@ -120,6 +120,6 @@ export async function actualizarEvaluacion(req, res) {
 
     return res.json(guardada.documento);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al actualizar la evaluación", error: error.message });
+    return res.status(500).json({ mensaje: "Error al actualizar la evaluación" });
   }
 }

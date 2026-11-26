@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { listarFamilias } from "../services/familiaService";
 import { listarOfertas, obtenerOferta, guardarOferta, cambiarPublicacion, archivarOferta } from "../services/ofertaService";
 import { ofertasDemostracion } from "../config/ofertasDemostracion";
+import CamposPreseleccion from "../components/CamposPreseleccion";
+import { leerCamposPreseleccion } from "../config/camposPreseleccion";
 import { etiquetasModalidad } from "../config/modalidadesOferta";
 
 const alcance = [
@@ -113,11 +115,14 @@ export function FormularioOferta() {
 
   async function guardar(e) {
     e.preventDefault();
-    const datos = Object.fromEntries(new FormData(e.currentTarget));
+    const formulario = new FormData(e.currentTarget);
+    const requisitosEstructurados = leerCamposPreseleccion(formulario, "excluyentes");
+    const requisitosDeseables = leerCamposPreseleccion(formulario, "deseables");
+    const datos = Object.fromEntries(formulario);
     setGuardando(true);
     setError("");
     try {
-      await guardarOferta({ ...datos, cupos: Number(datos.cupos) }, id);
+      await guardarOferta({ ...datos, cupos: Number(datos.cupos), requisitosEstructurados, requisitosDeseables }, id);
       navegar("/gestion/ofertas");
     } catch (err) {
       setError(errorApi(err));
@@ -176,6 +181,14 @@ export function FormularioOferta() {
           {alcance.map((campo) => <CampoOferta key={campo[0]} campo={campo} datos={borrador} />)}
           <h2 className="h5 col-12 border-top pt-3 mb-0">Perfil requerido</h2>
           {perfil.map((campo) => <CampoOferta key={campo[0]} campo={campo} datos={borrador} />)}
+          <div className="col-12 border-top pt-3">
+            <h2 className="h5">Requisitos para preselección</h2>
+            <p className="small text-secondary">Usa criterios vinculados al cargo y evita los datos personales sensibles. Separa los elementos de una lista con comas.</p>
+            <h3 className="h6">Excluyentes</h3>
+            <CamposPreseleccion grupo="excluyentes" datos={borrador?.requisitosEstructurados} />
+            <h3 className="h6 mt-3">Deseables</h3>
+            <CamposPreseleccion grupo="deseables" datos={borrador?.requisitosDeseables} />
+          </div>
           <h2 className="h5 col-12 border-top pt-3 mb-0">Condiciones</h2>
           <CampoOferta campo={["beneficios", "Beneficios", 4000, true]} datos={borrador} />
           <CampoOferta campo={["sueldo", "Sueldo o rango salarial", 160, true]} datos={borrador} />

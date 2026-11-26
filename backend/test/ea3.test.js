@@ -12,6 +12,7 @@ import Oferta from "../src/models/Oferta.js";
 import Solicitud from "../src/models/Solicitud.js";
 import Usuario from "../src/models/Usuario.js";
 import { extraerTextoDeArchivo } from "../src/utils/extraerTextoArchivo.js";
+import { calcularPreseleccion } from "../src/utils/preseleccion.js";
 
 const secreto = "jwt-exclusivo-de-la-suite-ficticia";
 const password = "password-academica-ficticia";
@@ -42,6 +43,7 @@ const realFetch = globalThis.fetch;
 before(async () => {
   process.env.JWT_SECRET = secreto;
   process.env.IA_HABILITADA = "true";
+  process.env.CORS_ORIGIN = "http://localhost:5173, https://frontend.example.invalid";
   delete process.env.GEMINI_API_KEY;
   mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
   await mongoose.connect(mongo.getUri(), { dbName: "ea3_aislada" });
@@ -117,6 +119,25 @@ async function solicitudesPublicadas() {
   return resultado._id;
 }
 
+test("CORS habilita solo orígenes configurados, sin cookies, y permite preflight Bearer", async () => {
+  for (const origin of ["http://localhost:5173", "https://frontend.example.invalid", "https://otro.example.invalid"]) {
+    const respuesta = await realFetch(url + "/solicitudes", { method: "OPTIONS", headers: {
+      Origin: origin, "Access-Control-Request-Method": "GET", "Access-Control-Request-Headers": "authorization",
+    } });
+    if (origin === "https://otro.example.invalid") {
+      assert.equal(respuesta.headers.get("access-control-allow-origin"), null);
+    } else {
+      assert.equal(respuesta.status, 204);
+      assert.equal(respuesta.headers.get("access-control-allow-origin"), origin);
+      assert.match(respuesta.headers.get("access-control-allow-headers"), /authorization/i);
+    }
+    assert.equal(respuesta.headers.get("access-control-allow-credentials"), null);
+  }
+  const respuesta = await realFetch(url + "/health");
+  assert.equal(respuesta.status, 200);
+  assert.equal(respuesta.headers.get("access-control-allow-origin"), null);
+});
+
 test("Swagger sirve UI y contrato | login emite JWT verificable y las rutas exigen rol y sesión", async () => {
   const { resultado: html } = await pedir("/docs");
   assert.match(html.toString(), /SwaggerUIBundle/);
@@ -131,6 +152,9 @@ test("Swagger sirve UI y contrato | login emite JWT verificable y las rutas exig
   await pedir("/docs/assets/swagger-ui.css");
   await pedir("/health");
   await pedir("/no-existe", { estado: 404 });
+  await pedir("/solicitudes/id-no-valido", { rol: "analista", estado: 404 });
+  await pedir("/solicitudes/id-no-valido", { estado: 401 });
+  await pedir("/evaluaciones/id-no-valido", { rol: "admin", metodo: "PUT", datos: {}, estado: 404 });
   await pedir("/auth/login", { metodo: "POST", datos: {}, estado: 400 });
   await pedir("/auth/login", { metodo: "POST", datos: { correo: {}, password }, estado: 400 });
   await pedir("/auth/login", { metodo: "POST", datos: { correo: "desconocido@example.invalid", password }, estado: 401 });
@@ -332,6 +356,37 @@ test("flujo integrado de dos ofertas reutiliza candidato y mantiene separados lo
   assert.equal(historial.length, 1);
   assert.equal(historial[0].resultado, datos.resultado);
   assert.equal((await pedir(ruta, { rol: "analista" })).resultado.resultado, "Aprobada");
+  const rectificar = (rol, resultado, estado = 200) => pedir(`${ruta}/estado`, {
+    rol, metodo: "PATCH", datos: { estado: "Finalizada", resultado }, estado,
+  });
+  await rectificar("evaluador", "Rechazada", 403);
+  await rectificar("ajeno", "Rechazada", 403);
+  assert.equal((await rectificar("analista", "Rechazada")).resultado.resultado, "Rechazada");
+  assert.equal((await rectificar("admin", null)).resultado.resultado, null);
+  await rectificar("admin", "Rechazada");
+
+  const wordNuevo = formulario({}, { campo: "informe", bytes: documentoWord, mime: tipoWord, nombre: "Entrevista_Corregida.docx" });
+  await pedir(`${ruta}/informe-entrevista`, { rol: "ajeno", metodo: "PUT", datos: wordNuevo, estado: 403 });
+  const { resultado: corregido } = await pedir(`${ruta}/informe-entrevista`, { rol: "evaluador", metodo: "PUT", datos: wordNuevo });
+  await pedir(`/archivos/${informe.informeArchivo._id}`, { rol: "admin", estado: 404 });
+  await pedir(`/archivos/${corregido.informeArchivo._id}`, { rol: "evaluador" });
+
+  const cvCerrado = formulario({}, { campo: "cv", bytes: pdfReal, mime: "application/pdf", nombre: "CV_Revisado.pdf" });
+  await pedir(`${ruta}/cv`, { rol: "evaluador", metodo: "PUT", datos: cvCerrado, estado: 403 });
+  const { resultado: corregidoCv } = await pedir(`${ruta}/cv`, { rol: "analista", metodo: "PUT", datos: cvCerrado });
+  await pedir(`/archivos/${corregidoCv.cvArchivo._id}`, { rol: "evaluador" });
+  const { resultado: reasignada } = await pedir(ruta, { rol: "admin", metodo: "PUT", datos: formulario({
+    ...edicion, profesionalResponsable: ajeno.id, fechaEvaluacion: "2026-11-25T14:00:00.000Z",
+  }) });
+  assert.equal(reasignada.estado, "Finalizada");
+  assert.equal(reasignada.resultado, "Rechazada");
+  assert.equal(reasignada.fechaEvaluacion, "2026-11-25T14:00:00.000Z");
+  await pedir(rutaExpediente, { rol: "evaluador", estado: 403 });
+  await pedir(`/archivos/${corregidoCv.cvArchivo._id}`, { rol: "evaluador", estado: 403 });
+  await pedir(`/archivos/${corregidoCv.cvArchivo._id}`, { rol: "ajeno" });
+  assert.deepEqual((await pedir(`${ruta}/informe`, { rol: "ajeno" })).resultado, informeGuardado);
+  assert.deepEqual((await pedir(`${ruta}/informe/evaluacion`, { rol: "ajeno" })).resultado, apoyoGuardado);
+  assert.deepEqual((await pedir(`${ruta}/evaluaciones`, { rol: "ajeno" })).resultado, historial);
   await pedir(ruta, { rol: "admin", metodo: "DELETE" });
   await pedir(`/archivos/${editada.cvPostulacion._id}`, { rol: "admin", estado: 404 });
   await pedir(`/archivos/${otra.cvPostulacion}`, { rol: "admin" });
@@ -550,4 +605,178 @@ test("reemplaza únicamente el CV de la solicitud y valida PDF, permisos y archi
   const carpeta = async (solicitud) => (await pedir(`/solicitudes/${solicitud.id}/carpeta`, { rol: "analista" })).resultado;
   assert.notEqual((await carpeta(anterior)).documentos.cv._id, compartido.id);
   assert.equal((await carpeta(otra)).documentos.cv._id, compartido.id);
+});
+
+test("preselección de una postulación es privada, trazable y bloquea IA hasta continuidad explícita", async () => {
+  const { resultado: oferta } = await pedir("/ofertas", { metodo: "POST", rol: "analista", estado: 201, datos: {
+    ...datosOferta("Operaciones · preselección ficticia"),
+    requisitosEstructurados: { nivelEstudios: "tecnico", experienciaAnios: 1, conocimientos: ["Excel"] },
+    requisitosDeseables: { industrias: ["acuícola"] },
+  } });
+  await pedir(`/ofertas/${oferta._id}/publicacion`, { metodo: "PATCH", rol: "analista", datos: { publicada: true } });
+  const postulante = { correo: "preseleccion@example.invalid", antecedentes: JSON.stringify({ experienciaAnios: 0, conocimientos: ["Excel"], edad: 23 }) };
+  let llamadasIa = 0;
+  process.env.GEMINI_API_KEY = "clave-exclusiva-ficticia-de-prueba";
+  globalThis.fetch = async () => {
+    llamadasIa += 1;
+    return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ preguntas: ["¿Cómo validas un reporte?"] }) }] } }] });
+  };
+  try {
+    await pedir("/postulaciones", { metodo: "POST", datos: postular(oferta._id, undefined, { ...postulante, antecedentes: "{" }), estado: 400, ip: "192.0.2.77" });
+    const { resultado: confirmacion } = await pedir("/postulaciones", {
+      metodo: "POST", datos: postular(oferta._id, undefined, postulante), estado: 201, ip: "192.0.2.77",
+    });
+    assert.equal(confirmacion.preseleccion, undefined);
+    const solicitud = await Solicitud.findOne({ oferta: oferta._id });
+    assert.equal(solicitud.estado, "Pendiente");
+    assert.equal(solicitud.preseleccion.estadoPreseleccion, "no_cumple");
+    await Solicitud.updateOne({ _id: solicitud._id }, { profesionalResponsable: evaluador._id });
+    const base = `/solicitudes/${solicitud.id}`;
+    const ruta = `${base}/preseleccion`;
+    await pedir(ruta, { estado: 401 });
+    await pedir(ruta, { rol: "ajeno", estado: 403 });
+    await pedir("/solicitudes/no-existe/preseleccion", { rol: "admin", estado: 404 });
+    const { resultado } = await pedir(ruta, { rol: "evaluador" });
+    assert.deepEqual(resultado.antecedentes, { experienciaAnios: 0, conocimientos: ["Excel"] });
+    assert.equal(resultado.preseleccion.porcentajeCoincidencia, 27);
+    await pedir(`${base}/preguntas-entrevista/generar`, { metodo: "POST", rol: "evaluador", datos: {}, estado: 409 });
+    await pedir(`${base}/informe/generar`, { metodo: "POST", rol: "evaluador", datos: { apuntes: "Apuntes ficticios de entrevista" }, estado: 409 });
+    await pedir(`${base}/informe/evaluacion/generar`, { metodo: "POST", rol: "evaluador", datos: {}, estado: 409 });
+    await pedir(`${base}/informe/evaluacion`, { metodo: "PUT", rol: "evaluador", datos: {}, estado: 409 });
+    assert.equal(llamadasIa, 0);
+    const continuar = (rol, datos, estado) => pedir(`${ruta}/continuar`, { metodo: "POST", rol, datos, estado });
+    await continuar("evaluador", { motivo: "Revisión" }, 403);
+    await continuar("analista", {}, 400);
+    const { resultado: autorizado } = await continuar("analista", { motivo: "Revisar certificado con el postulante" }, 200);
+    assert.equal(autorizado.preseleccion.estadoPreseleccion, "no_cumple");
+    assert.equal(autorizado.preseleccion.continuidad.usuario, analista.id);
+    assert.equal(llamadasIa, 0);
+    const { resultado: apoyo } = await pedir(`${base}/preguntas-entrevista/generar`, { metodo: "POST", rol: "evaluador", datos: {} });
+    assert.deepEqual(apoyo.preguntas, ["¿Cómo validas un reporte?"]);
+    assert.equal(apoyo.preguntasVerificacion.length, 2);
+    assert.ok(apoyo.preguntasVerificacion.some(({ requisito, motivo }) => /Experiencia mínima/.test(requisito) && motivo === "No cumple"));
+    await continuar("analista", { motivo: "Intento duplicado" }, 409);
+    const recalcular = (datos, estado = 200) => pedir(`${ruta}/recalcular`, { metodo: "POST", rol: "admin", datos, estado });
+    await recalcular({ motivo: "Dato inválido", antecedentes: { experienciaAnios: -1 } }, 400);
+    const { resultado: recalculada } = await recalcular({ motivo: "Acreditó estudios y experiencia", antecedentes: {
+      nivelEstudios: "tecnico", experienciaAnios: 1, conocimientos: ["Excel"],
+    } });
+    assert.equal(recalculada.preseleccion.estadoPreseleccion, "cumple");
+    assert.equal(recalculada.preseleccion.continuidad, undefined);
+    const { resultado: actualizado } = await pedir(ruta, { rol: "analista" });
+    assert.equal(actualizado.historial[0].resultadoAnterior.continuidad.usuario, analista.id);
+    const { resultado: detalle } = await pedir(base, { rol: "analista" });
+    assert.equal(detalle.estado, "Pendiente");
+    assert.equal(detalle.resultado, null);
+    assert.equal(detalle.antecedentesPreseleccion, undefined);
+    await Solicitud.updateOne({ _id: solicitud._id }, { estado: "Finalizada" });
+    await recalcular({ motivo: "Cierre" }, 409);
+    assert.equal(llamadasIa, 1);
+  } finally {
+    delete process.env.GEMINI_API_KEY;
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("un fallo interno de MongoDB devuelve un error público sin detalles del controlador", async (contexto) => {
+  contexto.mock.method(Solicitud, "findById", () => {
+    throw new Error("Detalle interno simulado");
+  });
+  const id = new mongoose.Types.ObjectId();
+  const { resultado } = await pedir(`/solicitudes/${id}`, { rol: "analista", estado: 500 });
+  assert.deepEqual(resultado, { mensaje: "Error al obtener la solicitud" });
+});
+
+test("tres postulaciones ficticias conservan 100 %, 80 % y 80 % con resultados distintos", async () => {
+  const reglas = { nivelEstudios: "tecnico", carreras: ["Acuicultura"], experienciaAnios: 1, conocimientos: ["Excel"] };
+  const { resultado: oferta } = await pedir("/ofertas", { metodo: "POST", rol: "analista", estado: 201, datos: {
+    ...datosOferta("Operaciones ficticias · auditoría"), requisitosEstructurados: reglas,
+    requisitosDeseables: { conocimientos: ["SAP"] },
+  } });
+  await pedir(`/ofertas/${oferta._id}/publicacion`, { metodo: "PATCH", rol: "analista", datos: { publicada: true } });
+  const escenarios = [[1, "cumple", 100], [0, "no_cumple", 80], [undefined, "revision", 80]];
+  for (const [indice, [experienciaAnios, esperado, porcentaje]] of escenarios.entries()) {
+    const correoFicticio = `auditoria-${indice}@example.invalid`;
+    const antecedentes = { nivelEstudios: "tecnico", carrera: "Acuicultura", experienciaAnios, conocimientos: ["Excel", "SAP"] };
+    await pedir("/postulaciones", { metodo: "POST", estado: 201, ip: `192.0.2.${105 + indice}`, datos: postular(oferta._id, undefined, {
+      nombre: `Caso académico ficticio ${indice + 1}`, correo: correoFicticio, antecedentes: JSON.stringify(antecedentes),
+    }) });
+    const solicitud = await Solicitud.findOne({ oferta: oferta._id, correoPostulacion: correoFicticio });
+    assert.ok(solicitud);
+    const { resultado: { preseleccion } } = await pedir(`/solicitudes/${solicitud.id}/preseleccion`, { rol: "analista" });
+    assert.equal(preseleccion.estadoPreseleccion, esperado);
+    assert.equal(preseleccion.porcentajeCoincidencia, porcentaje);
+    assert.equal(solicitud.resultado, null);
+    assert.equal(solicitud.evaluacionIa, null);
+  }
+});
+
+test("preguntas de entrevista verifican experiencia pendiente, conservan la clasificación y minimizan el contexto de Gemini", async () => {
+  const candidato = await Candidato.create({ nombre: "Persona Caso Ficticio", correo: "preguntas@example.invalid", telefono });
+  const oferta = {
+    requisitosEstructurados: { experienciaAnios: 1, nivelEstudios: "tecnico", carreras: ["Técnico en acuicultura"], conocimientos: ["Excel intermedio"] },
+    requisitosDeseables: { conocimientos: ["SAP"] },
+  };
+  const antecedentes = { nivelEstudios: "tecnico", conocimientos: ["Excel intermedio", "SAP"], carrera: "Técnico en acuicultura" };
+  const preliminar = calcularPreseleccion(oferta, antecedentes);
+  const solicitud = await Solicitud.create({
+    cargo: "Analista de Operaciones", familiaDeCargo: familia._id, candidato: candidato._id,
+    profesionalResponsable: evaluador._id, estado: "En proceso",
+    antecedentesPreseleccion: antecedentes, preseleccion: preliminar,
+  });
+  const ruta = `/solicitudes/${solicitud.id}/preguntas-entrevista/generar`;
+  const generar = (estado = 200, rol = "evaluador") => pedir(ruta, { metodo: "POST", rol, estado });
+  const entradas = [];
+  let respuesta = { preguntas: ["¿Cómo priorizas turnos?", "¿Cómo priorizas turnos?", "¿Cuál es tu religión?", "¿Cuál es tu puntaje?"] };
+  process.env.GEMINI_API_KEY = "clave-exclusiva-ficticia-de-prueba";
+  globalThis.fetch = async (_url, opciones) => {
+    entradas.push(JSON.parse(opciones.body));
+    if (respuesta instanceof Error) throw respuesta;
+    return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify(respuesta) }] } }] });
+  };
+  try {
+    await generar(403, "ajeno");
+    await generar(409);
+    assert.equal(entradas.length, 0);
+    await pedir(`/solicitudes/${solicitud.id}/preseleccion/continuar`, {
+      rol: "analista", metodo: "POST", datos: { motivo: "Motivo privado de prueba" },
+    });
+    const antes = await Solicitud.findById(solicitud.id).lean();
+    const { resultado } = await generar();
+    assert.deepEqual(resultado.preguntas, ["¿Cómo priorizas turnos?"]);
+    assert.deepEqual(resultado.preguntasVerificacion.map(({ motivo }) => motivo), ["Pendiente"]);
+    assert.match(resultado.preguntasVerificacion[0].requisito, /Experiencia mínima: 1/);
+    assert.match(resultado.preguntasVerificacion[0].pregunta, /trabajos, prácticas o proyectos.*duración.*responsabilidades/);
+    const entrada = entradas[0].contents[0].parts[0].text;
+    assert.deepEqual(JSON.parse(entrada), {
+      cargo: solicitud.cargo, familia: familia.nombre, tiposVerificacion: ["experiencia: Pendiente"], continuidadAutorizada: true,
+    });
+    assert.doesNotMatch(JSON.stringify(entradas), /Persona Caso Ficticio|preguntas@example|Técnico en acuicultura|Motivo privado|Excel intermedio/);
+    assert.equal(antes.preseleccion.estadoPreseleccion, "revision");
+    assert.equal(antes.preseleccion.porcentajeCoincidencia, 80);
+    respuesta = { preguntas: [null, "¿Tienes hijos?"] };
+    const { resultado: invalido } = await generar();
+    assert.deepEqual(invalido.preguntas, []);
+    assert.deepEqual(invalido.preguntasVerificacion, resultado.preguntasVerificacion);
+    assert.match(invalido.aviso, /no pudo generar preguntas generales/);
+    respuesta = new Error("Fallo simulado");
+    const { resultado: sinIa } = await generar();
+    assert.deepEqual(sinIa, invalido);
+    assert.deepEqual(await Solicitud.findById(solicitud.id).lean(), antes);
+
+    await Solicitud.updateOne({ _id: solicitud._id }, { preseleccion: calcularPreseleccion(oferta, { ...antecedentes, experienciaAnios: 1 }) });
+    respuesta = { preguntas: ["¿Cómo verificas un informe?"] };
+    const { resultado: cumple } = await generar();
+    assert.deepEqual(cumple.preguntasVerificacion, []);
+    assert.deepEqual(cumple.preguntas, respuesta.preguntas);
+    respuesta = {};
+    await generar(502);
+    await Solicitud.updateOne({ _id: solicitud._id }, { estado: "Finalizada" });
+    const llamadasAntesDelCierre = entradas.length;
+    await generar(409);
+    assert.equal(entradas.length, llamadasAntesDelCierre);
+  } finally {
+    delete process.env.GEMINI_API_KEY;
+    globalThis.fetch = realFetch;
+  }
 });

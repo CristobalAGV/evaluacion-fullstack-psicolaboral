@@ -53,6 +53,15 @@ describe("Interceptores de api.js", () => {
 
       expect(registro.config.headers.Authorization).toBeUndefined();
     });
+
+    it.each(["/auth/login", "/postulaciones/familias", "/ofertas/publicas?region=Los%20Lagos", "/ofertas/publicas/ficticia"])(
+      "mantiene el JWT fuera de la ruta pública %s aun cuando hay sesión", async (ruta) => {
+        iniciarSesionSimulada(USUARIOS.admin);
+        const registro = {};
+        await api.get(ruta, { adapter: adapterExitoso(registro) });
+        expect(registro.config.headers.Authorization).toBeUndefined();
+      }
+    );
   });
 
   describe("al recibir un error", () => {

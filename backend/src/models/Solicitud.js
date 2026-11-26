@@ -31,6 +31,9 @@ const evaluacionIaSchema = new mongoose.Schema(
 
 const solicitudSchema = new mongoose.Schema(
   {
+    antecedentesPreseleccion: { type: mongoose.Schema.Types.Mixed, select: false },
+    preseleccion: mongoose.Schema.Types.Mixed,
+    historialPreseleccion: { type: [mongoose.Schema.Types.Mixed], default: undefined, select: false },
     oferta: { type: mongoose.Schema.Types.ObjectId, ref: "Oferta" },
     cvPostulacion: { type: mongoose.Schema.Types.ObjectId, ref: "Archivo", default: null },
     informePostulacion: { type: mongoose.Schema.Types.ObjectId, ref: "Archivo", default: null },

@@ -16,14 +16,27 @@ export default function PreguntasEntrevista({ id }) {
   return <section className="card shadow-sm mb-3">
     <div className="card-body">
       <h2 className="h5">Preguntas para entrevista con IA</h2>
-      <p>Usa cargos ficticios para la demostración. Gemini recibe el cargo y su familia. Revisa cada pregunta antes de usarla, ya que puede ser imprecisa o poco pertinente. La decisión de selección es humana.</p>
+      <p>Estas preguntas ayudan a comprobar antecedentes laborales durante la entrevista. Las respuestas deben ser verificadas por el evaluador y no modifican automáticamente la preselección. La decisión de selección es humana.</p>
       <button className="btn btn-outline-primary" onClick={generar} disabled={estado.cargando}>
         {estado.cargando ? "Generando…" : "Sugerir preguntas"}
       </button>
       {estado.error && <p className="alert alert-danger mt-3 mb-0" role="alert">{estado.error}</p>}
-      {estado.resultado && <ul className="mt-3 mb-0">
-        {estado.resultado.preguntas.map((pregunta, indice) => <li key={indice}>{pregunta}</li>)}
-      </ul>}
+      {estado.resultado?.aviso && <p className="alert alert-warning mt-3 mb-0" role="status">{estado.resultado.aviso}</p>}
+      {estado.resultado?.preguntas?.length > 0 && <div className="mt-3">
+        <h3 className="h6">Preguntas generales</h3>
+        <ul className="mb-0">{estado.resultado.preguntas.map((pregunta) => <li key={pregunta}>{pregunta}</li>)}</ul>
+      </div>}
+      {estado.resultado?.preguntasVerificacion?.length > 0 && <div className="mt-3">
+        <h3 className="h6">Preguntas para verificar requisitos</h3>
+        <ul className="mb-0">
+          {estado.resultado.preguntasVerificacion.map(({ requisito, motivo, pregunta }) => (
+            <li key={requisito} className="mb-2">
+              <span className="small text-secondary">{requisito} · {motivo}</span>
+              <div>{pregunta}</div>
+            </li>
+          ))}
+        </ul>
+      </div>}
     </div>
   </section>;
 }

@@ -155,7 +155,7 @@ export async function crearSolicitud(req, res) {
 
     return res.status(201).json(solicitudPoblada);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al crear la solicitud", error: error.message });
+    return res.status(500).json({ mensaje: "Error al crear la solicitud" });
   }
 }
 
@@ -171,7 +171,7 @@ export async function listarSolicitudes(req, res) {
 
     return res.json(solicitudes);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al listar solicitudes", error: error.message });
+    return res.status(500).json({ mensaje: "Error al listar solicitudes" });
   }
 }
 
@@ -195,7 +195,7 @@ export async function obtenerSolicitud(req, res) {
     }
     return res.json(solicitud);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al obtener la solicitud", error: error.message });
+    return res.status(500).json({ mensaje: "Error al obtener la solicitud" });
   }
 }
 
@@ -319,7 +319,7 @@ export async function actualizarSolicitud(req, res) {
 
     return res.json(solicitudActualizada);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al actualizar la solicitud", error: error.message });
+    return res.status(500).json({ mensaje: "Error al actualizar la solicitud" });
   }
 }
 
@@ -360,7 +360,7 @@ export async function eliminarSolicitud(req, res) {
 
     return res.json({ mensaje: "Solicitud eliminada" });
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al eliminar la solicitud", error: error.message });
+    return res.status(500).json({ mensaje: "Error al eliminar la solicitud" });
   }
 }
 
@@ -406,7 +406,7 @@ export async function actualizarEstadoSolicitud(req, res) {
 
     return res.json(solicitud);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al actualizar la solicitud", error: error.message });
+    return res.status(500).json({ mensaje: "Error al actualizar la solicitud" });
   }
 }
 
@@ -583,6 +583,6 @@ export async function subirInformeEntrevista(req, res) {
     const { nombreOriginal, mimeType, tamano, tipo, fecha } = archivo;
     return res.json({ informeArchivo: { _id: archivo._id, nombreOriginal, mimeType, tamano, tipo, fecha } });
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al subir el informe de entrevista", error: error.message });
+    return res.status(500).json({ mensaje: "Error al subir el informe de entrevista" });
   }
 }

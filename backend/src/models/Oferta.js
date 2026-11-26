@@ -10,6 +10,8 @@ export const CAMPOS_PROFESIONALES = {
 };
 
 const schema = new mongoose.Schema({
+  requisitosEstructurados: mongoose.Schema.Types.Mixed,
+  requisitosDeseables: mongoose.Schema.Types.Mixed,
   ...Object.fromEntries(Object.entries(CAMPOS_OFERTA).map(([campo, maxlength]) => [
     campo, { type: String, required: true, trim: true, maxlength },
   ])),

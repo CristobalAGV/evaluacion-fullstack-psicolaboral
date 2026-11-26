@@ -12,6 +12,7 @@ import EtiquetaPostulacionPublica, {
   esPostulacionPublica,
 } from "../components/EtiquetaPostulacionPublica";
 import FiltrosPanel from "../components/FiltrosPanel";
+import { estadosPreseleccion, filtrarPorPreseleccion } from "../config/preseleccion";
 import InsigniaResultado from "../components/InsigniaResultado";
 import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
@@ -91,6 +92,9 @@ export default function Panel() {
   const [eliminandoId, setEliminandoId] = useState(null);
   const [solicitudEnEdicion, setSolicitudEnEdicion] = useState(null);
   const [filtros, setFiltros] = useState(FILTROS_INICIALES);
+  const [estadoPreseleccion, setEstadoPreseleccion] = useState("");
+  const [nivelCoincidencia, setNivelCoincidencia] = useState("");
+  const [ordenCoincidencia, setOrdenCoincidencia] = useState(false);
 
   useEffect(() => {
     async function cargarSolicitudes() {
@@ -186,7 +190,8 @@ export default function Panel() {
     );
   }
 
-  const visibles = filtrarSolicitudes(solicitudes, filtros);
+  const visibles = filtrarPorPreseleccion(filtrarSolicitudes(solicitudes, filtros),
+    estadoPreseleccion, nivelCoincidencia, ordenCoincidencia);
 
   const areas = opcionesUnicas(
     solicitudes,
@@ -245,10 +250,32 @@ export default function Panel() {
             [campo]: valor,
           }))
         }
-        onLimpiar={() =>
-          setFiltros(FILTROS_INICIALES)
-        }
+        onLimpiar={() => {
+          setFiltros(FILTROS_INICIALES);
+          setEstadoPreseleccion("");
+          setNivelCoincidencia("");
+          setOrdenCoincidencia(false);
+        }}
       />
+
+      <div className="d-flex flex-wrap gap-3 mb-3 align-items-end">
+        <label className="form-label mb-0">Estado de preselección
+          <select className="form-select" value={estadoPreseleccion} onChange={(e) => setEstadoPreseleccion(e.target.value)}>
+            <option value="">Todos</option>
+            {Object.entries(estadosPreseleccion).map(([valor, estado]) => <option key={valor} value={valor}>{estado.nombre}</option>)}
+            <option value="sin_preseleccion">Sin preselección</option>
+          </select>
+        </label>
+        <label className="form-label mb-0">Nivel de coincidencia
+          <select className="form-select" value={nivelCoincidencia} onChange={(e) => setNivelCoincidencia(e.target.value)}>
+            <option value="">Todos</option><option value="alta">80–100 %</option><option value="baja">0–79 %</option>
+          </select>
+        </label>
+        <label className="form-check mb-2">
+          <input className="form-check-input" type="checkbox" checked={ordenCoincidencia}
+            onChange={(e) => setOrdenCoincidencia(e.target.checked)} /> Ordenar por coincidencia
+        </label>
+      </div>
 
       <p className="small text-secondary mb-3">
         Mostrando {visibles.length} de{" "}
@@ -257,7 +284,7 @@ export default function Panel() {
 
       {solicitudes.length > 0 &&
         visibles.length === 0 &&
-        hayFiltrosActivos(filtros) && (
+        (hayFiltrosActivos(filtros) || estadoPreseleccion || nivelCoincidencia) && (
           <div
             className="alert alert-info"
             role="alert"
@@ -337,6 +364,14 @@ export default function Panel() {
                               >
                                 Registro interno
                               </span>
+                            )}
+                            {s.preseleccion && estadosPreseleccion[s.preseleccion.estadoPreseleccion] && (
+                              <div className="d-flex flex-wrap gap-2 align-items-center mt-1">
+                                <span className={`badge text-bg-${estadosPreseleccion[s.preseleccion.estadoPreseleccion].color}`}>
+                                  {estadosPreseleccion[s.preseleccion.estadoPreseleccion].etiqueta}
+                                </span>
+                                <span className="small text-secondary">{s.preseleccion.porcentajeCoincidencia}% coincidencia</span>
+                              </div>
                             )}
 
                             <span className="d-flex flex-wrap gap-1">

@@ -3,7 +3,11 @@ import axios from "axios";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
 // En estas rutas un 401 significa "credenciales incorrectas", no "sesión expirada".
-const RUTAS_PUBLICAS = ["/auth/login", "/postulaciones"];
+const RUTAS_PUBLICAS = ["/auth/login", "/postulaciones", "/ofertas/publicas"];
+const esPublica = (url = "") => {
+  const ruta = url.split("?")[0];
+  return RUTAS_PUBLICAS.some((prefijo) => ruta === prefijo || ruta.startsWith(`${prefijo}/`));
+};
 
 let manejarNoAutorizado = null;
 
@@ -17,7 +21,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
-  if (token) {
+  if (token && !esPublica(config.url)) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -26,10 +30,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const url = error.config?.url || "";
-    const esRutaPublica = RUTAS_PUBLICAS.some((ruta) => url.includes(ruta));
-
-    if (error.response?.status === 401 && !esRutaPublica && manejarNoAutorizado) {
+    if (error.response?.status === 401 && !esPublica(error.config?.url) && manejarNoAutorizado) {
       manejarNoAutorizado();
     }
 

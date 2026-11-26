@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Oferta, { CAMPOS_OFERTA, CAMPOS_PROFESIONALES, MODALIDADES } from "../models/Oferta.js";
 import FamiliaDeCargo from "../models/FamiliaDeCargo.js";
 import { verificarToken, permitirRoles } from "../middleware/auth.js";
+import { validarCamposPreseleccion, exclusiones, deseables } from "../utils/preseleccion.js";
 
 const router = Router();
 const filtroPublico = { estado: "publicada" };
@@ -59,6 +60,14 @@ const detalle = (base) => manejar(async (req, res) => {
 const guardar = (editar) => manejar(async (req, res) => {
   const { familiaDeCargo, modalidad, cupos } = req.body ?? {};
   const campos = { familiaDeCargo, modalidad, cupos };
+  try {
+    if (req.body?.requisitosEstructurados !== undefined) campos.requisitosEstructurados =
+      validarCamposPreseleccion(req.body.requisitosEstructurados, exclusiones);
+    if (req.body?.requisitosDeseables !== undefined) campos.requisitosDeseables =
+      validarCamposPreseleccion(req.body.requisitosDeseables, deseables);
+  } catch (error) {
+    return res.status(400).json({ mensaje: error.message });
+  }
   for (const [campo, maximo] of Object.entries(CAMPOS_OFERTA)) {
     const valor = req.body?.[campo];
     if (typeof valor !== "string" || !valor.trim() || valor.length > maximo) {

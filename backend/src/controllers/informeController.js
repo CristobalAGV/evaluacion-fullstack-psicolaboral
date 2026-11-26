@@ -2,6 +2,7 @@ import Informe from "../models/Informe.js";
 import Solicitud from "../models/Solicitud.js";
 import { obtenerSeccionesDeFamilia } from "../utils/estructuraInforme.js";
 import { conEvaluacionActiva, EVALUACION_CERRADA } from "../services/escrituraEvaluacion.js";
+import { requiereContinuidad } from "../utils/preseleccion.js";
 import {
   generarBorradorInforme,
   generarEvaluacionCandidato,
@@ -25,11 +26,13 @@ function puedeEditarInforme(usuario, solicitud) {
 
 function conflictoEvaluacionIa(solicitud) {
   if (solicitud.estado === "Finalizada") return EVALUACION_CERRADA;
+  if (requiereContinuidad(solicitud)) return MENSAJE_PRESELECCION;
   if (solicitud.evaluacionIa && solicitud.estado !== "En proceso") {
     return "Solo se puede actualizar una evaluación de apoyo guardada mientras la solicitud está En proceso.";
   }
   return null;
 }
+const MENSAJE_PRESELECCION = "La preselección requiere autorización de continuidad antes de usar IA.";
 
 async function buscarSolicitudConFamilia(id) {
   return Solicitud.findById(id).populate("familiaDeCargo").populate("candidato");
@@ -38,15 +41,17 @@ async function buscarSolicitudConFamilia(id) {
 export async function generarPreguntas(req, res) {
   try {
     const solicitud = await Solicitud.findById(req.params.id)
-      .select("cargo familiaDeCargo profesionalResponsable estado").populate("familiaDeCargo", "nombre");
+      .select("cargo familiaDeCargo profesionalResponsable estado preseleccion").populate("familiaDeCargo", "nombre");
     if (!solicitud) return res.status(404).json({ mensaje: "Solicitud no encontrada" });
     if (!puedeEditarInforme(req.usuario, solicitud)) {
       return res.status(403).json({ mensaje: MENSAJE_SIN_PERMISO });
     }
     if (solicitud.estado === "Finalizada") return res.status(409).json({ mensaje: EVALUACION_CERRADA });
+    if (requiereContinuidad(solicitud)) return res.status(409).json({ mensaje: MENSAJE_PRESELECCION });
     const resultado = await sugerirPreguntasEntrevista({
       cargo: solicitud.cargo,
       familia: solicitud.familiaDeCargo?.nombre || "",
+      preseleccion: solicitud.preseleccion,
     });
     return res.json(resultado);
   } catch (error) {
@@ -76,7 +81,7 @@ export async function obtenerInforme(req, res) {
     // ofrecer la generacion del borrador.
     return res.json(informe);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al obtener el informe", error: error.message });
+    return res.status(500).json({ mensaje: "Error al obtener el informe" });
   }
 }
 
@@ -110,6 +115,7 @@ export async function generarInforme(req, res) {
     }
 
     if (solicitud.estado === "Finalizada") return res.status(409).json({ mensaje: EVALUACION_CERRADA });
+    if (requiereContinuidad(solicitud)) return res.status(409).json({ mensaje: MENSAJE_PRESELECCION });
     const secciones = await obtenerSeccionesDeFamilia(solicitud.familiaDeCargo);
 
     const borrador = await generarBorradorInforme({
@@ -131,7 +137,7 @@ export async function generarInforme(req, res) {
     if (error instanceof ErrorIa) {
       return res.status(error.estado).json({ mensaje: error.message });
     }
-    return res.status(500).json({ mensaje: "Error al generar el informe", error: error.message });
+    return res.status(500).json({ mensaje: "Error al generar el informe" });
   }
 }
 
@@ -177,7 +183,7 @@ export async function guardarInforme(req, res) {
     if (guardado.cerrada) return res.status(409).json({ mensaje: EVALUACION_CERRADA });
     return res.json(guardado.documento);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al guardar el informe", error: error.message });
+    return res.status(500).json({ mensaje: "Error al guardar el informe" });
   }
 }
 
@@ -198,7 +204,7 @@ export async function obtenerEvaluacionIa(req, res) {
     }
     return res.json(solicitud.evaluacionIa ?? null);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al obtener la evaluación", error: error.message });
+    return res.status(500).json({ mensaje: "Error al obtener la evaluación" });
   }
 }
 
@@ -268,7 +274,7 @@ export async function generarEvaluacionIa(req, res) {
     if (error instanceof ErrorIa || error instanceof ErrorLectura) {
       return res.status(error.estado).json({ mensaje: error.message });
     }
-    return res.status(500).json({ mensaje: "Error al generar la evaluación", error: error.message });
+    return res.status(500).json({ mensaje: "Error al generar la evaluación" });
   }
 }
 
@@ -296,7 +302,15 @@ export async function guardarEvaluacionIa(req, res) {
     }
 
     const actualizada = await Solicitud.findOneAndUpdate(
-      { _id: id, estado: { $ne: "Finalizada" }, $or: [{ estado: "En proceso" }, { evaluacionIa: null }] },
+      {
+        _id: id, estado: { $ne: "Finalizada" },
+        $or: [{ estado: "En proceso" }, { evaluacionIa: null }],
+        $and: [{ $or: [
+          { "preseleccion.estadoPreseleccion": { $exists: false } },
+          { "preseleccion.estadoPreseleccion": "cumple" },
+          { "preseleccion.continuidad": { $exists: true } },
+        ] }],
+      },
       {
         $set: {
           evaluacionIa: {
@@ -315,6 +329,6 @@ export async function guardarEvaluacionIa(req, res) {
     if (!actualizada) return res.status(409).json({ mensaje: "Cambió la solicitud. Actualiza el detalle antes de guardar la evaluación." });
     return res.json(actualizada.evaluacionIa);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al guardar la evaluación", error: error.message });
+    return res.status(500).json({ mensaje: "Error al guardar la evaluación" });
   }
 }

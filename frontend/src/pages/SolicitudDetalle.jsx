@@ -10,6 +10,8 @@ import EtiquetaPostulacionPublica, { esPostulacionPublica } from "../components/
 import InsigniaResultado from "../components/InsigniaResultado";
 import SelectorCv from "../components/SelectorCv";
 import ExpedientePostulante from "../components/ExpedientePostulante";
+import PreseleccionDetalle from "../components/PreseleccionDetalle";
+import { requiereContinuidad } from "../config/preseleccion";
 import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 import { formatearFechaCalendario, formatearFechaHora, hoyLocal } from "../utils/fechas";
@@ -273,6 +275,8 @@ export default function SolicitudDetalle() {
   const puedeGestionarSolicitud = ["analista", "admin"].includes(usuario?.rol);
   const finalizada = solicitud.estado === "Finalizada";
   const puedeGestionarEvaluaciones = !finalizada && (usuario?.rol === "admin" || esResponsable);
+  const iaPendienteDeContinuidad = requiereContinuidad(solicitud.preseleccion);
+  const puedeUsarIa = puedeGestionarEvaluaciones && !iaPendienteDeContinuidad;
   const creandoEvaluacion = puedeGestionarEvaluaciones && mostrarFormularioNueva;
   const puedeSubirInforme = puedeGestionarSolicitud || esResponsable;
   const cvArchivo = solicitud.cvPostulacion ?? (solicitud.oferta ? null : solicitud.candidato?.cvArchivoId);
@@ -466,7 +470,17 @@ export default function SolicitudDetalle() {
               Proceso finalizado. La evaluación y sus antecedentes se muestran en modo de solo lectura.
             </p>
           )}
-          {IA_HABILITADA && puedeGestionarEvaluaciones && <PreguntasEntrevista id={id} key={id} />}
+          {(solicitud.oferta || solicitud.preseleccion) && (
+            <PreseleccionDetalle
+              key={`preseleccion-${id}`}
+              id={id}
+              resultado={solicitud.preseleccion}
+              permiteRecalcular={Boolean(solicitud.oferta)}
+              puedeGestionar={puedeGestionarSolicitud && !finalizada}
+              onActualizar={(preseleccion) => setSolicitud((anterior) => anterior?._id === id ? { ...anterior, preseleccion } : anterior)}
+            />
+          )}
+          {IA_HABILITADA && puedeUsarIa && <PreguntasEntrevista id={id} key={id} />}
           {IA_HABILITADA && <section className="card shadow-sm">
             <div className="card-header">
               <h2 className="h6 fw-semibold mb-0">Informe psicolaboral</h2>
@@ -474,7 +488,8 @@ export default function SolicitudDetalle() {
             <div className="card-body">
               <InformePsicolaboral
                 solicitudId={id}
-                puedeEditar={puedeGestionarEvaluaciones}
+                puedeEditar={puedeUsarIa}
+                iaPendienteDeContinuidad={iaPendienteDeContinuidad}
                 estadoSolicitud={solicitud.estado}
                 tieneCv={Boolean(cvArchivo)}
                 tieneInforme={Boolean(informeArchivo)}

@@ -52,7 +52,9 @@ it("EP2 no monta IA ni consulta sus rutas", async () => {
 it("modal contiene Tab, conserva Escape y devuelve el foco", () => {
   function Ejemplo() {
     const [abierto, setAbierto] = useState(false);
-    return <><button onClick={() => setAbierto(true)}>Abrir</button>{abierto && <Modal etiqueta="Ejemplo" onCerrar={() => setAbierto(false)}><button>Último</button></Modal>}</>;
+    return <><button onClick={() => setAbierto(true)}>Abrir</button>{abierto && <Modal etiqueta="Ejemplo" onCerrar={() => setAbierto(false)}>
+      <button>Último</button><input type="hidden" /><button tabIndex={-1}>Fuera del orden de tabulación</button>
+    </Modal>}</>;
   }
   render(<Ejemplo />);
   const abrir = screen.getByRole("button", { name: "Abrir" });

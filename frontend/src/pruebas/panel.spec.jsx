@@ -1,5 +1,6 @@
 // Panel Kanban. GET /solicitudes y PATCH /solicitudes/:id/estado se reemplazan con spies.
 import { screen, fireEvent, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import api from "../services/api";
 import Panel from "../pages/Panel";
 import {
@@ -86,6 +87,28 @@ describe("Panel (Kanban)", () => {
     screen
       .getByRole("link", { name: nombre })
       .closest("div.shadow-sm");
+
+  it("muestra los tres resultados, ordena por coincidencia y permite filtrar sin ocultar incumplimientos por defecto", async () => {
+    const usuario = userEvent.setup();
+    await abrirPanel(USUARIOS.analista, [
+      { ...SOLICITUDES[0], preseleccion: { estadoPreseleccion: "no_cumple", porcentajeCoincidencia: 25 } },
+      { ...SOLICITUDES[1], preseleccion: { estadoPreseleccion: "cumple", porcentajeCoincidencia: 90 } },
+      { ...SOLICITUDES[2], estado: "Pendiente", preseleccion: { estadoPreseleccion: "revision", porcentajeCoincidencia: 60 } },
+    ]);
+    expect(await screen.findByText("Cumple requisitos mínimos")).toBeTruthy();
+    expect(screen.getByText("Requiere revisión")).toBeTruthy();
+    expect(screen.getByText("No cumple requisitos mínimos")).toBeTruthy();
+    expect(screen.getByText("90% coincidencia")).toBeTruthy();
+    await usuario.click(screen.getByLabelText("Ordenar por coincidencia"));
+    const nombres = /^(Sin Evaluador|Con Evaluador|En Curso)$/;
+    expect(screen.getAllByRole("link", { name: nombres }).map((enlace) => enlace.textContent.trim()))
+      .toEqual(["Con Evaluador", "En Curso", "Sin Evaluador"]);
+    await usuario.selectOptions(screen.getByLabelText("Nivel de coincidencia"), "baja");
+    expect(screen.queryByText("Cumple requisitos mínimos")).toBeNull();
+    await usuario.selectOptions(screen.getByLabelText("Estado de preselección"), "no_cumple");
+    expect(screen.getByText("No cumple requisitos mínimos")).toBeTruthy();
+    expect(screen.queryByText("Requiere revisión")).toBeNull();
+  });
 
   // El título y el contador ahora son elementos separados.
   const columna = (titulo) =>

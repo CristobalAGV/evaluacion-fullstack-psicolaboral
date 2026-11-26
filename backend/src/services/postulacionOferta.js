@@ -4,8 +4,9 @@ import Candidato from "../models/Candidato.js";
 import Solicitud from "../models/Solicitud.js";
 import Archivo from "../models/Archivo.js";
 import { crearContenedorCv, guardarArchivo } from "../utils/validarArchivo.js";
+import { calcularPreseleccion } from "../utils/preseleccion.js";
 
-export async function registrarPostulacionOferta({ ofertaId, nombre, correo, telefono, mensajeAdicional, archivo }) {
+export async function registrarPostulacionOferta({ ofertaId, nombre, correo, telefono, mensajeAdicional, archivo, antecedentes }) {
   // Un registro de postulación equivale a una solicitud pendiente sin evaluador.
   // La transacción conserva juntas la solicitud y los bytes del CV.
   for (let intento = 0; intento < 2; intento += 1) {
@@ -34,6 +35,8 @@ export async function registrarPostulacionOferta({ ofertaId, nombre, correo, tel
           familiaDeCargo: oferta.familiaDeCargo,
           cargo: oferta.cargo,
           mensajeAdicional,
+          antecedentesPreseleccion: antecedentes,
+          preseleccion: calcularPreseleccion(oferta, antecedentes),
         });
         const cv = await guardarArchivo({
           archivo, tipo: "cv", candidatoId: candidato._id, session,

@@ -66,6 +66,12 @@ it("busca y filtra por HTTP, muestra el detalle y postula con un CV vinculado a 
   await usuario.type(screen.getByLabelText("Nombre completo"), "Camila Ficticia");
   await usuario.type(screen.getByLabelText("Correo"), "camila@example.invalid");
   await usuario.type(screen.getByLabelText("Teléfono"), "+56 9 0000 0000");
+  await usuario.selectOptions(screen.getByLabelText("Nivel de estudios"), "tecnico");
+  await usuario.type(screen.getByLabelText("Años de experiencia"), "0");
+  await usuario.type(screen.getByLabelText(/^Conocimientos técnicos/), "Excel, SAP");
+  await usuario.type(screen.getByLabelText(/^Certificaciones/), "Ninguno");
+  await usuario.selectOptions(screen.getByLabelText("Licencia de conducir"), "no");
+  await usuario.selectOptions(screen.getByLabelText("Modalidades disponibles"), ["presencial", "remota"]);
   const cv = new File(["%PDF-1.4"], "ejemplo.pdf", { type: "application/pdf" });
   await usuario.upload(screen.getByLabelText("CV", { exact: false, selector: "input" }), cv);
   await usuario.click(screen.getByRole("button", { name: "Enviar postulación" }));
@@ -75,6 +81,10 @@ it("busca y filtra por HTTP, muestra el detalle y postula con un CV vinculado a 
   expect(datos.get("ofertaId")).toBe(oferta._id);
   expect(datos.get("cv").name).toBe(cv.name);
   expect(datos.has("cargo")).toBe(false);
+  expect(JSON.parse(datos.get("antecedentes"))).toEqual({
+    nivelEstudios: "tecnico", experienciaAnios: 0, conocimientos: ["Excel", "SAP"],
+    certificaciones: [], licencia: false, modalidades: ["presencial", "remota"],
+  });
 });
 
 it("precarga una oferta ficticia en el formulario y la guarda mediante la API", async () => {
@@ -88,6 +98,8 @@ it("precarga una oferta ficticia en el formulario y la guarda mediante la API", 
   await usuario.click(screen.getByRole("button", { name: "Guardar oferta" }));
   expect(post).toHaveBeenCalledWith("/ofertas", expect.objectContaining({
     cargo: "Analista de Operaciones", area: "Producción", region: "Los Lagos", familiaDeCargo: familia._id,
+    requisitosEstructurados: expect.objectContaining({ nivelEstudios: "tecnico", experienciaAnios: 1, conocimientos: ["Excel intermedio"] }),
+    requisitosDeseables: expect.objectContaining({ industrias: ["acuícola"] }),
   }));
 });
 
@@ -180,4 +192,17 @@ it("la IA solo se invoca por acción explícita y permite reintentar un error", 
   await usuario.click(screen.getByRole("button", { name: "Sugerir preguntas" }));
   expect(await screen.findByText("¿Cómo priorizarías turnos?")).toBeTruthy();
   expect(pedir).toHaveBeenCalledWith("/solicitudes/solicitud-demo/preguntas-entrevista/generar");
+});
+
+it("muestra las verificaciones locales con un aviso si Gemini falla", async () => {
+  vi.spyOn(api, "post").mockResolvedValue({ data: {
+    preguntas: [], aviso: "La IA no pudo generar preguntas generales.",
+    preguntasVerificacion: [{ pregunta: "¿Qué puedes acreditar?", requisito: "Certificación", motivo: "Pendiente" }],
+  } });
+  render(<PreguntasEntrevista id="solicitud-demo" />);
+  await userEvent.setup().click(screen.getByRole("button", { name: "Sugerir preguntas" }));
+  expect((await screen.findByRole("status")).textContent).toMatch(/no pudo generar/);
+  expect(screen.getByText("Certificación · Pendiente")).toBeTruthy();
+  expect(screen.getByText("¿Qué puedes acreditar?")).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Preguntas generales" })).toBeNull();
 });

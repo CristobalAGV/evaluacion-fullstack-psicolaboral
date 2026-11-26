@@ -379,10 +379,11 @@ describe("permisos de las rutas de solicitudes", () => {
 
   test("el analista y el admin sí pasan el control de permisos para marcar el resultado", async () => {
     const solicitud = solicitudFalsa();
+    const id = "000000000000000000000001";
     await conSolicitud(solicitud, async () => {
       await conServidor(async (url) => {
         for (const rol of ["analista", "admin"]) {
-          const respuesta = await pedir(url, "/s1/estado", "PATCH", rol, { estado: "Finalizada", resultado: "Rechazada" });
+          const respuesta = await pedir(url, `/${id}/estado`, "PATCH", rol, { estado: "Finalizada", resultado: "Rechazada" });
           assert.equal(respuesta.status, 200, rol);
           assert.equal((await respuesta.json()).resultado, "Rechazada");
         }

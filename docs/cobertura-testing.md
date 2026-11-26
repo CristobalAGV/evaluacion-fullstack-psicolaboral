@@ -6,12 +6,35 @@ Medición local con Node.js 24, sin credenciales de producción.
 
 | Suite | Baseline EP2 | Resultado EA3 | Cobertura de líneas EA3 |
 | --- | --- | --- | --- |
-| Frontend · Vitest | 339/339, 97,53 % líneas | 345/345 en 23 archivos | **97,14 %** (884/910) |
-| Backend · node:test | 57/57, 58,78 % en el informe nativo inicial | 62/62 | **91,10 %** en la API backend |
+| Frontend · Vitest | 339/339, 97,53 % líneas | 377/377 en 23 archivos | **97,41 %** (1092/1121) |
+| Backend · node:test | 57/57, 58,78 % en el informe nativo inicial | 81/81 | **92,50 %** en la API backend |
 
 El informe nativo inicial también cargaba la utilidad frontend de fechas que reutiliza una prueba EP2. La medición EA3 usa el filtro del directorio `backend/src` y el umbral de 85 %. El frontend también aplica un umbral de 85 % de líneas.
 
 La suite integrada de backend usa Express por HTTP y un replica set temporal de MongoDB. Cubre publicación y filtros, roles, postulaciones concurrentes, lectura del CV desde otra conexión, reversión por fallo de almacenamiento, descarga privada, asignación, evaluaciones y finalización. Gemini se simula con respuestas y fallos predefinidos. Las pruebas de UI usan React Testing Library y `user-event`.
+
+La preselección añade pruebas de cálculo, datos omitidos, permisos, corrección, historial y habilitación manual de IA. Las pruebas de interfaz verifican el envío de antecedentes, las etiquetas de las tarjetas, el filtro, el orden y la autorización desde el detalle.
+
+Las preguntas de entrevista cubren los tres estados de preselección, continuidad manual, privacidad del contexto, errores de Gemini, verificaciones locales y la conservación íntegra de la solicitud. Las pruebas de frontend mantienen desactivada la bandera global de IA para los escenarios de EP2 y simulan su activación en los escenarios de EA3 que la necesitan.
+
+La auditoría del 25 de noviembre de 2026 añadió dos regresiones de backend. Una comprueba que un fallo interno del controlador devuelve solo el mensaje público. La otra registra tres postulaciones ficticias por HTTP y lee sus preselecciones persistidas: Cumple 100 %, No cumple 80 % y Revisión 80 %. El frontend verificó también la lectura del informe guardado, su edición y cancelación.
+
+La estabilización amplió la prueba HTTP de cierre con rectificación por rol, cambio de fecha y evaluador, reemplazo de adjuntos y comprobación de informes intactos. Las pruebas adicionales validan preflight CORS desde orígenes configurados, correspondencia de rutas Express con OpenAPI, ausencia de JWT en llamadas públicas y orden de tabulación del modal. El responsive se revisó por código y DOM. La comprobación visual por ancho queda pendiente.
+
+Usa estos comandos desde la raíz del repositorio en PowerShell. La variable de caché de MongoDB se puede ajustar a un directorio local existente. Las variables de IA se asignan al proceso de PowerShell para estas ejecuciones.
+
+```powershell
+$env:MONGOMS_DOWNLOAD_DIR = Join-Path $env:TEMP 'aquachile-mongodb-bin'
+npm.cmd --prefix backend test
+npm.cmd --prefix backend run test:cobertura
+$env:VITE_IA_HABILITADA = 'false'
+npm.cmd --prefix frontend test -- --maxWorkers=2
+npm.cmd --prefix frontend run test:cobertura -- --maxWorkers=2 --testTimeout=15000
+npm.cmd --prefix frontend run lint
+$env:VITE_IA_HABILITADA = 'true'
+npm.cmd --prefix frontend run build
+git diff --check
+```
 
 El build de Vite con IA activa pasó. El lint frontend pasó con dos avisos de Fast Refresh existentes. El backend pasó la revisión de sintaxis y las pruebas HTTP. Lee los comandos y requisitos del [entorno de pruebas EA3](guia-ea3.md#pruebas-y-cobertura).
 

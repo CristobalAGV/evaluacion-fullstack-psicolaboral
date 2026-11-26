@@ -1,6 +1,8 @@
 export const ofertasDemostracion = [
   {
     cargo: "Analista de Operaciones", familia: "Operaciones", area: "Producción",
+    requisitosEstructurados: { nivelEstudios: "tecnico", carreras: ["Ingeniería industrial", "Acuicultura", "Técnico en acuicultura"], experienciaAnios: 1, conocimientos: ["Excel intermedio"] },
+    requisitosDeseables: { conocimientos: ["SAP", "Procesos operativos"], industrias: ["acuícola"] },
     region: "Los Lagos", ubicacion: "Puerto Montt", modalidad: "híbrida", cupos: 1,
     descripcion: "Apoya la planificación semanal y el seguimiento de indicadores operativos de un equipo acuícola.",
     objetivo: "Dar visibilidad a los desvíos operativos para que el equipo ajuste su planificación con información consistente.",
@@ -14,6 +16,8 @@ export const ofertasDemostracion = [
   },
   {
     cargo: "Técnico de Mantención", familia: "Operaciones", area: "Industrial",
+    requisitosEstructurados: { nivelEstudios: "tecnico", experienciaAnios: 2, conocimientos: ["Lectura de planos"], modalidades: ["presencial"], disponibilidad: true },
+    requisitosDeseables: { conocimientos: ["Neumática"] },
     region: "Aysén", ubicacion: "Puerto Chacabuco", modalidad: "presencial", cupos: 2,
     descripcion: "Realiza mantenciones planificadas y apoya el diagnóstico de fallas en equipos de planta.",
     objetivo: "Contribuir a la continuidad de la planta mediante inspecciones, reparaciones y registros técnicos oportunos.",
@@ -27,6 +31,8 @@ export const ofertasDemostracion = [
   },
   {
     cargo: "Analista de Abastecimiento", familia: "Administración", area: "Cadena de Suministro",
+    requisitosEstructurados: { nivelEstudios: "tecnico", experienciaAnios: 1, conocimientos: ["Inventario"] },
+    requisitosDeseables: { conocimientos: ["SAP"], industrias: ["acuícola"] },
     region: "Los Lagos", ubicacion: "Puerto Varas", modalidad: "híbrida", cupos: 1,
     descripcion: "Coordina compras de insumos y monitorea plazos de entrega junto a las áreas usuarias.",
     objetivo: "Minimizar quiebres de suministro mediante un seguimiento temprano de pedidos críticos.",
@@ -40,6 +46,8 @@ export const ofertasDemostracion = [
   },
   {
     cargo: "Práctica Profesional en Administración", familia: "Administración", area: "Prácticas y Memorias",
+    requisitosEstructurados: { carreras: ["Administración", "Administración de empresas"], disponibilidad: true },
+    requisitosDeseables: { conocimientos: ["Hojas de cálculo"] },
     region: "Los Lagos", ubicacion: "Puerto Montt", modalidad: "presencial", cupos: 1,
     descripcion: "Apoya la organización documental y el seguimiento de solicitudes internas con una tutoría asignada.",
     objetivo: "Aplicar herramientas de administración en un proyecto acotado de orden y control documental.",

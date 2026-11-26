@@ -1,6 +1,6 @@
 // InformePsicolaboral: borrador del informe con IA a partir de los apuntes, y la tarjeta de
 // evaluación con nota que vive en la misma sección. El backend se reemplaza con spies sobre axios.
-import { render, screen, fireEvent } from "@testing-library/react";
+import { act, render, screen, fireEvent } from "@testing-library/react";
 import api from "../services/api";
 import InformePsicolaboral from "../components/InformePsicolaboral";
 import { MENSAJE_CUOTA_AGOTADA } from "../utils/mensajeErrorIa";
@@ -86,23 +86,30 @@ describe("InformePsicolaboral", () => {
     it("sin permiso y con informe: lo muestra en solo lectura con el aviso y la autoría", async () => {
       await abrir({ informe: INFORME_GUARDADO, puedeEditar: false });
 
-      expect(screen.getByText(/Borrador generado por inteligencia artificial/)).toBeTruthy();
+      expect(screen.getByText("Revisión y responsabilidad profesional")).toBeTruthy();
       expect(screen.getByText("Comunicación clara.")).toBeTruthy();
       expect(screen.queryByText(SIN_INFORME)).toBeNull();
       expect(screen.queryByText(WORD_DISPONIBLE)).toBeNull();
       expect(screen.getByText(/Última edición: Eva Evaluadora/)).toBeTruthy();
       expect(screen.queryByRole("textbox")).toBeNull();
       expect(screen.queryByRole("button", { name: "Guardar informe" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Editar informe" })).toBeNull();
     });
 
-    it("con informe guardado y permiso: carga apuntes, indicaciones y secciones editables", async () => {
+    it("abre el informe guardado en lectura y precarga el contenido al editar", async () => {
       await abrir({ informe: INFORME_GUARDADO });
 
+      expect(screen.getByText("Guardado")).toBeTruthy();
+      expect(screen.getByText("Apuntes guardados")).toBeTruthy();
+      expect(screen.getByText("Última edición: Eva Evaluadora")).toBeTruthy();
+      expect(screen.getByText("Modelo de IA: gemini-prueba")).toBeTruthy();
+      expect(screen.queryByRole("textbox")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Editar informe" }));
       expect(campoApuntes().value).toBe("Apuntes guardados");
       expect(screen.getByLabelText(/Instrucciones adicionales/).value).toBe("Tono formal");
       expect(screen.getByLabelText("Fortalezas").value).toBe("Comunicación clara.");
       expect(botonBorrador().textContent).toBe("Volver a generar con IA");
-      expect(screen.getByText(/Última edición guardada: Eva Evaluadora/)).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Guardar cambios" })).toBeTruthy();
     });
 
     it.each([true, false])("si falla la carga, muestra el error y no la ausencia (edición: %s)", async (puedeEditar) => {
@@ -142,6 +149,8 @@ describe("InformePsicolaboral", () => {
 
       // Assert
       expect(await screen.findByText("Borrador generado. Revísalo y corrígelo antes de guardar.")).toBeTruthy();
+      expect(screen.getByText("Borrador sin guardar")).toBeTruthy();
+      expect(screen.queryByText("Guardado")).toBeNull();
       expect(screen.getByLabelText("Fortalezas").value).toBe("Maneja reclamos.");
       expect(screen.getByRole("button", { name: "Guardar informe" })).toBeTruthy();
     });
@@ -180,19 +189,42 @@ describe("InformePsicolaboral", () => {
   });
 
   describe("confirmar y guardar", () => {
+    it("solo marca el primer borrador como guardado tras la respuesta y evita un segundo envío", async () => {
+      let confirmar;
+      const put = vi.spyOn(api, "put").mockReturnValue(new Promise((resolver) => { confirmar = resolver; }));
+      vi.spyOn(api, "post").mockResolvedValueOnce({ data: INFORME_GUARDADO });
+      await abrir();
+      fireEvent.change(campoApuntes(), { target: { value: "Apuntes ficticios" } });
+      fireEvent.click(botonBorrador());
+      const guardar = await screen.findByRole("button", { name: "Guardar informe" });
+      expect(put).not.toHaveBeenCalled();
+      fireEvent.click(guardar);
+      fireEvent.click(guardar);
+      expect(put).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText("Guardado")).toBeNull();
+      expect(screen.getByRole("button", { name: "Guardando..." }).disabled).toBe(true);
+      await act(async () => confirmar({ data: INFORME_GUARDADO }));
+      expect(screen.getByText("Guardado")).toBeTruthy();
+      expect(screen.getByText("Informe guardado.")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Editar informe" })).toBeTruthy();
+    });
+
     it("guarda las secciones editadas por el evaluador", async () => {
       // Arrange
       const put = vi.spyOn(api, "put").mockResolvedValue({
         data: { ...INFORME_GUARDADO, secciones: [{ titulo: "Fortalezas", contenido: "Editado" }] },
       });
       await abrir({ informe: INFORME_GUARDADO });
+      fireEvent.click(screen.getByRole("button", { name: "Editar informe" }));
 
       // Act
       fireEvent.change(screen.getByLabelText("Fortalezas"), { target: { value: "Editado" } });
-      fireEvent.click(screen.getByRole("button", { name: "Guardar informe" }));
+      fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
       // Assert
       expect(await screen.findByText("Informe guardado.")).toBeTruthy();
+      expect(screen.getByText("Editado")).toBeTruthy();
+      expect(screen.queryByRole("textbox")).toBeNull();
       const [ruta, cuerpo] = put.mock.lastCall;
       expect(ruta).toBe("/solicitudes/s1/informe");
       expect(cuerpo.secciones[0]).toEqual({ titulo: "Fortalezas", contenido: "Editado" });
@@ -203,10 +235,52 @@ describe("InformePsicolaboral", () => {
     it("si el guardado falla, muestra el error", async () => {
       vi.spyOn(api, "put").mockRejectedValue(errorAxios(403, "Solo el evaluador responsable de la solicitud (o un admin) puede generar o editar su informe."));
       await abrir({ informe: INFORME_GUARDADO });
-
-      fireEvent.click(screen.getByRole("button", { name: "Guardar informe" }));
+      fireEvent.click(screen.getByRole("button", { name: "Editar informe" }));
+      fireEvent.change(screen.getByLabelText("Fortalezas"), { target: { value: "Corrección no guardada" } });
+      fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
       expect(await screen.findByText(/Solo el evaluador responsable de la solicitud/)).toBeTruthy();
+      expect(screen.getByLabelText("Fortalezas").value).toBe("Corrección no guardada");
+      expect(screen.queryByText("Guardado")).toBeNull();
+    });
+
+    it("cancela la edición y sus errores sin perder el informe ni reiniciar la evaluación IA", async () => {
+      vi.spyOn(api, "post").mockRejectedValue(errorAxios(503, "Proveedor no disponible"));
+      const get = await abrir({ informe: INFORME_GUARDADO });
+      fireEvent.click(screen.getByRole("button", { name: "Editar informe" }));
+      fireEvent.change(campoApuntes(), { target: { value: "Notas nuevas" } });
+      fireEvent.change(screen.getByLabelText("Fortalezas"), { target: { value: "Texto local" } });
+      fireEvent.click(botonBorrador());
+      expect(await screen.findByText("Proveedor no disponible")).toBeTruthy();
+      expect(screen.getByLabelText("Fortalezas").value).toBe("Texto local");
+      expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(false);
+      fireEvent.click(screen.getByRole("button", { name: "Cancelar edición" }));
+      expect(screen.getByText("Comunicación clara.")).toBeTruthy();
+      expect(screen.getByText("Apuntes guardados")).toBeTruthy();
+      expect(screen.queryByText("Proveedor no disponible")).toBeNull();
+      expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(true);
+      expect(get.mock.calls.filter(([ruta]) => ruta.endsWith("/evaluacion"))).toHaveLength(1);
+    });
+
+    it("mantiene lectura en Finalizada incluso cuando recibe permiso de edición", async () => {
+      await abrir({ informe: INFORME_GUARDADO, estadoSolicitud: "Finalizada" });
+      expect(screen.getByText("Guardado")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Editar informe" })).toBeNull();
+      expect(screen.queryByRole("textbox")).toBeNull();
+      expect(botonBorrador()).toBeNull();
+    });
+
+    it("ignora una respuesta de carga de otra solicitud que llega tarde", async () => {
+      let resolver;
+      vi.spyOn(api, "get").mockImplementation((ruta) => ruta === "/solicitudes/s1/informe"
+        ? new Promise((respuesta) => { resolver = respuesta; })
+        : Promise.resolve({ data: null }));
+      const vista = render(<InformePsicolaboral solicitudId="s1" puedeEditar />);
+      vista.rerender(<InformePsicolaboral solicitudId="s2" puedeEditar />);
+      await screen.findByText(SIN_INFORME);
+      await act(async () => resolver({ data: INFORME_GUARDADO }));
+      expect(screen.queryByText("Comunicación clara.")).toBeNull();
+      expect(screen.getByText(SIN_INFORME)).toBeTruthy();
     });
   });
 });

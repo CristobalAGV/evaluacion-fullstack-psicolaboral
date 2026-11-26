@@ -21,6 +21,20 @@ En **Gestionar ofertas → Nueva oferta → Cargar ejemplo ficticio** puedes car
 
 El formulario general `/postular` y la creación manual del panel siguen disponibles. Las solicitudes de esos flujos conservan los archivos asociados al candidato.
 
+## Preselección objetiva
+
+**Oferta → requisitos estructurados → postulación → preselección objetiva → revisión humana → evaluación psicolaboral → IA como apoyo → decisión final humana.**
+
+La preselección no toma decisiones automáticas de contratación. Solo contrasta los antecedentes declarados con requisitos explícitos de la oferta y ayuda a priorizar la revisión humana. Utiliza exclusivamente campos laborales. La persona postulante recibe una confirmación y los resultados se consultan en el panel interno.
+
+- En la oferta, `requisitosEstructurados` incluye nivel mínimo, carreras aceptadas, experiencia mínima, conocimientos, certificaciones, licencia, disponibilidad y modalidades. `requisitosDeseables` incluye conocimientos e industrias. Ambos complementan el texto narrativo.
+- La postulación con oferta admite nivel, carrera, experiencia, conocimientos, certificaciones, licencia, disponibilidad, modalidades e industrias. Cada solicitud conserva sus propios antecedentes, aunque el candidato postule a otra oferta. Un campo omitido se distingue de un cero, de un «No» y de una lista declarada vacía.
+- El motor v1 compara niveles en orden Media → Técnico → Profesional → Postgrado. La experiencia declarada debe alcanzar el mínimo. Basta una carrera o modalidad admitida. Cada conocimiento y certificación configurados cuenta como un criterio independiente. Las coincidencias de texto ignoran mayúsculas, tildes y espacios repetidos. Emplea coincidencias exactas tras esa normalización, de modo que equivalencias como «Ingeniero industrial» e «Ingeniería industrial» requieren revisión y corrección documentada.
+- Un excluyente incumplido produce **No cumple**. Si ninguno se incumple, pero falta algún dato excluyente, produce **Revisión**. En los demás casos produce **Cumple**. Un deseable puede afectar el porcentaje sin cambiar el estado. Cuando hay ambos grupos, la fórmula es `redondear(80 × excluyentes cumplidos/configurados + 20 × deseables cumplidos/configurados)`. Si se configura un único grupo, representa todo el porcentaje. Los faltantes aportan cero y figuran por separado. Las ofertas sin criterios y las solicitudes antiguas conservan el flujo habitual.
+- La solicitud conserva criterios aplicados, fecha, versión, porcentaje y el resultado de cada comparación. Una edición de oferta no cambia la preselección existente. **Recalcular preselección** usa los criterios vigentes y conserva los antecedentes, el resultado anterior y la continuidad anterior en el historial. Puede incorporar correcciones de antecedentes con un motivo. **Continuar a evaluación** registra motivo, usuario y fecha, y mantiene el resultado objetivo. Un recálculo puede requerir una nueva autorización.
+- Consulta autenticada en `GET /api/solicitudes/{id}/preseleccion`. Analista y administrador pueden consultar y usar `POST .../recalcular` y `POST .../continuar`. El evaluador puede consultar las solicitudes asignadas. Una solicitud finalizada conserva la consulta en solo lectura. Las rutas de IA requieren continuidad cuando corresponda y conservan sus permisos previos.
+- Para demostrarlo, carga **Analista de Operaciones** como oferta ficticia y publícala. Postula con datos ficticios, título «Ingeniería industrial», nivel Técnico o Profesional, 1 año, «Excel intermedio» y «SAP». Usa otra postulación ficticia con 0 años, o deja la experiencia en blanco para revisar el caso de información pendiente. En Pendientes compara las tarjetas, activa el orden por coincidencia y registra la continuidad desde el detalle. Las ofertas de ejemplo son material académico.
+
 ## CV privado
 
 Para una oferta, el backend valida extensión, tipo MIME, firma inicial y tamaño máximo de 5 MB. Guarda los bytes en `Archivo.datos` en la base privada. La transacción crea o reutiliza el candidato, persiste el CV y registra la solicitud. Un error al guardar revierte la operación. Se requiere MongoDB con replica set. Atlas ya ofrece esa topología.
@@ -48,6 +62,24 @@ Swagger UI abre en `http://localhost:4000/api/docs`. El contrato JSON se sirve e
 
 La descarga `GET /api/archivos/{id}` entrega un adjunto privado con JWT. El navegador público recibe solo una confirmación textual de la postulación. El backend comprueba la asignación antes de autorizar una descarga para un evaluador, incluso si este conoce el ID del archivo.
 
+Las llamadas al portal público, al formulario de postulación y al login omiten el JWT incluso cuando hay sesión. Un 401 privado limpia la sesión local y un 403 conserva la sesión. El token de `localStorage` puede ser leído por código que se ejecute en el origen del frontend. Usa HTTPS, mantén acotada la vigencia con `JWT_EXPIRES_IN` y evita inyectar HTML o scripts de terceros. Cerrar sesión elimina la copia del navegador. El token emitido conserva su vigencia hasta expirar.
+
+### Solicitudes finalizadas
+
+| Operación | Regla vigente |
+| --- | --- |
+| Consultar y descargar expediente, informe y evaluaciones | Administrador, analista y evaluador actualmente asignado. |
+| Generar preguntas, generar o guardar el informe y el apoyo IA, crear o editar evaluación humana | Solo administrador o evaluador asignado en una solicitud activa, con los requisitos de continuidad que correspondan. La API rechaza las escrituras sobre una solicitud finalizada con 409. |
+| Corregir fecha, responsable, observaciones o resultado humano | Administrador y analista. Una corrección puede conservar `Finalizada`. La reapertura elimina el resultado vigente y puede habilitar otra vez la edición. |
+| Reemplazar CV | Administrador y analista, también después del cierre. |
+| Reemplazar Word de entrevista | Administrador, analista y evaluador asignado, también después del cierre. Es un adjunto independiente del informe psicolaboral. |
+
+Estas correcciones conservan las evaluaciones e informes guardados. Si el responsable cambia, el acceso del evaluador al expediente sigue la asignación vigente. La fecha programada en la solicitud es una fecha con hora. La fecha de una evaluación humana representa un día de calendario. Antes de fijar una política de expediente inmutable, conviene decidir quién puede corregir anexos y si esas correcciones deben guardar un motivo e historial. Los archivos antiguos que solo existan en el disco efímero de Render podrían quedar indisponibles después de un reinicio o despliegue.
+
+Swagger incluye ejemplos ficticios de login, oferta, postulación, preselección, resultado humano e informes. El candidato se consulta como parte del detalle autorizado de la solicitud y los metadatos del expediente. Las operaciones de IA requieren `IA_HABILITADA=true` en el backend.
+
+La validación de accesibilidad de esta revisión fue estática y con el DOM de las pruebas. El modal mantiene el foco, excluye los campos ocultos y controles con tabulación negativa, y devuelve el foco al botón que lo abrió. Queda por comprobar el renderizado a 390, 768 y 1440 px. En el navegador, revisa primero el menú privado, el Kanban y los formularios largos, y luego confirma foco visible, contraste, ausencia de desbordamiento y uso por teclado en los formularios, adjuntos y barras de IA.
+
 ## Ejecución local
 
 Usa Node.js 24 y npm. En PowerShell puedes usar `npm.cmd` si la política de ejecución bloquea `npm.ps1`. Crea una base académica separada en Atlas o inicia un replica set local. Ejemplo en Docker, con el puerto publicado para uso local.
@@ -71,7 +103,8 @@ En `frontend` ejecuta `npm ci` y `npm run dev`. Abre `http://localhost:5173/ofer
 | API | `PORT` | 4000 en local. Render asigna el puerto de servicio. |
 | API | `JWT_SECRET`, `JWT_EXPIRES_IN` | Secreto privado propio y caducidad, por defecto `1d`. |
 | Seed académico | `SEED_PASSWORD` | Contraseña local elegida para las cuentas del seed. El script requiere este valor y lo mantiene fuera de su salida. |
-| API | `CORS_ORIGIN` | Orígenes exactos del frontend, separados por coma. Usa `http://localhost:5173` en local. |
+| API | `CORS_ORIGIN` | Orígenes exactos separados por coma, sin rutas ni barra final. En Render usa el origen HTTPS definitivo de Vercel, por ejemplo `https://frontend.example.invalid`. Sin configuración, producción omite el permiso CORS y desarrollo admite `http://localhost:5173` y `http://127.0.0.1:5173`. Para otro puerto de Vite, configura su origen explícitamente. |
+| API | `NODE_ENV` | Usa `production` en Render. Esto también aplica el comportamiento restrictivo de CORS cuando se omite su lista de orígenes. |
 | API | `IA_HABILITADA`, `GEMINI_API_KEY` | `true` y una clave habilitada para el proyecto en Google AI Studio. Sin clave, las peticiones de generación devuelven un 503 explicativo. |
 | API | `GEMINI_MODEL` | Modelo habilitado para la clave. El ejemplo usa `gemini-3.8-flash`. |
 | API | `GEMINI_MODEL_RESPALDO`, `GEMINI_NIVEL_RAZONAMIENTO`, `GEMINI_ESPERAS_REINTENTO_MS` | Opcionales. El ejemplo describe ajustes de modelo, razonamiento y esperas ante 503. |
@@ -82,9 +115,15 @@ El CV reutiliza `MONGO_URI`. Las claves y credenciales se configuran fuera del r
 
 ## IA en la demostración
 
-Después de asignar un evaluador, entra con esa cuenta y elige **Sugerir preguntas** en la solicitud. La API envía el cargo y su familia a Gemini y devuelve hasta cinco preguntas. El resultado queda en la vista y se revisa manualmente. La IA puede generar preguntas genéricas o imprecisas. El estado y el resultado final los registra el equipo interno.
+**Oferta → Postulación → Preselección → Revisión humana → Preguntas generales y de verificación → Entrevista → Evaluación psicolaboral → Decisión humana.**
 
-Para esta demo utiliza cargos, archivos y apuntes ficticios. La función de preguntas usa únicamente el cargo y la familia. Las funciones preexistentes de borrador de informe y evaluación de apoyo usan los apuntes o documentos que selecciona el evaluador.
+Después de asignar un evaluador, entra con esa cuenta y elige **Sugerir preguntas**. Para una solicitud en **Revisión** o **No cumple**, primero se necesita una autorización de continuidad registrada por analista o administrador. En solicitudes finalizadas la generación está bloqueada en la API y el botón no aparece.
+
+Gemini sugiere hasta cinco preguntas generales sobre el cargo. Con cinco o más verificaciones la solicitud a Gemini se limita a tres preguntas generales. Desde la comparación guardada, el backend agrega una pregunta por cada excluyente pertinente pendiente o incumplido. El detalle muestra el requisito y el motivo **Pendiente** o **No cumple**. Un año de experiencia sin declarar se verifica preguntando por trabajos, prácticas o proyectos, su duración y las responsabilidades. El evaluador verifica la respuesta durante la entrevista.
+
+El endpoint conserva `preguntas` y `modelo` y agrega `preguntasVerificacion`. Si Gemini falla y hay verificaciones, devuelve un aviso y las preguntas locales. Ante un fallo sin verificaciones, mantiene el error habitual de la API. Las sugerencias se mantienen temporalmente en la pantalla. Generar preguntas no cambia la solicitud, la preselección, su porcentaje ni el resultado final.
+
+Para esta demo utiliza cargos, archivos y apuntes ficticios. La función de preguntas envía el cargo, la familia y, si corresponde, los tipos de requisitos por verificar, sus motivos y el indicador booleano de continuidad. Los antecedentes declarados, las etiquetas libres de requisitos, el motivo escrito de continuidad, los datos de contacto y los documentos quedan fuera de esta llamada. Las funciones preexistentes de borrador de informe y evaluación de apoyo usan los apuntes o documentos que selecciona el evaluador.
 
 ## Pruebas y cobertura
 

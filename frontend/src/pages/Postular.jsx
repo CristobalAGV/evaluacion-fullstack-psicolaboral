@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import CampoArchivo from "../components/CampoArchivo";
 import { useValidacionFormulario } from "../hooks/useValidacionFormulario";
 import { listarFamiliasPublicas, enviarPostulacion } from "../services/postulacionService";
+import CamposPreseleccion from "../components/CamposPreseleccion";
+import { leerCamposPreseleccion } from "../config/camposPreseleccion";
 import { CARGOS_POR_FAMILIA } from "../config/catalogoCargos";
 import { MAX_MENSAJE_ADICIONAL } from "../config/solicitud";
 
@@ -101,7 +103,9 @@ export default function Postular({ oferta }) {
         nombre,
         correo,
         telefono,
-        ...(oferta ? { ofertaId: oferta._id } : { familiaDeCargo, cargo }),
+        ...(oferta ? {
+          ofertaId: oferta._id, antecedentes: leerCamposPreseleccion(new FormData(e.currentTarget), "antecedentes"),
+        } : { familiaDeCargo, cargo }),
         mensajeAdicional: mensajeAdicional.trim(),
         cv,
         sitioWeb,
@@ -493,6 +497,16 @@ export default function Postular({ oferta }) {
                     />
                   </label>
                 </div>
+
+                {oferta && <fieldset className="col-12">
+                  <legend className="h5">Antecedentes para preselección</legend>
+                  <p className="small text-secondary">Usa datos ficticios. Separa las listas con comas, escribe «ninguno» si no tienes elementos que declarar o deja el campo vacío si prefieres no informarlo.</p>
+                  <CamposPreseleccion grupo="antecedentes" requisitos={{
+                    carrera: oferta.requisitosEstructurados?.carreras,
+                    conocimientos: oferta.requisitosEstructurados?.conocimientos,
+                    certificaciones: oferta.requisitosEstructurados?.certificaciones,
+                  }} />
+                </fieldset>}
 
                 {error && (
                   <div className="col-12">

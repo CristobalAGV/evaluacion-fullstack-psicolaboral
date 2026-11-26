@@ -8,6 +8,6 @@ export async function listarUsuarios(req, res) {
     const usuarios = await Usuario.find(filtro).select("nombre correo rol").sort({ nombre: 1 });
     return res.json(usuarios);
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al listar usuarios", error: error.message });
+    return res.status(500).json({ mensaje: "Error al listar usuarios" });
   }
 }

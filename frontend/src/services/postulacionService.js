@@ -5,13 +5,14 @@ export async function listarFamiliasPublicas() {
   return data;
 }
 
-export async function enviarPostulacion({ nombre, correo, telefono, familiaDeCargo, cargo, mensajeAdicional, cv, sitioWeb, ofertaId }) {
+export async function enviarPostulacion({ nombre, correo, telefono, familiaDeCargo, cargo, mensajeAdicional, cv, sitioWeb, ofertaId, antecedentes }) {
   const formData = new FormData();
   formData.append("nombre", nombre);
   formData.append("correo", correo);
   formData.append("telefono", telefono);
   if (ofertaId) {
     formData.append("ofertaId", ofertaId);
+    if (antecedentes && Object.keys(antecedentes).length) formData.append("antecedentes", JSON.stringify(antecedentes));
   } else {
     formData.append("familiaDeCargo", familiaDeCargo);
     formData.append("cargo", cargo);

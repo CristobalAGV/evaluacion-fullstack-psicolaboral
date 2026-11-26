@@ -4,6 +4,7 @@ import Solicitud from "../models/Solicitud.js";
 import FamiliaDeCargo from "../models/FamiliaDeCargo.js";
 import Archivo from "../models/Archivo.js";
 import { registrarPostulacionOferta } from "../services/postulacionOferta.js";
+import { antecedentesPermitidos, validarCamposPreseleccion } from "../utils/preseleccion.js";
 import { prepararCarpetaSolicitud } from "../utils/carpetas.js";
 import { validarArchivo, guardarArchivo, EXTENSIONES_CV } from "../utils/validarArchivo.js";
 import { MAX_MENSAJE_ADICIONAL, MENSAJE_MENSAJE_LARGO, limpiarMensajeAdicional } from "../utils/datosSolicitud.js";
@@ -80,9 +81,18 @@ export async function crearPostulacion(req, res) {
   }
 
   if (ofertaId !== undefined) {
+    let antecedentes;
+    try {
+      antecedentes = validarCamposPreseleccion(
+        req.body.antecedentes === undefined ? undefined : JSON.parse(req.body.antecedentes),
+        antecedentesPermitidos
+      );
+    } catch {
+      return res.status(400).json({ mensaje: "Los antecedentes declarados para la preselección no son válidos." });
+    }
     try {
       const estado = await registrarPostulacionOferta({
-        ofertaId, nombre, correo, telefono, mensajeAdicional, archivo: req.file,
+        ofertaId, nombre, correo, telefono, mensajeAdicional, archivo: req.file, antecedentes,
       });
       const mensajes = {
         201: "Postulación recibida",

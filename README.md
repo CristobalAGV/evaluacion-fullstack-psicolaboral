@@ -18,8 +18,11 @@ El portal **/ofertas** permite buscar vacantes publicadas y postular con un CV f
 
 La ficha profesional presenta objetivo, funciones y perfil requerido. El portal filtra por área, familia, región y modalidad. Para preparar la presentación, en **Nueva oferta → Cargar ejemplo ficticio** hay cuatro vacantes editables que puedes guardar y publicar.
 
+Las ofertas pueden incluir criterios excluyentes y deseables, además de los requisitos narrativos. La postulación recoge antecedentes declarados y guarda una preselección reproducible. El panel permite filtrar por resultado y ordenar por porcentaje dentro de cada columna. Un analista o administrador registra el motivo para continuar cuando hay requisitos incumplidos o información pendiente. La IA se solicita posteriormente y la decisión final queda a cargo de una persona. [Flujo y cálculo de la preselección](docs/guia-ea3.md#preselección-objetiva).
+
 - [Guía EA3 de arquitectura, ejecución, pruebas, despliegue y demostración](docs/guia-ea3.md)
 - [Swagger UI local](http://localhost:4000/api/docs)
+- [Reglas de cierre y correcciones administrativas](docs/guia-ea3.md#solicitudes-finalizadas)
 
 Las capturas y las referencias a EP2 más abajo son antecedentes históricos del proyecto.
 
@@ -162,7 +165,7 @@ El despliegue final no se realizó durante este cierre.
 
 ## Integración con IA
 
-Para EA3, configura `VITE_IA_HABILITADA=true` en frontend y `IA_HABILITADA=true` en backend. Configura `GEMINI_API_KEY` solo en backend. En el detalle, **Sugerir preguntas** envía únicamente el cargo ficticio y su familia a Gemini y muestra preguntas para revisión humana. El evaluador debe solicitar la generación.
+Para EA3, configura `VITE_IA_HABILITADA=true` en frontend y `IA_HABILITADA=true` en backend. Configura `GEMINI_API_KEY` solo en backend. En el detalle, **Sugerir preguntas** usa el cargo ficticio y su familia para obtener preguntas generales de Gemini. Cuando hay excluyentes por verificar, el backend envía a Gemini sus tipos, motivos y un indicador de continuidad autorizada. El backend prepara las preguntas específicas desde la preselección guardada y puede mostrarlas aunque el proveedor falle. Las preguntas son temporales y se revisan durante la entrevista. [Flujo de entrevista y privacidad](docs/guia-ea3.md#ia-en-la-demostración).
 El frontend centraliza la lectura en `src/config/funcionalidades.js` y no monta
 la sección Informe psicolaboral ni consulta sus datos cuando está apagada.
 El backend registra sus seis rutas solo con la flag encendida; apagada responden

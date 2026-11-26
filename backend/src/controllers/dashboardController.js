@@ -21,6 +21,6 @@ export async function obtenerDashboard(req, res) {
       solicitudesFinalizadas,
     });
   } catch (error) {
-    return res.status(500).json({ mensaje: "Error al calcular el dashboard", error: error.message });
+    return res.status(500).json({ mensaje: "Error al calcular el dashboard" });
   }
 }

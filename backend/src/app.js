@@ -18,9 +18,10 @@ const app = express();
 // (X-Forwarded-For) y no la del proxy.
 app.set("trust proxy", 1);
 
-const corsOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(",").map((origen) => origen.trim())
-  : "*";
+const corsConfigurados = (process.env.CORS_ORIGIN ?? "").split(",").map((origen) => origen.trim()).filter(Boolean);
+const corsOrigins = corsConfigurados.length ? corsConfigurados
+  : process.env.NODE_ENV === "production" ? []
+    : ["http://localhost:5173", "http://127.0.0.1:5173"];
 
 // Content-Disposition expuesto para que el frontend lea el nombre del archivo al descargar.
 app.use(cors({ origin: corsOrigins, exposedHeaders: ["Content-Disposition"] }));
@@ -51,6 +52,7 @@ app.use((err, req, res, next) => {
   }
   if (err.type === "entity.parse.failed") return res.status(400).json({ mensaje: "JSON inválido" });
   if (err.type === "entity.too.large") return res.status(413).json({ mensaje: "Solicitud demasiado grande" });
+  console.error("Fallo no controlado en la API.");
   return res.status(500).json({ mensaje: "Error interno" });
 });
 

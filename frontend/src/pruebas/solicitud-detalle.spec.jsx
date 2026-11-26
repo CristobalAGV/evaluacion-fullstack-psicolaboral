@@ -1,6 +1,7 @@
 vi.mock("../config/funcionalidades", () => ({ IA_HABILITADA: true }));
 // SolicitudDetalle: datos, archivos del candidato, permisos por rol, evaluaciones e informe.
 import { screen, fireEvent, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import api from "../services/api";
 import SolicitudDetalle from "../pages/SolicitudDetalle";
 import {
@@ -87,6 +88,105 @@ const subirInformeVisible = () => screen.queryByText(/^(Subir|Reemplazar) inform
 
 describe("SolicitudDetalle", () => {
   afterEach(() => limpiarSesion());
+
+  const preseleccionFicticia = {
+    estadoPreseleccion: "no_cumple", porcentajeCoincidencia: 40,
+    requisitosCumplidos: ["Conocimiento: Excel"],
+    requisitosNoCumplidos: ["Licencia de conducir"],
+    requisitosSinInformacion: ["Certificación: Seguridad"],
+  };
+
+  it("explica los criterios y autoriza continuidad mediante una acción explícita sin generar IA", async () => {
+    const usuario = userEvent.setup();
+    const post = vi.spyOn(api, "post").mockResolvedValue({
+      data: { preseleccion: { ...preseleccionFicticia, continuidad: { motivo: "Verificar antecedentes" } } },
+    });
+    await abrirDetalle(USUARIOS.admin, { solicitud: crearSolicitud({ preseleccion: preseleccionFicticia }) });
+    expect(screen.getByRole("heading", { name: "Preselección de requisitos" })).toBeTruthy();
+    for (const criterio of ["Conocimiento: Excel", "Licencia de conducir", "Certificación: Seguridad"]) {
+      expect(screen.getByText(criterio)).toBeTruthy();
+    }
+    expect(screen.getByText(/no constituye una decisión automática de contratación/i)).toBeTruthy();
+    expect(screen.getByText(/la evaluación con IA no es necesaria salvo revisión manual/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Generar evaluación con IA" })).toBeNull();
+    expect(post).not.toHaveBeenCalled();
+    await usuario.click(screen.getByRole("button", { name: "Continuar a evaluación" }));
+    await usuario.type(screen.getByLabelText("Motivo"), "Verificar antecedentes");
+    await usuario.click(screen.getByRole("button", { name: "Autorizar continuidad" }));
+    expect(await screen.findByText(/Continuidad autorizada/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Generar evaluación con IA" })).toBeTruthy();
+    expect(post).toHaveBeenCalledExactlyOnceWith("/solicitudes/s1/preseleccion/continuar", { motivo: "Verificar antecedentes" });
+  });
+
+  it("permite al evaluador asignado consultar la preselección sin autorizar continuidad", async () => {
+    await abrirDetalle(USUARIOS.evaluador, {
+      solicitud: crearSolicitud({ preseleccion: { ...preseleccionFicticia, estadoPreseleccion: "revision" } }),
+    });
+    expect(screen.getByText("Revisión")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Continuar a evaluación" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sugerir preguntas" })).toBeNull();
+  });
+
+  it.each([
+    ["cumple", null], ["revision", "Pendiente"], ["no_cumple", "No cumple"],
+  ])("muestra preguntas según la preselección %s para el evaluador asignado", async (estadoPreseleccion, motivo) => {
+    const usuario = userEvent.setup();
+    const post = vi.spyOn(api, "post").mockResolvedValue({
+      data: {
+        preguntas: ["¿Cómo organizas un turno?"],
+        preguntasVerificacion: motivo ? [{
+          requisito: "Experiencia mínima: 1 año", motivo, pregunta: "¿Cuánto duraron tus prácticas o proyectos?",
+        }] : [],
+      },
+    });
+    await abrirDetalle(USUARIOS.evaluador, { solicitud: crearSolicitud({
+      preseleccion: { ...preseleccionFicticia, estadoPreseleccion, continuidad: motivo ? { motivo: "Revisión humana" } : undefined },
+    }) });
+    await usuario.click(screen.getByRole("button", { name: "Sugerir preguntas" }));
+    expect(await screen.findByRole("heading", { name: "Preguntas generales" })).toBeTruthy();
+    expect(screen.getByText("¿Cómo organizas un turno?")).toBeTruthy();
+    expect(screen.getByText(/las respuestas deben ser verificadas por el evaluador/i)).toBeTruthy();
+    if (motivo) {
+      expect(screen.getByRole("heading", { name: "Preguntas para verificar requisitos" })).toBeTruthy();
+      expect(screen.getByText(`Experiencia mínima: 1 año · ${motivo}`)).toBeTruthy();
+      expect(screen.getByText("¿Cuánto duraron tus prácticas o proyectos?")).toBeTruthy();
+    } else {
+      expect(screen.queryByRole("heading", { name: "Preguntas para verificar requisitos" })).toBeNull();
+    }
+    expect(post).toHaveBeenCalledExactlyOnceWith("/solicitudes/s1/preguntas-entrevista/generar");
+  });
+
+  it("consulta la trazabilidad, corrige antecedentes y conserva el detalle ante un error de recálculo", async () => {
+    const usuario = userEvent.setup();
+    const get = await abrirDetalle(USUARIOS.analista, {
+      solicitud: crearSolicitud({ oferta: "o1", preseleccion: preseleccionFicticia }),
+    });
+    get.mockResolvedValueOnce({ data: {
+      antecedentes: { experienciaAnios: 0, licencia: false, certificaciones: [] },
+      historial: [{ fecha: "2026-10-05", motivo: "Primera revisión", resultadoAnterior: { estadoPreseleccion: "revision" } }],
+    } });
+    await usuario.click(screen.getByRole("button", { name: "Ver antecedentes y trazabilidad" }));
+    expect(await screen.findByText(/Primera revisión/)).toBeTruthy();
+    const post = vi.spyOn(api, "post")
+      .mockRejectedValueOnce(errorAxios(409, "La oferta no tiene requisitos estructurados."))
+      .mockResolvedValueOnce({ data: { preseleccion: { ...preseleccionFicticia, estadoPreseleccion: "cumple" } } });
+    await usuario.click(screen.getByRole("button", { name: "Recalcular preselección" }));
+    await usuario.click(screen.getByRole("button", { name: "Corregir antecedentes declarados" }));
+    const campo = screen.getByLabelText("Años de experiencia");
+    expect(campo.value).toBe("0");
+    await usuario.clear(campo);
+    await usuario.type(campo, "2");
+    await usuario.type(screen.getByLabelText("Motivo"), "Acreditó experiencia");
+    const confirmar = screen.getByRole("button", { name: "Confirmar recálculo" });
+    await usuario.click(confirmar);
+    expect(await screen.findByText("La oferta no tiene requisitos estructurados.")).toBeTruthy();
+    expect(screen.getByText("No cumple", { exact: true })).toBeTruthy();
+    await usuario.click(confirmar);
+    expect(await screen.findByText("Cumple", { exact: true })).toBeTruthy();
+    expect(post).toHaveBeenLastCalledWith("/solicitudes/s1/preseleccion/recalcular", {
+      motivo: "Acreditó experiencia", antecedentes: { experienciaAnios: 2, licencia: false, certificaciones: [] },
+    });
+  });
 
   it.each([USUARIOS.admin, USUARIOS.evaluador])("muestra los antecedentes de Finalizada en solo lectura para $rol", async (usuario) => {
     await abrirDetalle(usuario, {
